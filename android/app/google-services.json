@@ -12,7 +12,20 @@
           "package_name": "com.example.sliceit"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "497931016895-qfcr8s424fpsglbsjh807515groqloq6.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.sliceit",
+            "certificate_hash": "fd1183ace532d55383c245da50e5da212bdc4457"
+          }
+        },
+        {
+          "client_id": "497931016895-vq2fa62f969kuoiov9i5g6d1jm4vem40.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyB6tU3ZSmXxtfWzk0v24DNKbETS5t9AbVI"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "497931016895-vq2fa62f969kuoiov9i5g6d1jm4vem40.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "497931016895-ahvssi3maiq7ak6fqpf980fqcderd060.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.sliceit"
+              }
+            }
+          ]
         }
       }
     },
@@ -31,7 +56,12 @@
           "package_name": "com.example.sliceit_new"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "497931016895-vq2fa62f969kuoiov9i5g6d1jm4vem40.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyB6tU3ZSmXxtfWzk0v24DNKbETS5t9AbVI"
@@ -39,7 +69,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "497931016895-vq2fa62f969kuoiov9i5g6d1jm4vem40.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "497931016895-ahvssi3maiq7ak6fqpf980fqcderd060.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.sliceit"
+              }
+            }
+          ]
         }
       }
     }
