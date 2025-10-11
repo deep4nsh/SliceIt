@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "497931016895",
+    "project_id": "sliceit-124",
+    "storage_bucket": "sliceit-124.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:497931016895:android:6ccdfd84a99529db83840a",
+        "android_client_info": {
+          "package_name": "com.example.sliceit"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB6tU3ZSmXxtfWzk0v24DNKbETS5t9AbVI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:497931016895:android:c9df4a889c69202183840a",
+        "android_client_info": {
+          "package_name": "com.example.sliceit_new"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB6tU3ZSmXxtfWzk0v24DNKbETS5t9AbVI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
