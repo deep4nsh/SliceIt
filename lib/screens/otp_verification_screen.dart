@@ -6,55 +6,125 @@ import 'home_screen.dart';
 
 class OtpVerificationScreen extends StatefulWidget {
   final String verificationId;
-  const OtpVerificationScreen({super.key, required this.verificationId});
+  
+  const OtpVerificationScreen({
+    super.key,
+    required this.verificationId,
+  });
 
   @override
   State<OtpVerificationScreen> createState() => _OtpVerificationScreenState();
 }
 
 class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
-  final TextEditingController otpController = TextEditingController();
-  final AuthService authService = AuthService();
+  final _otpController = TextEditingController();
+  final AuthService _authService = AuthService();
+  bool _isLoading = false;
+
+  // 🔹 Verify OTP
+  Future<void> _verifyOtp() async {
+    final otp = _otpController.text.trim();
+    if (otp.isEmpty) {
+      _showSnackBar("Enter OTP");
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final userCredential = await _authService.verifyOtp(
+        widget.verificationId,
+        otp,
+      );
+      if (userCredential != null && mounted) {
+        _showSnackBar("Phone verified successfully ✅");
+        Navigator.pushReplacement(
+          context, 
+          MaterialPageRoute(builder: (_) => const HomeScreen())
+        );
+      } else {
+        _showSnackBar("Invalid OTP ❌");
+      }
+    } catch (e) {
+      _showSnackBar("Invalid OTP ❌");
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  // 🔹 SnackBar Helper
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.white,
+      appBar: AppBar(
+        title: Text("OTP Verification", style: AppTextStyles.heading2.copyWith(color: AppColors.white)),
+        centerTitle: true,
+        backgroundColor: AppColors.oliveGreen,
+        foregroundColor: AppColors.white,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text("Enter OTP", style: AppTextStyles.heading1),
+            Text(
+              "Enter the OTP sent to your phone",
+              style: AppTextStyles.heading1,
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 12),
+            Text(
+              "Please check your SMS messages",
+              style: AppTextStyles.body,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 40),
+            
             TextField(
-              controller: otpController,
-              decoration: const InputDecoration(
-                labelText: "6-digit code",
-                border: OutlineInputBorder(),
-              ),
+              controller: _otpController,
               keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.oliveGreen,
-                minimumSize: const Size(double.infinity, 56),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 8,
               ),
-              onPressed: () async {
-                final userCred = await authService.verifyOtp(
-                    widget.verificationId, otpController.text.trim());
-                if (userCred != null && context.mounted) {
-                  Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(builder: (_) => const HomeScreen()),
-                          (route) => false);
-                }
-              },
-              child: Text("Verify OTP", style: AppTextStyles.button),
+              decoration: InputDecoration(
+                labelText: "Enter OTP",
+                labelStyle: AppTextStyles.body,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: AppColors.oliveGreen, width: 2),
+                ),
+              ),
             ),
+            const SizedBox(height: 30),
+            
+            _isLoading
+                ? CircularProgressIndicator(color: AppColors.oliveGreen)
+                : ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.oliveGreen,
+                      minimumSize: const Size(double.infinity, 56),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: _verifyOtp,
+                    child: Text("Verify OTP", style: AppTextStyles.button),
+                  ),
           ],
         ),
       ),

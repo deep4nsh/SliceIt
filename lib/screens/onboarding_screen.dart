@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:sliceit/screens/signup_screen.dart';
 import '../utils/colors.dart';
 import '../utils/text_styles.dart';
 import 'login_screen.dart';
@@ -41,7 +40,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     } else {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const SignupScreen()),
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
       );
     }
   }

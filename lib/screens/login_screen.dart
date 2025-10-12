@@ -5,13 +5,19 @@ import '../services/auth_service.dart';
 import 'signup_screen.dart';
 import 'home_screen.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final authService = AuthService();
+  State<LoginScreen> createState() => _LoginScreenState();
+}
 
+class _LoginScreenState extends State<LoginScreen> {
+  final authService = AuthService();
+  bool _isLoading = false;
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.white,
       body: Padding(
@@ -25,29 +31,45 @@ class LoginScreen extends StatelessWidget {
             const SizedBox(height: 40),
 
             // Google Sign-In Button
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.oliveGreen,
-                minimumSize: const Size(double.infinity, 56),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-              ),
-              onPressed: () async {
-                final userCred = await authService.signInWithGoogle();
-                if (userCred != null && context.mounted) {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (_) => const HomeScreen()),
-                  );
-                }
-              },
-              icon: const Icon(Icons.g_mobiledata, size: 32),
-              label: const Text("Sign in with Google",
-                  style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontWeight: FontWeight.w500,
-                      color: Colors.white)),
-            ),
+            _isLoading
+                ? CircularProgressIndicator(color: AppColors.oliveGreen)
+                : ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.oliveGreen,
+                      minimumSize: const Size(double.infinity, 56),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () async {
+                      setState(() => _isLoading = true);
+                      
+                      try {
+                        final userCred = await authService.signInWithGoogle();
+                        if (userCred != null && mounted) {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(builder: (_) => const HomeScreen()),
+                          );
+                        } else if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("Google Sign-In cancelled or failed")),
+                          );
+                        }
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("Google Sign-In failed. Please try again.")),
+                          );
+                        }
+                      } finally {
+                        if (mounted) {
+                          setState(() => _isLoading = false);
+                        }
+                      }
+                    },
+                    icon: const Icon(Icons.g_mobiledata, size: 32, color: Colors.white),
+                    label: Text("Sign in with Google", style: AppTextStyles.button),
+                  ),
             const SizedBox(height: 20),
 
             TextButton(
@@ -57,7 +79,7 @@ class LoginScreen extends StatelessWidget {
                     MaterialPageRoute(
                         builder: (_) => const SignupScreen()));
               },
-              child: const Text("Sign up with phone number",
+              child: const Text("Don't have an account? Sign up",
                   style: TextStyle(
                       color: AppColors.darkBlueGray,
                       fontFamily: 'Poppins',

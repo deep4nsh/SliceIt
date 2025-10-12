@@ -2,20 +2,22 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:flutter/foundation.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final DatabaseReference _database = FirebaseDatabase.instance.ref();
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   // 🔹 Google Sign-In
   Future<UserCredential?> signInWithGoogle() async {
     try {
-      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) return null;
 
       final GoogleSignInAuthentication googleAuth =
-      await googleUser.authentication;
+          await googleUser.authentication;
 
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
@@ -26,7 +28,7 @@ class AuthService {
       await _saveUser(userCredential.user!);
       return userCredential;
     } catch (e) {
-      print("Google Sign-In Error: $e");
+      debugPrint("Google Sign-In Error: $e");
       return null;
     }
   }
@@ -60,7 +62,7 @@ class AuthService {
       await _saveUser(userCredential.user!);
       return userCredential;
     } catch (e) {
-      print("OTP Verification Error: $e");
+      debugPrint("OTP Verification Error: $e");
       return null;
     }
   }
@@ -91,6 +93,6 @@ class AuthService {
   // 🔹 Logout
   Future<void> signOut() async {
     await _auth.signOut();
-    await GoogleSignIn().signOut();
+    await _googleSignIn.signOut();
   }
 }
