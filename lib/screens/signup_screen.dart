@@ -44,22 +44,28 @@ class _SignupScreenState extends State<SignupScreen> {
                       setState(() => _isLoading = true);
                       
                       try {
+                        debugPrint("Starting Google Sign-In...");
                         final userCred = await authService.signInWithGoogle();
+                        debugPrint("Google Sign-In completed. UserCred: ${userCred != null ? 'Success' : 'Null'}");
+                        
                         if (userCred != null && mounted) {
+                          debugPrint("Navigating to PhoneVerificationScreen...");
                           // After successful Google signup, go to phone verification
                           Navigator.pushReplacement(
                             context,
                             MaterialPageRoute(builder: (_) => const PhoneVerificationScreen()),
                           );
                         } else if (mounted) {
+                          debugPrint("Google Sign-In was cancelled or failed");
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text("Google Sign-Up cancelled or failed")),
                           );
                         }
                       } catch (e) {
+                        debugPrint("Google Sign-In error: $e");
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("Google Sign-Up failed. Please try again.")),
+                            SnackBar(content: Text("Google Sign-Up failed: ${e.toString()}")),
                           );
                         }
                       } finally {

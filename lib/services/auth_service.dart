@@ -13,22 +13,33 @@ class AuthService {
   // 🔹 Google Sign-In
   Future<UserCredential?> signInWithGoogle() async {
     try {
+      debugPrint("AuthService: Starting Google Sign-In...");
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) return null;
+      if (googleUser == null) {
+        debugPrint("AuthService: Google sign-in was cancelled");
+        return null;
+      }
 
+      debugPrint("AuthService: Getting authentication...");
       final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
+      await googleUser.authentication;
 
+      debugPrint("AuthService: Creating Firebase credential...");
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
+      debugPrint("AuthService: Signing in with Firebase...");
       final userCredential = await _auth.signInWithCredential(credential);
+
+      debugPrint("AuthService: Saving user data...");
       await _saveUser(userCredential.user!);
+
+      debugPrint("AuthService: Google Sign-In completed successfully");
       return userCredential;
     } catch (e) {
-      debugPrint("Google Sign-In Error: $e");
+      debugPrint("AuthService: Google Sign-In Error: $e");
       return null;
     }
   }
@@ -69,25 +80,44 @@ class AuthService {
 
   // 🔹 Save user to Firestore AND Realtime Database
   Future<void> _saveUser(User user) async {
-    // Firestore
-    await _firestore.collection('users').doc(user.uid).set({
-      'uid': user.uid,
-      'name': user.displayName ?? '',
-      'email': user.email ?? '',
-      'phone': user.phoneNumber ?? '',
-      'photoUrl': user.photoURL ?? '',
-      'createdAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    try {
+      debugPrint("AuthService: Saving user to Firestore...");
+      
+      // Save to Firestore
+      await _firestore.collection('users').doc(user.uid).set({
+        'uid': user.uid,
+        'name': user.displayName ?? '',
+        'email': user.email ?? '',
+        'phone': user.phoneNumber ?? '',
+        'photoUrl': user.photoURL ?? '',
+        'createdAt': FieldValue.serverTimestamp(),
+        'lastSignIn': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      debugPrint("AuthService: Firestore save completed successfully");
 
-    // Realtime Database
-    await _database.child('users').child(user.uid).set({
-      'uid': user.uid,
-      'name': user.displayName ?? '',
-      'email': user.email ?? '',
-      'phone': user.phoneNumber ?? '',
-      'photoUrl': user.photoURL ?? '',
-      'createdAt': ServerValue.timestamp,
-    });
+      // Save to Realtime Database
+      debugPrint("AuthService: Saving user to Realtime Database...");
+      await _database.child('users').child(user.uid).set({
+        'uid': user.uid,
+        'name': user.displayName ?? '',
+        'email': user.email ?? '',
+        'phone': user.phoneNumber ?? '',
+        'photoUrl': user.photoURL ?? '',
+        'createdAt': ServerValue.timestamp,
+        'lastSignIn': ServerValue.timestamp,
+      });
+      debugPrint("AuthService: Realtime Database save completed successfully");
+      
+    } catch (e) {
+      debugPrint("AuthService: Error saving user data: $e");
+      
+      // Don't throw error for database save failures
+      // User authentication was successful, just log the database error
+      if (e.toString().contains('NOT_FOUND') || e.toString().contains('database does not exist')) {
+        debugPrint("AuthService: Database not set up yet. Please create Firestore database in Firebase Console.");
+      }
+      // Don't rethrow - allow authentication to succeed even if database save fails
+    }
   }
 
   // 🔹 Logout
