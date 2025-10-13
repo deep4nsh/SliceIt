@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-
 import '../services/auth_service.dart';
 import 'login_screen.dart';
 
@@ -28,8 +27,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final user = _auth.currentUser;
     if (user != null) {
       try {
-        final doc =
-        await _firestore.collection('users').doc(user.uid).get();
+        final doc = await _firestore.collection('users').doc(user.uid).get();
         if (doc.exists) {
           setState(() {
             userData = doc.data();
@@ -55,7 +53,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         backgroundColor: const Color(0xFF2A4D69),
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF2A4D69)),
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
         centerTitle: true,
@@ -69,7 +67,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
       ),
-
       body: isLoading
           ? const Center(child: CircularProgressIndicator(color: Colors.white))
           : Container(
@@ -96,6 +93,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               as ImageProvider,
             ),
             const SizedBox(height: 12),
+
             Text(
               userData?['name'] ?? user?.displayName ?? "User",
               style: const TextStyle(
@@ -113,19 +111,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 color: Colors.black54,
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              userData?['phone'] ?? user?.phoneNumber ?? "No Phone",
-              style: const TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 14,
-                color: Colors.black54,
-              ),
-            ),
-
             const SizedBox(height: 30),
-            // 🧾 User Info Card
-            // 🧾 User Info Card
+
+            // 🧾 Info Card
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(20),
@@ -144,50 +132,51 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   _buildInfoRow("User ID", user?.uid ?? "N/A"),
                   const Divider(),
-                  _buildInfoRow("Phone Number",
-                      userData?['phone'] ?? user?.phoneNumber ?? "Not Provided"),
-                  const Divider(),
                   _buildInfoRow(
                     "Joined On",
                     userData?['createdAt'] != null
-                        ? userData!['createdAt'].toDate().toString().substring(0, 10)
+                        ? userData!['createdAt']
+                        .toDate()
+                        .toString()
+                        .substring(0, 10)
                         : "Unknown",
                   ),
                 ],
               ),
             ),
+
             const Spacer(),
 
             // 🚪 Logout Button
-            Center(
-              child: ElevatedButton.icon(
-                onPressed: () async {
-                  // Ensure complete sign-out (Firebase + Google)
-                  await AuthService().signOut();
-                  if (context.mounted) {
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(builder: (_) => const LoginScreen()),
-                          (route) => false,
-                    );
-                  }
-                },
-                icon: const Icon(Icons.logout, color: Colors.white),
-                label: const Text(
-                  "Logout",
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16,
-                  ),
+            ElevatedButton.icon(
+              onPressed: () async {
+                await AuthService().signOut();
+                if (context.mounted) {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                        (route) => false,
+                  );
+                }
+              },
+              icon: const Icon(Icons.logout, color: Colors.white),
+              label: const Text(
+                "Logout",
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                  color: Colors.white,
                 ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2A4D69),
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 40, vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2A4D69),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 40,
+                  vertical: 14,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
             ),
@@ -198,7 +187,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // 📋 Helper Widget
   Widget _buildInfoRow(String label, String value) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -211,12 +199,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
             color: Colors.black54,
           ),
         ),
-        Text(
-          value,
-          style: const TextStyle(
-            fontFamily: 'Poppins',
-            fontWeight: FontWeight.w600,
-            color: Colors.black,
+        Flexible(
+          child: Text(
+            value,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontFamily: 'Poppins',
+              fontWeight: FontWeight.w600,
+              color: Colors.black,
+            ),
           ),
         ),
       ],
