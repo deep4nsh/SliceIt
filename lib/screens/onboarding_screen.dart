@@ -18,7 +18,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     {
       "title": "Simplify Your Splits",
       "subtitle": "Easily divide expenses among friends and track payments effortlessly.",
-      "image": "assets/images/onboard1.png"
+      "image": "assets/images/SliceIt.png"
     },
     {
       "title": "Track and Settle Up",
