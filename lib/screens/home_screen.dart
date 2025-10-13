@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../services/auth_service.dart';
+import 'login_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -127,6 +129,7 @@ class HomeScreen extends StatelessWidget {
                     title: "Expenses",
                     color: const Color(0xFF2A4D69),
                     route: '/expenses',
+                    
                   ),
                   _buildFeatureCard(
                     context,
@@ -157,9 +160,15 @@ class HomeScreen extends StatelessWidget {
             Center(
               child: ElevatedButton.icon(
                 onPressed: () async {
-                  await FirebaseAuth.instance.signOut();
-                  Navigator.pushNamedAndRemoveUntil(
-                      context, '/login', (route) => false);
+                  // Ensure complete sign-out (Firebase + Google)
+                  await AuthService().signOut();
+                  if (context.mounted) {
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (_) => const LoginScreen()),
+                      (route) => false,
+                    );
+                  }
                 },
                 icon: const Icon(Icons.logout, color: Colors.white),
                 label: const Text(

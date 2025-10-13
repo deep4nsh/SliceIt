@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:sliceit/screens/analytics_screen.dart';
+import 'package:sliceit/screens/expenses_screen.dart';
+import 'package:sliceit/screens/profile_screen.dart';
+import 'package:sliceit/screens/split_bills_screen.dart';
 import 'firebase_options.dart';
-import 'screens/onboarding_screen.dart';
 import 'utils/colors.dart';
+import 'screens/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,55 +30,12 @@ class MyApp extends StatelessWidget {
         fontFamily: 'Poppins',
       ),
       home: const SplashScreen(),
-    );
-  }
-}
-
-class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
-
-  @override
-  State<SplashScreen> createState() => _SplashScreenState();
-}
-
-class _SplashScreenState extends State<SplashScreen> {
-  @override
-  void initState() {
-    super.initState();
-    // Navigate to Onboarding after 2 seconds
-    Future.delayed(const Duration(seconds: 2), () {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const OnboardingScreen()),
-      );
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.white,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Logo image placeholder
-            Image.asset(
-              'assets/images/logo.png', // add your logo here
-              height: 120,
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'SliceIt',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFFA4B640),
-              ),
-            ),
-          ],
-        ),
-      ),
+      routes: {
+        '/expenses': (context) => const ExpensesScreen(), // 👈 Add this line
+        '/analytics': (context) => const AnalyticsScreen(),
+        '/split': (context) => const SplitBillsScreen(),
+        '/profile': (context) => const ProfileScreen(),
+      },
     );
   }
 }
