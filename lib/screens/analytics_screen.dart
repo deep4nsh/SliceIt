@@ -3,7 +3,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
-import 'dart:math';
 
 import '../utils/colors.dart';
 
@@ -83,7 +82,14 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       if (mounted) {
         setState(() {
           _categoryData = categoryData;
-          _dailySpending = dailySpending.entries.map((e) => {'day': e.key, 'amount': e.value}).toList()..sort((a,b) => a['day'].compareTo(b['day']));
+          _dailySpending = dailySpending.entries
+              .map((e) => {'day': e.key, 'amount': e.value})
+              .toList()
+            ..sort((a, b) {
+              final dayA = a['day'] as String;
+              final dayB = b['day'] as String;
+              return dayA.compareTo(dayB);
+            });
           _totalSpending = totalSpending;
           _isLoading = false;
         });
@@ -221,7 +227,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               runSpacing: 4,
               alignment: WrapAlignment.center,
               children: _categoryData.keys.map((key) {
-                return Chip(label: Text(key), backgroundColor: _getRandomColor(key).withOpacity(0.3));
+                return Chip(label: Text(key), backgroundColor: _getRandomColor(key).withAlpha(70));
               }).toList(),
             )
           ],
@@ -269,7 +275,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                         getTitlesWidget: (value, meta) {
                           final index = value.toInt();
                           if(index < _dailySpending.length && index % 2 == 0) {
-                            final day = DateTime.parse(_dailySpending[index]['day']);
+                            final dayString = _dailySpending[index]['day'];
+                            if (dayString == null) return const Text('');
+                            final day = DateTime.parse(dayString);
                             return Text(DateFormat('d/M').format(day));
                           }
                           return const Text('');

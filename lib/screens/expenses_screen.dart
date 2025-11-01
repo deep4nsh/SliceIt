@@ -54,9 +54,12 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
 
       final snapshot = await query.get();
 
-      _allExpenses = snapshot.docs
-          .map((doc) => {...doc.data(), 'id': doc.id})
-          .toList();
+      _allExpenses = snapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>?;
+        if (data == null) return null;
+        return {...data, 'id': doc.id};
+      }).whereType<Map<String, dynamic>>().toList();
+      
       _filterExpenses();
     } catch (e) {
       debugPrint("Error fetching expenses: $e");
@@ -261,11 +264,11 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                     margin: const EdgeInsets.symmetric(
                         horizontal: 16, vertical: 8),
                     child: ListTile(
-                      title: Text(expense['title']),
+                      title: Text(expense['title'] ?? ''),
                       subtitle:
-                      Text("${expense['category']} • $formattedDate"),
+                      Text("${expense['category'] ?? ''} • $formattedDate"),
                       trailing: Text(
-                        "₹ ${expense['amount'].toStringAsFixed(0)}",
+                        "₹ ${expense['amount']?.toStringAsFixed(0) ?? '0'}",
                         style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             color: AppColors.oliveGreen),
