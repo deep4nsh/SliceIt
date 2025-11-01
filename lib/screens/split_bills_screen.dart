@@ -1,162 +1,171 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'split_bill_detail_screen.dart'; // We will create this next
 
-class SplitBillsScreen extends StatelessWidget {
+class SplitBillsScreen extends StatefulWidget {
   const SplitBillsScreen({super.key});
+
+  @override
+  State<SplitBillsScreen> createState() => _SplitBillsScreenState();
+}
+
+class _SplitBillsScreenState extends State<SplitBillsScreen> {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  Stream<QuerySnapshot> _getSplitsStream() {
+    final userEmail = _auth.currentUser?.email;
+    if (userEmail == null) return const Stream.empty();
+
+    return _firestore
+        .collection('split_bills')
+        .where('participants', arrayContains: userEmail)
+        .orderBy('createdAt', descending: true)
+        .snapshots();
+  }
+
+  Future<void> _addSplitBill() async {
+    final titleController = TextEditingController();
+    final amountController = TextEditingController();
+    final participantsController = TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Create New Split"),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: titleController,
+                decoration: const InputDecoration(labelText: "Title"),
+              ),
+              TextField(
+                controller: amountController,
+                decoration: const InputDecoration(labelText: "Total Amount"),
+                keyboardType: TextInputType.number,
+              ),
+              TextField(
+                controller: participantsController,
+                decoration: const InputDecoration(
+                    labelText: "Participant Emails (comma-separated)"),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (titleController.text.isEmpty ||
+                  amountController.text.isEmpty ||
+                  participantsController.text.isEmpty) {
+                return;
+              }
+
+              final userEmail = _auth.currentUser!.email!;
+              final participants = participantsController.text
+                  .split(',')
+                  .map((e) => e.trim())
+                  .where((e) => e.isNotEmpty)
+                  .toSet()
+                  .toList(); // Use Set to avoid duplicates
+              
+              if (!participants.contains(userEmail)) {
+                  participants.add(userEmail);
+              }
+
+              // Initialize paid status. Creator is marked as paid.
+              final paidStatus = {for (var p in participants) p: p == userEmail};
+
+              await _firestore.collection('split_bills').add({
+                'title': titleController.text,
+                'totalAmount': double.tryParse(amountController.text) ?? 0,
+                'participants': participants,
+                'createdBy': userEmail,
+                'createdAt': FieldValue.serverTimestamp(),
+                'paidStatus': paidStatus,
+              });
+
+              if (mounted) Navigator.pop(context);
+            },
+            child: const Text("Create"),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF2A4D69), // Blue header
       appBar: AppBar(
-        backgroundColor: const Color(0xFF2A4D69),
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
-          onPressed: () => Navigator.pop(context), // 👈 Back to Home
-        ),
-        centerTitle: true,
-        title: const Text(
-          "Split Bills",
-          style: TextStyle(
-            fontFamily: 'Poppins',
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-            fontSize: 20,
-          ),
-        ),
+        title: const Text('Split Bills'),
       ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: _getSplitsStream(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return const Center(child: Text("Error loading splits"));
+          }
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-      body: Container(
-        width: double.infinity,
-        decoration: const BoxDecoration(
-          color: Color(0xFFF4F7F8),
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(30),
-            topRight: Radius.circular(30),
-          ),
-        ),
-        padding: const EdgeInsets.all(20),
+          final splits = snapshot.data?.docs ?? [];
 
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Split your expenses easily 💰",
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontWeight: FontWeight.w600,
-                fontSize: 18,
-                color: Color(0xFF2A4D69),
-              ),
-            ),
-            const SizedBox(height: 20),
+          if (splits.isEmpty) {
+            return const Center(child: Text("No bill splits yet."));
+          }
 
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFA4B640),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Text(
-                    "Add people to split with:",
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontWeight: FontWeight.w500,
-                      color: Colors.white,
-                      fontSize: 16,
-                    ),
-                  ),
-                  SizedBox(height: 12),
-                  Text(
-                    "Feature Coming Soon...",
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                      fontSize: 22,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 30),
+          return ListView.builder(
+            itemCount: splits.length,
+            itemBuilder: (context, index) {
+              final split = splits[index];
+              final data = split.data() as Map<String, dynamic>;
+              final amount = (data['totalAmount'] as num).toDouble();
+              final participantsCount = (data['participants'] as List).length;
+              final amountPerPerson = participantsCount > 0 ? amount / participantsCount : 0;
 
-            // Placeholder cards for recent splits
-            Expanded(
-              child: ListView.builder(
-                itemCount: 3,
-                itemBuilder: (context, index) {
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 16),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.grey.withOpacity(0.1),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          "Dinner with Friends ${index + 1}",
-                          style: const TextStyle(
-                            fontFamily: 'Poppins',
-                            fontWeight: FontWeight.w500,
-                            fontSize: 15,
-                          ),
-                        ),
-                        const Text(
-                          "₹ 400",
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontWeight: FontWeight.w600,
-                            fontSize: 15,
-                            color: Color(0xFF2A4D69),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ),
-
-            Center(
-              child: ElevatedButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.group_add, color: Colors.white),
-                label: const Text(
-                  "Create New Split",
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16,
-                    color: Colors.white,
+              return Card(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: ListTile(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => SplitBillDetailScreen(splitId: split.id),
+                      ),
+                    );
+                  },
+                  title: Text(data['title'] ?? 'No Title'),
+                  subtitle: Text("Created by: ${data['createdBy']}"),
+                  trailing: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        "₹${amount.toStringAsFixed(2)}",
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Text("₹${amountPerPerson.toStringAsFixed(2)} each"),
+                    ],
                   ),
                 ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2A4D69),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 40,
-                    vertical: 14,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
+              );
+            },
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _addSplitBill,
+        label: const Text("New Split"),
+        icon: const Icon(Icons.add),
       ),
     );
   }

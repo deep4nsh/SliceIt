@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../utils/colors.dart';
-import '../utils/text_styles.dart';
 
 class ExpensesScreen extends StatefulWidget {
   const ExpensesScreen({super.key});
@@ -15,36 +14,87 @@ class ExpensesScreen extends StatefulWidget {
 class _ExpensesScreenState extends State<ExpensesScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final TextEditingController _searchController = TextEditingController();
 
-  List<Map<String, dynamic>> expenses = [];
-  bool isLoading = true;
+  List<Map<String, dynamic>> _allExpenses = [];
+  List<Map<String, dynamic>> _filteredExpenses = [];
+  bool _isLoading = true;
+  DateTimeRange? _selectedDateRange;
 
   @override
   void initState() {
     super.initState();
     _fetchExpenses();
+    _searchController.addListener(_filterExpenses);
+  }
+
+  @override
+  void dispose() {
+    _searchController.removeListener(_filterExpenses);
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchExpenses() async {
-    setState(() => isLoading = true);
+    if (!mounted) return;
+    setState(() => _isLoading = true);
     final uid = _auth.currentUser!.uid;
+
     try {
-      final snapshot = await _firestore
+      Query query = _firestore
           .collection('users')
           .doc(uid)
           .collection('expenses')
-          .orderBy('date', descending: true)
-          .get();
+          .orderBy('date', descending: true);
 
-      expenses = snapshot.docs
+      if (_selectedDateRange != null) {
+        query = query.where('date', isGreaterThanOrEqualTo: _selectedDateRange!.start);
+        query = query.where('date', isLessThanOrEqualTo: _selectedDateRange!.end.add(const Duration(days: 1)));
+      }
+
+      final snapshot = await query.get();
+
+      _allExpenses = snapshot.docs
           .map((doc) => {...doc.data(), 'id': doc.id})
           .toList();
+      _filterExpenses();
     } catch (e) {
       debugPrint("Error fetching expenses: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Error fetching expenses")));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Error fetching expenses")));
+      }
     } finally {
-      setState(() => isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _filterExpenses() {
+    final query = _searchController.text.toLowerCase();
+    setState(() {
+      _filteredExpenses = _allExpenses.where((expense) {
+        final title = (expense['title'] as String? ?? '').toLowerCase();
+        final category = (expense['category'] as String? ?? '').toLowerCase();
+        return title.contains(query) || category.contains(query);
+      }).toList();
+    });
+  }
+
+  Future<void> _selectDateRange() async {
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 1)),
+      initialDateRange: _selectedDateRange,
+    );
+
+    if (picked != null && picked != _selectedDateRange) {
+      setState(() {
+        _selectedDateRange = picked;
+      });
+      _fetchExpenses();
     }
   }
 
@@ -85,6 +135,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
             onPressed: () async {
               if (titleController.text.isEmpty ||
                   amountController.text.isEmpty) {
+                if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text("Title and Amount are required")));
                 return;
@@ -112,6 +163,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                     .doc(expense['id'])
                     .update(data);
               }
+              if (!mounted) return;
               Navigator.pop(context);
               _fetchExpenses();
             },
@@ -136,62 +188,98 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.white,
       appBar: AppBar(
         title: const Text("Expenses"),
-        backgroundColor: AppColors.oliveGreen,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.filter_list),
+            onPressed: _selectDateRange,
+          ),
+          if (_selectedDateRange != null)
+            IconButton(
+              icon: const Icon(Icons.clear),
+              onPressed: () {
+                setState(() {
+                  _selectedDateRange = null;
+                });
+                _fetchExpenses();
+              },
+            )
+        ],
       ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.oliveGreen))
-          : expenses.isEmpty
-          ? Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Image.asset("assets/images/empty.png", height: 150),
-            const SizedBox(height: 20),
-            const Text("No expenses yet.\nTap + to add.",
-                textAlign: TextAlign.center),
-          ],
-        ),
-      )
-          : ListView.builder(
-        itemCount: expenses.length,
-        itemBuilder: (_, index) {
-          final expense = expenses[index];
-          final date = expense['date'] != null
-              ? (expense['date'] as Timestamp).toDate()
-              : DateTime.now();
-          final formattedDate = DateFormat('dd MMM yyyy').format(date);
-
-          return Dismissible(
-            key: Key(expense['id']),
-            direction: DismissDirection.endToStart,
-            background: Container(
-              color: Colors.red,
-              alignment: Alignment.centerRight,
-              padding: const EdgeInsets.only(right: 20),
-              child: const Icon(Icons.delete, color: Colors.white),
-            ),
-            onDismissed: (_) => _deleteExpense(expense['id']),
-            child: Card(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: ListTile(
-                title: Text(expense['title']),
-                subtitle: Text("${expense['category']} • $formattedDate"),
-                trailing: Text(
-                  "₹ ${expense['amount'].toStringAsFixed(0)}",
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, color: AppColors.oliveGreen),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search by title or category...',
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                onTap: () => _addOrEditExpense(expense: expense),
               ),
             ),
-          );
-        },
+          ),
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _filteredExpenses.isEmpty
+                ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Image.asset("assets/images/empty.png", height: 150),
+                  const SizedBox(height: 20),
+                  const Text("No expenses found.",
+                      textAlign: TextAlign.center),
+                ],
+              ),
+            )
+                : ListView.builder(
+              itemCount: _filteredExpenses.length,
+              itemBuilder: (_, index) {
+                final expense = _filteredExpenses[index];
+                final date = expense['date'] != null
+                    ? (expense['date'] as Timestamp).toDate()
+                    : DateTime.now();
+                final formattedDate =
+                DateFormat('dd MMM yyyy').format(date);
+
+                return Dismissible(
+                  key: Key(expense['id']),
+                  direction: DismissDirection.endToStart,
+                  background: Container(
+                    color: Colors.red,
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.only(right: 20),
+                    child: const Icon(Icons.delete, color: Colors.white),
+                  ),
+                  onDismissed: (_) => _deleteExpense(expense['id']),
+                  child: Card(
+                    margin: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 8),
+                    child: ListTile(
+                      title: Text(expense['title']),
+                      subtitle:
+                      Text("${expense['category']} • $formattedDate"),
+                      trailing: Text(
+                        "₹ ${expense['amount'].toStringAsFixed(0)}",
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.oliveGreen),
+                      ),
+                      onTap: () => _addOrEditExpense(expense: expense),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: AppColors.oliveGreen,
         icon: const Icon(Icons.add),
         label: const Text("Add Expense"),
         onPressed: () => _addOrEditExpense(),
