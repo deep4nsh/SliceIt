@@ -147,6 +147,20 @@ class HomeScreen extends StatelessWidget {
                   ),
                   _buildFeatureCard(
                     context,
+                    icon: Icons.history,
+                    title: "Split History",
+                    color: const Color(0xFF8DC6D9),
+                    route: '/split_history',
+                  ),
+                   _buildFeatureCard(
+                    context,
+                    icon: Icons.group_work_outlined,
+                    title: "Groups",
+                    color: const Color(0xFF6E92B4),
+                    route: '/groups',
+                  ),
+                  _buildFeatureCard(
+                    context,
                     icon: Icons.person_outline,
                     title: "Profile",
                     color: const Color(0xFF74A4BC),

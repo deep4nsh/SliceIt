@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:google_ml_kit/google_ml_kit.dart';
-
+import 'package:sliceit/screens/create_split_bill_screen.dart';
 import '../utils/colors.dart';
 
 class SplitBillsScreen extends StatefulWidget {
@@ -49,6 +49,13 @@ class _SplitBillsScreenState extends State<SplitBillsScreen> {
     }
   }
 
+  void _clearImage() {
+    setState(() {
+      _image = null;
+      _lines = [];
+    });
+  }
+
   @override
   void dispose() {
     textRecognizer.close();
@@ -64,6 +71,29 @@ class _SplitBillsScreenState extends State<SplitBillsScreen> {
           : _image == null
           ? _buildImagePicker()
           : _buildImageWithOverlay(),
+      floatingActionButton: _image != null && !_isParsing
+        ? Column(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              FloatingActionButton.extended(
+                onPressed: () {
+                  Navigator.of(context).push(MaterialPageRoute(
+                    builder: (context) => CreateSplitBillScreen(lines: _lines),
+                  ));
+                },
+                icon: const Icon(Icons.add), 
+                label: const Text('Create Bill'),
+                backgroundColor: AppColors.sageGreen,
+              ),
+              const SizedBox(height: 16),
+              FloatingActionButton(
+                onPressed: _clearImage,
+                child: const Icon(Icons.clear),
+                backgroundColor: AppColors.terracotta,
+              ),
+            ], 
+          )
+        : null,
     );
   }
 

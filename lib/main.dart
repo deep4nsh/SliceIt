@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:firebase_dynamic_links/firebase_dynamic_links.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
+import 'package:sliceit/screens/split_history_screen.dart';
 import 'package:sliceit/services/theme_provider.dart';
 import 'package:sliceit/screens/analytics_screen.dart';
 import 'package:sliceit/screens/expenses_screen.dart';
@@ -116,6 +116,7 @@ class _MyAppState extends State<MyApp> {
               '/split': (context) => const SplitBillsScreen(),
               '/profile': (context) => const ProfileScreen(),
               '/groups': (context) => const GroupsScreen(),
+              '/split_history': (context) => const SplitHistoryScreen(),
             },
           );
         },
