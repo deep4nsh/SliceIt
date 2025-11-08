@@ -162,7 +162,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 Column(
                   children: [
                     const Text("Total Spending", style: TextStyle(color: Colors.grey)),
-                    Text("₹${_totalSpending.toStringAsFixed(2)}", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.oliveGreen)),
+                    Text("₹${_totalSpending.toStringAsFixed(2)}", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.sageGreen)),
                   ],
                 ),
                 if (_selectedRange == AnalyticsRange.month)
@@ -184,7 +184,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 ),
               )
           ],
-        ),
+        ), 
       ),
     );
   }
@@ -260,7 +260,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                       barRods: [
                         BarChartRodData(
                           toY: data['amount'],
-                          color: AppColors.oliveGreen,
+                          color: AppColors.sageGreen,
                           width: 15,
                           borderRadius: BorderRadius.circular(4)
                         )

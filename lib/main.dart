@@ -83,18 +83,18 @@ class _MyAppState extends State<MyApp> {
             debugShowCheckedModeBanner: false,
             theme: ThemeData(
               brightness: Brightness.light,
-              primaryColor: AppColors.oliveGreen,
-              scaffoldBackgroundColor: AppColors.white,
+              primaryColor: AppColors.sageGreen,
+              scaffoldBackgroundColor: AppColors.cream,
               fontFamily: 'Poppins',
               cardColor: Colors.white,
               appBarTheme: const AppBarTheme(
-                backgroundColor: AppColors.oliveGreen,
+                backgroundColor: AppColors.sageGreen,
                 foregroundColor: Colors.white,
               ),
             ),
             darkTheme: ThemeData(
               brightness: Brightness.dark,
-              primaryColor: AppColors.oliveGreen,
+              primaryColor: AppColors.sageGreen,
               scaffoldBackgroundColor: const Color(0xFF121212),
               fontFamily: 'Poppins',
               cardColor: const Color(0xFF1E1E1E),
@@ -104,7 +104,7 @@ class _MyAppState extends State<MyApp> {
               ),
               elevatedButtonTheme: ElevatedButtonThemeData(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.oliveGreen,
+                  backgroundColor: AppColors.sageGreen,
                 ),
               ),
             ),

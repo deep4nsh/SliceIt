@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'split_bill_detail_screen.dart'; // We will create this next
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import 'package:google_ml_kit/google_ml_kit.dart';
+
+import '../utils/colors.dart';
 
 class SplitBillsScreen extends StatefulWidget {
   const SplitBillsScreen({super.key});
@@ -11,162 +13,130 @@ class SplitBillsScreen extends StatefulWidget {
 }
 
 class _SplitBillsScreenState extends State<SplitBillsScreen> {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  File? _image;
+  final picker = ImagePicker();
+  TextRecognizer textRecognizer = GoogleMlKit.vision.textRecognizer();
+  List<Line> _lines = [];
+  bool _isParsing = false;
 
-  Stream<QuerySnapshot> _getSplitsStream() {
-    final userEmail = _auth.currentUser?.email;
-    if (userEmail == null) return const Stream.empty();
+  Future<void> _getImage(ImageSource source) async {
+    final pickedFile = await picker.pickImage(source: source);
+    if (pickedFile == null) return;
 
-    return _firestore
-        .collection('split_bills')
-        .where('participants', arrayContains: userEmail)
-        .orderBy('createdAt', descending: true)
-        .snapshots();
+    setState(() {
+      _image = File(pickedFile.path);
+      _isParsing = true;
+    });
+
+    try {
+      final inputImage = InputImage.fromFile(_image!);
+      final RecognizedText recognizedText = await textRecognizer.processImage(inputImage);
+
+      List<Line> lines = [];
+      for (TextBlock block in recognizedText.blocks) {
+        for (TextLine line in block.lines) {
+          lines.add(Line(line.text, line.boundingBox));
+        }
+      }
+
+      setState(() {
+        _lines = lines;
+        _isParsing = false;
+      });
+    } catch (e) {
+      debugPrint('Error processing image: $e');
+      setState(() => _isParsing = false);
+    }
   }
 
-  Future<void> _addSplitBill() async {
-    final titleController = TextEditingController();
-    final amountController = TextEditingController();
-    final participantsController = TextEditingController();
+  @override
+  void dispose() {
+    textRecognizer.close();
+    super.dispose();
+  }
 
-    await showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text("Create New Split"),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: titleController,
-                decoration: const InputDecoration(labelText: "Title"),
-              ),
-              TextField(
-                controller: amountController,
-                decoration: const InputDecoration(labelText: "Total Amount"),
-                keyboardType: TextInputType.number,
-              ),
-              TextField(
-                controller: participantsController,
-                decoration: const InputDecoration(
-                    labelText: "Participant Emails (comma-separated)"),
-              ),
-            ],
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Split Bills')),
+      body: _isParsing
+          ? const Center(child: CircularProgressIndicator())
+          : _image == null
+          ? _buildImagePicker()
+          : _buildImageWithOverlay(),
+    );
+  }
+
+  Widget _buildImagePicker() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.receipt_long, size: 80, color: Colors.grey),
+          const SizedBox(height: 20),
+          const Text("Scan a receipt to get started", style: TextStyle(fontSize: 18, color: Colors.grey)),
+          const SizedBox(height: 30),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.camera_alt, color: Colors.white,),
+            label: const Text('Take Photo', style: TextStyle(color: Colors.white),),
+            onPressed: () => _getImage(ImageSource.camera),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.terracotta,
+              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+            ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel"),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (titleController.text.isEmpty ||
-                  amountController.text.isEmpty ||
-                  participantsController.text.isEmpty) {
-                return;
-              }
-
-              final userEmail = _auth.currentUser!.email!;
-              final participants = participantsController.text
-                  .split(',')
-                  .map((e) => e.trim())
-                  .where((e) => e.isNotEmpty)
-                  .toSet()
-                  .toList(); // Use Set to avoid duplicates
-              
-              if (!participants.contains(userEmail)) {
-                  participants.add(userEmail);
-              }
-
-              // Initialize paid status. Creator is marked as paid.
-              final paidStatus = {for (var p in participants) p: p == userEmail};
-
-              await _firestore.collection('split_bills').add({
-                'title': titleController.text,
-                'totalAmount': double.tryParse(amountController.text) ?? 0,
-                'participants': participants,
-                'createdBy': userEmail,
-                'createdAt': FieldValue.serverTimestamp(),
-                'paidStatus': paidStatus,
-              });
-
-              if (mounted) Navigator.pop(context);
-            },
-            child: const Text("Create"),
+          const SizedBox(height: 15),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.photo_library, color: Colors.white,),
+            label: const Text('Choose from Gallery', style: TextStyle(color: Colors.white),),
+            onPressed: () => _getImage(ImageSource.gallery),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.mustardYellow,
+              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+            ),
           ),
         ],
       ),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Split Bills'),
-      ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: _getSplitsStream(),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return const Center(child: Text("Error loading splits"));
-          }
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          final splits = snapshot.data?.docs ?? [];
-
-          if (splits.isEmpty) {
-            return const Center(child: Text("No bill splits yet."));
-          }
-
-          return ListView.builder(
-            itemCount: splits.length,
-            itemBuilder: (context, index) {
-              final split = splits[index];
-              final data = split.data() as Map<String, dynamic>;
-              final amount = (data['totalAmount'] as num).toDouble();
-              final participantsCount = (data['participants'] as List).length;
-              final amountPerPerson = participantsCount > 0 ? amount / participantsCount : 0;
-
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: ListTile(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => SplitBillDetailScreen(splitId: split.id),
-                      ),
-                    );
-                  },
-                  title: Text(data['title'] ?? 'No Title'),
-                  subtitle: Text("Created by: ${data['createdBy']}"),
-                  trailing: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        "₹${amount.toStringAsFixed(2)}",
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      Text("₹${amountPerPerson.toStringAsFixed(2)} each"),
-                    ],
-                  ),
-                ),
-              );
-            },
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _addSplitBill,
-        label: const Text("New Split"),
-        icon: const Icon(Icons.add),
+  Widget _buildImageWithOverlay() {
+    return InteractiveViewer(
+      maxScale: 4.0,
+      child: CustomPaint(
+        foregroundPainter: TextOverlayPainter(_lines),
+        child: Center(
+          child: Image.file(_image!),
+        ),
       ),
     );
   }
+}
+
+class Line {
+  final String text;
+  final Rect boundingBox;
+
+  Line(this.text, this.boundingBox);
+}
+
+class TextOverlayPainter extends CustomPainter {
+  final List<Line> lines;
+
+  TextOverlayPainter(this.lines);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = AppColors.terracotta
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+
+    for (final line in lines) {
+      canvas.drawRect(line.boundingBox, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(TextOverlayPainter oldDelegate) => true;
 }

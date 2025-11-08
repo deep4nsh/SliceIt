@@ -85,13 +85,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     final parameters = DynamicLinkParameters(
       uriPrefix: 'https://sliceit.page.link', // Replace with your domain
       link: Uri.parse('https://sliceit.page.link/group?id=${widget.groupId}'),
-      androidParameters: const AndroidParameters(
+      androidParameters: AndroidParameters(
         packageName: 'com.example.sliceit', // Replace with your package name
         minimumVersion: 1,
-      ),
-      iosParameters: const IosParameters(
-        bundleId: 'com.example.sliceit', // Replace with your bundle id
-        minimumVersion: '1',
       ),
     );
 

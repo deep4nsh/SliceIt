@@ -32,10 +32,10 @@ class _SignupScreenState extends State<SignupScreen> {
 
             // Google Sign-Up Button
             _isLoading
-                ? CircularProgressIndicator(color: AppColors.oliveGreen)
+                ? CircularProgressIndicator(color: AppColors.sageGreen)
                 : ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.oliveGreen,
+                backgroundColor: AppColors.sageGreen,
                 minimumSize: const Size(double.infinity, 56),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
