@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_dynamic_links/firebase_dynamic_links.dart';
-import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:sliceit/utils/deep_link_config.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:sliceit/services/invite_service.dart';
 
 class GroupDetailScreen extends StatefulWidget {
   final String groupId;
@@ -19,6 +21,25 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
 
   Stream<DocumentSnapshot> _getGroupStream() {
     return _firestore.collection('groups').doc(widget.groupId).snapshots();
+  }
+
+  Future<void> _launchEmailComposer(List<String> emails, {required String subject, required String body}) async {
+    final uri = Uri(
+      scheme: 'mailto',
+      path: emails.join(','),
+      queryParameters: {
+        'subject': subject,
+        'body': body,
+      },
+    );
+    try {
+      final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!launched) {
+        await Share.share(body, subject: subject);
+      }
+    } catch (_) {
+      await Share.share(body, subject: subject);
+    }
   }
 
   Stream<QuerySnapshot> _getGroupExpensesStream() {
@@ -82,23 +103,108 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   }
 
   Future<void> _shareGroup() async {
-    final parameters = DynamicLinkParameters(
-      uriPrefix: 'https://sliceit.page.link', // Replace with your domain
-      link: Uri.parse('https://sliceit.page.link/group?id=${widget.groupId}'),
-      androidParameters: AndroidParameters(
-        packageName: 'com.example.sliceit', // Replace with your package name
-        minimumVersion: 1,
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return;
+
+    final controller = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    await showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Invite by Email'),
+        content: Form(
+          key: formKey,
+          child: TextFormField(
+            controller: controller,
+            maxLines: 4,
+            decoration: const InputDecoration(
+              labelText: 'Email addresses',
+              hintText: 'Enter comma or newline separated emails',
+              border: OutlineInputBorder(),
+            ),
+            validator: (value) {
+              final emails = _parseEmails(value ?? '');
+              if (emails.isEmpty) return 'Enter at least one email';
+              final invalid = emails.where((e) => !_isValidEmail(e)).toList();
+              if (invalid.isNotEmpty) return 'Invalid: ${invalid.join(', ')}';
+              return null;
+            },
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              if (!formKey.currentState!.validate()) return;
+              final emails = _parseEmails(controller.text);
+
+              // Persist invites (optional tracking)
+              final batch = _firestore.batch();
+              for (final email in emails) {
+                final doc = _firestore
+                    .collection('groups')
+                    .doc(widget.groupId)
+                    .collection('invites')
+                    .doc(email);
+                batch.set(doc, {
+                  'email': email,
+                  'inviterUid': currentUser.uid,
+                  'sentAt': FieldValue.serverTimestamp(),
+                  'status': 'pending',
+                }, SetOptions(merge: true));
+              }
+              await batch.commit();
+
+              // Send real emails via Cloud Function
+              try {
+                await InviteService.sendGroupInvites(
+                  groupId: widget.groupId,
+                  inviterUid: currentUser.uid,
+                  emails: emails,
+                  subject: 'Join my SliceIt group',
+                  body: _composeInviteBody(widget.groupId, currentUser.uid),
+                );
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Invites sent to ${emails.length} recipient(s)')),
+                  );
+                }
+              } catch (_) {
+                // Fallback to email composer/share if cloud send fails
+                await _launchEmailComposer(
+                  emails,
+                  subject: 'Join my SliceIt group',
+                  body: _composeInviteBody(widget.groupId, currentUser.uid),
+                );
+              }
+
+              if (mounted) Navigator.pop(context);
+            },
+            child: const Text('Send Invites'),
+          ),
+        ],
       ),
     );
+  }
 
-    final shortLink = await FirebaseDynamicLinks.instance.buildShortLink(parameters);
-    await Clipboard.setData(ClipboardData(text: shortLink.shortUrl.toString()));
-    
-    if(mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Group invite link copied to clipboard!")),
-        );
-    }
+  List<String> _parseEmails(String raw) {
+    return raw
+        .split(RegExp(r'[\n,; ]+'))
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+  }
+
+  bool _isValidEmail(String email) {
+    final regex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+    return regex.hasMatch(email);
+  }
+
+  String _composeInviteBody(String groupId, String inviterUid) {
+    final httpLink = DeepLinkConfig.groupHttp(groupId, inviterUid);
+    final schemeLink = DeepLinkConfig.groupScheme(groupId, inviterUid);
+    return 'Hi,\n\nI\'d like you to join my SliceIt group.\n\nJoin link (opens app if installed):\n$httpLink\n\nIf the above does not open the app, tap this:\n$schemeLink\n\nThanks!';
   }
 
   @override
@@ -115,13 +221,38 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.share),
+            icon: const Icon(Icons.person_add_alt),
+            tooltip: 'Invite by email',
             onPressed: _shareGroup,
           ),
         ],
       ),
       body: Column(
         children: [
+          // Member List
+          SizedBox(
+            height: 100,
+            child: StreamBuilder<DocumentSnapshot>(
+              stream: _getGroupStream(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                final data = snapshot.data!.data() as Map<String, dynamic>?;
+                final members = (data?['members'] as List?)?.cast<String>() ?? [];
+                return ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: members.length,
+                  itemBuilder: (context, index) {
+                    return Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Chip(label: Text(members[index])),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+          const Divider(),
+          // Group Expenses
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: _getGroupExpensesStream(),

@@ -186,8 +186,38 @@ class _CreateSplitBillScreenState extends State<CreateSplitBillScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
+                  FutureBuilder<QuerySnapshot>(
+                    future: _firestore.collection('users').doc(_auth.currentUser!.uid).collection('contacts').get(),
+                    builder: (context, snapshot) {
+                      final contacts = (snapshot.data?.docs ?? [])
+                          .map((d) => (d.data() as Map<String, dynamic>)['email'] as String?)
+                          .whereType<String>()
+                          .toList();
+                      if (contacts.isEmpty) return const SizedBox.shrink();
+                      return Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: contacts.map((email) {
+                          final alreadyAdded = _participants.any((p) => p.email == email);
+                          return InputChip(
+                            label: Text(email),
+                            selected: alreadyAdded,
+                            onPressed: () {
+                              setState(() {
+                                if (!alreadyAdded) {
+                                  _participants.add(Participant(email: email, isIncluded: true));
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
                   ListView.builder(
                     shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
                     itemCount: _participants.length,
                     itemBuilder: (context, index) {
                       return Padding(

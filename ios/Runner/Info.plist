@@ -45,5 +45,18 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+
+	<!-- Custom URL scheme: sliceit:// -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.example.sliceit</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>sliceit</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

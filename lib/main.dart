@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
-import 'package:firebase_dynamic_links/firebase_dynamic_links.dart';
+import 'package:app_links/app_links.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:sliceit/screens/split_history_screen.dart';
@@ -14,6 +14,8 @@ import 'package:sliceit/screens/groups_screen.dart';
 import 'firebase_options.dart';
 import 'utils/colors.dart';
 import 'screens/splash_screen.dart';
+
+final navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,6 +33,7 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  AppLinks? _appLinks;
 
   @override
   void initState() {
@@ -39,37 +42,102 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _initDynamicLinks() async {
-    FirebaseDynamicLinks.instance.onLink.listen((dynamicLink) async {
-      final Uri deepLink = dynamicLink.link;
-      _handleDynamicLink(deepLink);
-    }).onError((error) {
-      debugPrint('onLink error: $error');
-    });
+    try {
+      _appLinks = AppLinks();
 
-    final PendingDynamicLinkData? initialLink = await FirebaseDynamicLinks.instance.getInitialLink();
-    if (initialLink != null) {
-      final Uri deepLink = initialLink.link;
-      _handleDynamicLink(deepLink);
+      // Listen for incoming links while the app is running
+      _appLinks!.uriLinkStream.listen((Uri uri) {
+        _handleDynamicLink(uri);
+      }, onError: (error) {
+        debugPrint('app_links stream error: $error');
+      });
+
+      // Handle the app being launched via a link
+      final initialUri = await _appLinks!.getInitialAppLink();
+      if (initialUri != null) {
+        _handleDynamicLink(initialUri);
+      }
+    } catch (e) {
+      debugPrint('app_links init error: $e');
     }
   }
 
   void _handleDynamicLink(Uri deepLink) {
     if (deepLink.pathSegments.contains('group')) {
       final groupId = deepLink.queryParameters['id'];
+      final inviterUid = deepLink.queryParameters['inviter'];
       if (groupId != null) {
-        _joinGroup(groupId);
+        // Use the navigatorKey to show a dialog
+        showDialog(
+          context: navigatorKey.currentContext!,
+          builder: (context) => AlertDialog(
+            title: const Text('Join Group?'),
+            content: const Text('Are you sure you want to join this group?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  await _joinGroup(groupId, inviterUid: inviterUid);
+                  if (mounted) Navigator.of(context).pop();
+                },
+                child: const Text('Join'),
+              ),
+            ],
+          ),
+        );
       }
     }
   }
 
-  Future<void> _joinGroup(String groupId) async {
+  Future<void> _joinGroup(String groupId, {String? inviterUid}) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    final groupRef = FirebaseFirestore.instance.collection('groups').doc(groupId);
+    final firestore = FirebaseFirestore.instance;
+    final groupRef = firestore.collection('groups').doc(groupId);
+
+    // Add current user to group members
     await groupRef.update({
       'members': FieldValue.arrayUnion([user.uid])
     });
+
+    // Optionally add contacts for easier future use
+    if (inviterUid != null && inviterUid.isNotEmpty && inviterUid != user.uid) {
+      try {
+        final inviterDoc = await firestore.collection('users').doc(inviterUid).get();
+        final inviterData = inviterDoc.data() as Map<String, dynamic>?;
+        final inviterEmail = inviterData?['email'] as String?;
+
+        final selfDoc = await firestore.collection('users').doc(user.uid).get();
+        final selfData = selfDoc.data() as Map<String, dynamic>?;
+        final selfEmail = selfData?['email'] as String? ?? user.email;
+
+        // Add joiner to inviter's contacts
+        if (selfEmail != null) {
+          await firestore
+              .collection('users')
+              .doc(inviterUid)
+              .collection('contacts')
+              .doc(user.uid)
+              .set({'uid': user.uid, 'email': selfEmail, 'addedAt': FieldValue.serverTimestamp()}, SetOptions(merge: true));
+        }
+
+        // Add inviter to joiner's contacts
+        if (inviterEmail != null) {
+          await firestore
+              .collection('users')
+              .doc(user.uid)
+              .collection('contacts')
+              .doc(inviterUid)
+              .set({'uid': inviterUid, 'email': inviterEmail, 'addedAt': FieldValue.serverTimestamp()}, SetOptions(merge: true));
+        }
+      } catch (e) {
+        debugPrint('Failed to add contacts after joining group: $e');
+      }
+    }
   }
 
   @override
@@ -79,6 +147,7 @@ class _MyAppState extends State<MyApp> {
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
           return MaterialApp(
+            navigatorKey: navigatorKey,
             title: 'SliceIt',
             debugShowCheckedModeBanner: false,
             theme: ThemeData(
