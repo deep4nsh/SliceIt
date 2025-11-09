@@ -48,3 +48,10 @@ dependencies {
 flutter {
     source = "../.."
 }
+
+configurations.all {
+    resolutionStrategy {
+        force("com.squareup.okhttp3:okhttp:4.12.0")
+        force("com.squareup.okio:okio:3.6.0")
+    }
+}

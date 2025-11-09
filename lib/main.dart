@@ -53,7 +53,7 @@ class _MyAppState extends State<MyApp> {
       });
 
       // Handle the app being launched via a link
-      final initialUri = await _appLinks!.getInitialAppLink();
+      final initialUri = await _appLinks!.getInitialLink();
       if (initialUri != null) {
         _handleDynamicLink(initialUri);
       }
