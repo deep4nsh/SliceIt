@@ -104,13 +104,26 @@ class _MyAppState extends State<MyApp> {
       return;
     }
 
+    // Ensure we have a Navigator context; if not, try again next frame
     final ctx = navigatorKey.currentContext;
-    if (ctx == null) return;
+    if (ctx == null) {
+      debugPrint('DeepLink: navigator context not ready, deferring to next frame');
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        // If user signed out during deferral, keep it pending
+        if (FirebaseAuth.instance.currentUser == null) {
+          _pendingInvite = uri;
+        } else {
+          _handleIncomingUri(uri);
+        }
+      });
+      return;
+    }
 
-    if (uri.pathSegments.contains('group')) {
+    final isGroupLink = uri.pathSegments.contains('group') || uri.host == 'group';
+    if (isGroupLink) {
       final groupId = uri.queryParameters['id'];
       if (groupId != null) {
-        debugPrint('DeepLink: detected group link, groupId=$groupId');
+        debugPrint('DeepLink: detected group link, groupId=$groupId (host=${uri.host}, path=${uri.path})');
         showDialog(
           context: ctx,
           builder: (dialogContext) => AlertDialog(
@@ -137,6 +150,8 @@ class _MyAppState extends State<MyApp> {
             ],
           ),
         );
+      } else {
+        debugPrint('DeepLink: group link missing id parameter');
       }
     }
   }

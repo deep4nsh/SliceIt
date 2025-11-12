@@ -136,7 +136,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
                   inviterUid: currentUser.uid,
                   emails: emails,
                   subject: 'Join my SliceIt group',
-                  body: _composeInviteBody(groupId, currentUser.uid),
+                  body: _composeInviteBody(groupId, currentUser.uid), inviterName: '', groupName: '',
                 );
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
