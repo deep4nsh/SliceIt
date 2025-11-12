@@ -23,12 +23,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     {
       "title": "Track and Settle Up",
       "subtitle": "Keep everyone’s share transparent and settle up without stress.",
-      "image": "assets/images/onboard2.png"
+      "image": "assets/images/SliceIt.png"
     },
     {
       "title": "Start Splitting Smarter",
       "subtitle": "Join SliceIt and make group spending seamless!",
-      "image": "assets/images/onboard3.png"
+      "image": "assets/images/SliceIt.png"
     },
   ];
 

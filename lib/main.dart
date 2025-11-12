@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
-import 'package:app_links/app_links.dart';
+import 'package:firebase_dynamic_links/firebase_dynamic_links.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:app_links/app_links.dart';
 import 'package:sliceit/screens/split_history_screen.dart';
 import 'package:sliceit/services/theme_provider.dart';
 import 'package:sliceit/screens/analytics_screen.dart';
@@ -34,54 +35,102 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   AppLinks? _appLinks;
-
+  Uri? _pendingInvite;
   @override
   void initState() {
     super.initState();
     _initDynamicLinks();
+    _initAppLinks();
+    FirebaseAuth.instance.authStateChanges().listen((user) {
+      if (user != null && _pendingInvite != null) {
+        final uri = _pendingInvite!;
+        _pendingInvite = null;
+        _handleIncomingUri(uri);
+      }
+    });
   }
 
   Future<void> _initDynamicLinks() async {
-    try {
-      _appLinks = AppLinks();
+    // Handle links when app is already open
+    FirebaseDynamicLinks.instance.onLink.listen((dynamicLink) {
+      _handleDynamicLink(dynamicLink.link);
+    }).onError((error) {
+      debugPrint('onLink error: $error');
+    });
 
-      // Listen for incoming links while the app is running
-      _appLinks!.uriLinkStream.listen((Uri uri) {
-        _handleDynamicLink(uri);
-      }, onError: (error) {
-        debugPrint('app_links stream error: $error');
+    // Handle initial link that opened the app
+    final PendingDynamicLinkData? initialLink =
+        await FirebaseDynamicLinks.instance.getInitialLink();
+    if (initialLink != null) {
+      // Wait until the first frame is rendered to ensure context is available
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _handleDynamicLink(initialLink.link);
       });
-
-      // Handle the app being launched via a link
-      final initialUri = await _appLinks!.getInitialLink();
-      if (initialUri != null) {
-        _handleDynamicLink(initialUri);
-      }
-    } catch (e) {
-      debugPrint('app_links init error: $e');
     }
   }
 
   void _handleDynamicLink(Uri deepLink) {
-    if (deepLink.pathSegments.contains('group')) {
-      final groupId = deepLink.queryParameters['id'];
-      final inviterUid = deepLink.queryParameters['inviter'];
+    _handleIncomingUri(deepLink);
+  }
+
+  Future<void> _initAppLinks() async {
+    try {
+      _appLinks = AppLinks();
+      // Stream for links while app is running
+      _appLinks!.uriLinkStream.listen((uri) {
+        _handleIncomingUri(uri);
+      }, onError: (err) {
+        debugPrint('AppLinks stream error: $err');
+      });
+
+      // Link that initially opened the app
+      final initialUri = await _appLinks!.getInitialLink();
+      if (initialUri != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _handleIncomingUri(initialUri);
+        });
+      }
+    } catch (e) {
+      debugPrint('initAppLinks error: $e');
+    }
+  }
+
+  void _handleIncomingUri(Uri uri) {
+    debugPrint('DeepLink: received uri=$uri');
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      // Defer handling until after login
+      _pendingInvite = uri;
+      return;
+    }
+
+    final ctx = navigatorKey.currentContext;
+    if (ctx == null) return;
+
+    if (uri.pathSegments.contains('group')) {
+      final groupId = uri.queryParameters['id'];
       if (groupId != null) {
-        // Use the navigatorKey to show a dialog
+        debugPrint('DeepLink: detected group link, groupId=$groupId');
         showDialog(
-          context: navigatorKey.currentContext!,
-          builder: (context) => AlertDialog(
+          context: ctx,
+          builder: (dialogContext) => AlertDialog(
             title: const Text('Join Group?'),
             content: const Text('Are you sure you want to join this group?'),
             actions: [
               TextButton(
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: () => Navigator.of(dialogContext).pop(),
                 child: const Text('Cancel'),
               ),
               ElevatedButton(
                 onPressed: () async {
-                  await _joinGroup(groupId, inviterUid: inviterUid);
-                  if (mounted) Navigator.of(context).pop();
+                  debugPrint('DeepLink: joining groupId=$groupId');
+                  await _joinGroup(groupId);
+                  if (Navigator.of(dialogContext).canPop()) {
+                    Navigator.of(dialogContext).pop();
+                  }
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    const SnackBar(content: Text('Group joined successfully!')),
+                  );
                 },
                 child: const Text('Join'),
               ),
@@ -92,52 +141,14 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
-  Future<void> _joinGroup(String groupId, {String? inviterUid}) async {
+  Future<void> _joinGroup(String groupId) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    final firestore = FirebaseFirestore.instance;
-    final groupRef = firestore.collection('groups').doc(groupId);
-
-    // Add current user to group members
+    final groupRef = FirebaseFirestore.instance.collection('groups').doc(groupId);
     await groupRef.update({
       'members': FieldValue.arrayUnion([user.uid])
     });
-
-    // Optionally add contacts for easier future use
-    if (inviterUid != null && inviterUid.isNotEmpty && inviterUid != user.uid) {
-      try {
-        final inviterDoc = await firestore.collection('users').doc(inviterUid).get();
-        final inviterData = inviterDoc.data() as Map<String, dynamic>?;
-        final inviterEmail = inviterData?['email'] as String?;
-
-        final selfDoc = await firestore.collection('users').doc(user.uid).get();
-        final selfData = selfDoc.data() as Map<String, dynamic>?;
-        final selfEmail = selfData?['email'] as String? ?? user.email;
-
-        // Add joiner to inviter's contacts
-        if (selfEmail != null) {
-          await firestore
-              .collection('users')
-              .doc(inviterUid)
-              .collection('contacts')
-              .doc(user.uid)
-              .set({'uid': user.uid, 'email': selfEmail, 'addedAt': FieldValue.serverTimestamp()}, SetOptions(merge: true));
-        }
-
-        // Add inviter to joiner's contacts
-        if (inviterEmail != null) {
-          await firestore
-              .collection('users')
-              .doc(user.uid)
-              .collection('contacts')
-              .doc(inviterUid)
-              .set({'uid': inviterUid, 'email': inviterEmail, 'addedAt': FieldValue.serverTimestamp()}, SetOptions(merge: true));
-        }
-      } catch (e) {
-        debugPrint('Failed to add contacts after joining group: $e');
-      }
-    }
   }
 
   @override

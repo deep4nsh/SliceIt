@@ -4,7 +4,7 @@ This file provides guidance to WARP (warp.dev) when working with code in this re
 
 ## Project Overview
 
-SliceIt is a modern expense-splitting Flutter app with Firebase integration. It supports multiple authentication methods (Google Sign-In and phone/SMS OTP) and is designed to run on Android, iOS, web, macOS, Linux, and Windows.
+SliceIt is a modern expense-splitting Flutter app with Firebase integration. It supports multiple authentication methods (Google Sign-In and phone/SMS OTP) and is configured to run on Android only.
 
 ## Development Commands
 
@@ -20,22 +20,17 @@ flutterfire configure --project=sliceit-124
 flutter doctor
 ```
 
-### Building & Running
+### Building & Running (Android only)
 ```bash
-# Run on default device (debug mode)
+# Run on default Android device (debug)
 flutter run
 
-# Run on specific device
-flutter run -d <device-id>
+# Run on a specific Android device
+flutter run -d <android-device-id>
 
-# Build for specific platforms
-flutter build apk                    # Android APK
-flutter build appbundle             # Android App Bundle
-flutter build ios                   # iOS (requires macOS)
-flutter build web                   # Web application
-flutter build macos                 # macOS app
-flutter build linux                 # Linux app
-flutter build windows               # Windows app
+# Build artifacts
+flutter build apk          # Android APK
+flutter build appbundle    # Android App Bundle for Play Store
 ```
 
 ### Testing & Quality Assurance
@@ -109,7 +104,7 @@ SplashScreen → OnboardingScreen → LoginScreen (Google Sign-In) → HomeScree
 ### Firebase Configuration
 - **Project ID**: `sliceit-124`
 - **Services Used**: Authentication, Firestore, Realtime Database, Storage
-- **Platforms**: Android, iOS, Web, macOS, Windows configured
+- **Platforms**: Android only
 - **Authentication Methods**: Google OAuth, Phone/SMS
 
 ### Design System
@@ -153,6 +148,3 @@ Assets are organized in the `assets/` directory:
 
 ### Platform-Specific Considerations
 - Android: Uses `build.gradle.kts` with Google Services plugin
-- iOS/macOS: GoogleService-Info.plist configured
-- Web: Firebase web configuration included
-- All platforms share the same Firebase project configuration

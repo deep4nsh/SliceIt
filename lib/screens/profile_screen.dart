@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_database/firebase_database.dart';
 import '../services/auth_service.dart';
 import '../services/theme_provider.dart';
 import 'login_screen.dart';
@@ -94,6 +95,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Future<void> _showEditUpiDialog() async {
+    final upiController = TextEditingController(text: userData?['upiId']);
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    await showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Set UPI ID"),
+        content: TextField(
+          controller: upiController,
+          decoration: const InputDecoration(labelText: "UPI ID"),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final upi = upiController.text.trim();
+              await _firestore
+                  .collection('users')
+                  .doc(user.uid)
+                  .set({'upiId': upi}, SetOptions(merge: true));
+
+              // Mirror to Realtime Database
+              await FirebaseDatabase.instance.ref('users/${user.uid}').update({'upiId': upi});
+
+              _loadUserData(); // Reload data
+              if (mounted) Navigator.pop(context);
+            },
+            child: const Text("Save"),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = _auth.currentUser;
@@ -171,6 +211,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       IconButton(
                         icon: const Icon(Icons.edit),
                         onPressed: _showEditBudgetDialog,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            _buildProfileCard(
+              context,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text("UPI ID", style: Theme.of(context).textTheme.titleLarge),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        userData?['upiId'] ?? 'Not Set',
+                        style: Theme.of(context).textTheme.headlineMedium,
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.edit),
+                        onPressed: _showEditUpiDialog,
                       ),
                     ],
                   ),

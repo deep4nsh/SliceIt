@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: sans-serif; margin: 40px; background-color: #f4f4f4; }
+    .container { background-color: #ffffff; padding: 30px; border-radius: 8px; max-width: 600px; margin: auto; }
+    .header { color: #4CAF50; text-align: center; }
+    .button { background-color: #4CAF50; color: white; padding: 15px 25px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 class="header">You're Invited to Join a Group!</h1>
+    <p>Hi there,</p>
+    <p>You have been invited by <strong>{{inviterName}}</strong> to join the group "<strong>{{groupName}}</strong>" on SliceIt.</p>
+    <p>SliceIt makes it easy to split bills and track expenses with friends.</p>
+    <a href="{{inviteLink}}" class="button">Join the Group</a>
+    <p>If you have any questions, please contact the group admin.</p>
+    <p>Thanks,<br>The SliceIt Team</p>
+  </div>
+</body>
+</html>

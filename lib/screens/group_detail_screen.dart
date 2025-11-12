@@ -102,7 +102,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     );
   }
 
-  Future<void> _shareGroup() async {
+  Future<void> _shareGroup(String groupName) async {
     final currentUser = _auth.currentUser;
     if (currentUser == null) return;
 
@@ -162,7 +162,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                   groupId: widget.groupId,
                   inviterUid: currentUser.uid,
                   emails: emails,
-                  subject: 'Join my SliceIt group',
+                  subject: 'Join my SliceIt group: $groupName',
                   body: _composeInviteBody(widget.groupId, currentUser.uid),
                 );
                 if (mounted) {
@@ -174,7 +174,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                 // Fallback to email composer/share if cloud send fails
                 await _launchEmailComposer(
                   emails,
-                  subject: 'Join my SliceIt group',
+                  subject: 'Join my SliceIt group: $groupName',
                   body: _composeInviteBody(widget.groupId, currentUser.uid),
                 );
               }
@@ -216,14 +216,21 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           builder: (context, snapshot) {
             if (!snapshot.hasData) return const Text('Group');
             final data = snapshot.data!.data() as Map<String, dynamic>?;
-            return Text(data?['name'] ?? 'Group Details');
+            final groupName = data?['name'] ?? 'Group Details';
+            return Text(groupName);
           },
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.person_add_alt),
-            tooltip: 'Invite by email',
-            onPressed: _shareGroup,
+          StreamBuilder<DocumentSnapshot>(
+            stream: _getGroupStream(),
+            builder: (context, snapshot) {
+              final groupName = (snapshot.data?.data() as Map<String, dynamic>?)?['name'] ?? '';
+              return IconButton(
+                icon: const Icon(Icons.person_add_alt),
+                tooltip: 'Invite by email',
+                onPressed: () => _shareGroup(groupName),
+              );
+            },
           ),
         ],
       ),
