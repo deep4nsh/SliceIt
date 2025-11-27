@@ -168,7 +168,7 @@ class _SplitBillDetailScreenState extends State<SplitBillDetailScreen> {
                 const Divider(),
                 Text("Participants", style: Theme.of(context).textTheme.headlineSmall),
                 const SizedBox(height: 10),
-                ...participants.map((email) {
+                  ...participants.where((email) => email != createdBy).map((email) {
                   final isPaid = paidStatus[email] ?? false;
                   final canToggle = createdBy == currentUserEmail || email == currentUserEmail;
                   final amountOwed = splitType == 'unequal'
@@ -193,15 +193,55 @@ class _SplitBillDetailScreenState extends State<SplitBillDetailScreen> {
                 if (currentUserIsParticipant && !currentUserHasPaid && createdBy != currentUserEmail)
                   Padding(
                     padding: const EdgeInsets.only(top: 24.0),
-                    child: ElevatedButton(
-                      onPressed: () => _settleUpWithUpi(
-                        amount: amountOwedByCurrentUser,
-                        description: title,
-                        createdByEmail: createdBy!,
-                        payerEmail: currentUserEmail!,
-                      ),
-                      child: const Text('Settle with UPI'),
-                      style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
+                    child: StreamBuilder<QuerySnapshot>(
+                      stream: _firestore
+                          .collection('users')
+                          .where('email', isEqualTo: createdBy)
+                          .limit(1)
+                          .snapshots(),
+                      builder: (context, userSnapshot) {
+                        if (!userSnapshot.hasData || userSnapshot.data!.docs.isEmpty) {
+                          return const SizedBox.shrink();
+                        }
+                        
+                        final creatorData = userSnapshot.data!.docs.first.data() as Map<String, dynamic>;
+                        final upiId = creatorData['upiId'] as String?;
+                        final hasUpi = upiId != null && upiId.isNotEmpty;
+
+                        if (!hasUpi) {
+                           return Container(
+                             padding: const EdgeInsets.all(12),
+                             decoration: BoxDecoration(
+                               color: Colors.orange.withOpacity(0.1),
+                               borderRadius: BorderRadius.circular(8),
+                               border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                             ),
+                             child: Row(
+                               children: [
+                                 const Icon(Icons.info_outline, color: Colors.orange),
+                                 const SizedBox(width: 12),
+                                 Expanded(
+                                   child: Text(
+                                     "Waiting for bill creator to add UPI ID for settlement.",
+                                     style: TextStyle(color: Colors.orange[800]),
+                                   ),
+                                 ),
+                               ],
+                             ),
+                           );
+                        }
+
+                        return ElevatedButton(
+                          onPressed: () => _settleUpWithUpi(
+                            amount: amountOwedByCurrentUser,
+                            description: title,
+                            createdByEmail: createdBy!,
+                            payerEmail: currentUserEmail!,
+                          ),
+                          child: const Text('Settle with UPI'),
+                          style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
+                        );
+                      },
                     ),
                   )
               ],
