@@ -234,7 +234,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.cream,
+      backgroundColor: AppColors.backgroundLight,
       body: NestedScrollView(
         headerSliverBuilder: (context, innerBoxIsScrolled) {
           return [
@@ -242,7 +242,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
               expandedHeight: 120.0,
               floating: true,
               pinned: true,
-              backgroundColor: AppColors.cream,
+              backgroundColor: AppColors.backgroundLight,
               elevation: 0,
               flexibleSpace: FlexibleSpaceBar(
                 titlePadding: const EdgeInsets.only(left: 16, bottom: 16),
@@ -250,7 +250,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
                   'Analytics',
                   style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
                 ),
-                background: Container(color: AppColors.cream),
+                background: Container(color: AppColors.backgroundLight),
               ),
               bottom: PreferredSize(
                 preferredSize: const Size.fromHeight(48),
@@ -267,7 +267,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
                     controller: _tabController,
                     indicator: BoxDecoration(
                       borderRadius: BorderRadius.circular(25),
-                      color: AppColors.sageGreen,
+                      color: AppColors.primaryNavy,
                     ),
                     labelColor: Colors.white,
                     unselectedLabelColor: Colors.grey,
@@ -322,13 +322,13 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [AppColors.sageGreen, AppColors.sageGreen.withOpacity(0.8)],
+          colors: [AppColors.primaryNavy, AppColors.primaryNavy.withOpacity(0.8)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
-          BoxShadow(color: AppColors.sageGreen.withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 8)),
+          BoxShadow(color: AppColors.primaryNavy.withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 8)),
         ],
       ),
       child: Column(
@@ -516,7 +516,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
                   children: [
                     Text(
                       '₹${_selectedAmount!.toStringAsFixed(0)}',
-                      style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.sageGreen),
+                      style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryNavy),
                     ),
                     Text(
                       _selectedDateLabel ?? '',
@@ -593,7 +593,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
                     spots: spots,
                     isCurved: true,
                     curveSmoothness: 0.35,
-                    color: AppColors.sageGreen,
+                    color: AppColors.secondaryTeal,
                     barWidth: 3,
                     isStrokeCapRound: true,
                     dotData: const FlDotData(show: false),
@@ -601,8 +601,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
                       show: true,
                       gradient: LinearGradient(
                         colors: [
-                          AppColors.sageGreen.withOpacity(0.2),
-                          AppColors.sageGreen.withOpacity(0.0),
+                          AppColors.secondaryTeal.withOpacity(0.2),
+                          AppColors.secondaryTeal.withOpacity(0.0),
                         ],
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
@@ -821,8 +821,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
               child: Row(
                 children: [
                   CircleAvatar(
-                    backgroundColor: AppColors.sageGreen.withOpacity(0.1),
-                    child: Icon(_getCategoryIcon(category), color: AppColors.sageGreen, size: 20),
+                    backgroundColor: AppColors.primaryNavy.withOpacity(0.1),
+                    child: Icon(_getCategoryIcon(category), color: AppColors.primaryNavy, size: 20),
                   ),
                   const SizedBox(width: 16),
                   Expanded(

@@ -227,7 +227,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
         onPressed: _createGroup,
         icon: const Icon(Icons.add),
         label: const Text('Create Group'),
-        backgroundColor: AppColors.sageGreen,
+        backgroundColor: AppColors.primaryNavy,
       ),
     );
   }

@@ -271,7 +271,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                         "₹ ${expense['amount']?.toStringAsFixed(0) ?? '0'}",
                         style: const TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: AppColors.sageGreen),
+                            color: AppColors.primaryNavy),
                       ),
                       onTap: () => _addOrEditExpense(expense: expense),
                     ),

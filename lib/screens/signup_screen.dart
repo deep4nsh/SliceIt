@@ -19,7 +19,7 @@ class _SignupScreenState extends State<SignupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.white,
+      backgroundColor: AppColors.surfaceWhite,
       body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
@@ -32,10 +32,10 @@ class _SignupScreenState extends State<SignupScreen> {
 
             // Google Sign-Up Button
             _isLoading
-                ? CircularProgressIndicator(color: AppColors.sageGreen)
+                ? CircularProgressIndicator(color: AppColors.primaryNavy)
                 : ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.sageGreen,
+                backgroundColor: AppColors.primaryNavy,
                 minimumSize: const Size(double.infinity, 56),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
@@ -85,7 +85,7 @@ class _SignupScreenState extends State<SignupScreen> {
               },
               child: const Text("Already have an account? Sign in",
                   style: TextStyle(
-                      color: AppColors.darkBlueGray,
+                      color: AppColors.primaryNavy,
                       fontFamily: 'Poppins',
                       fontWeight: FontWeight.w500)),
             ),

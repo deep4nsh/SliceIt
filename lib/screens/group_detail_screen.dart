@@ -6,6 +6,7 @@ import 'package:sliceit/utils/deep_link_config.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:sliceit/services/invite_service.dart';
 import 'package:sliceit/services/upi_payment_service.dart';
+import 'package:sliceit/services/debt_simplifier.dart';
 
 class GroupDetailScreen extends StatefulWidget {
   final String groupId;
@@ -77,96 +78,198 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: StreamBuilder<DocumentSnapshot>(
-          stream: _getGroupStream(),
-          builder: (context, snapshot) {
-            final groupName = (snapshot.data?.data() as Map<String, dynamic>?)?['name'] ?? 'Group Details';
-            return Text(groupName);
-          },
-        ),
-        actions: [
-          StreamBuilder<DocumentSnapshot>(
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: StreamBuilder<DocumentSnapshot>(
             stream: _getGroupStream(),
             builder: (context, snapshot) {
-              final groupName = (snapshot.data?.data() as Map<String, dynamic>?)?['name'] ?? '';
-              return IconButton(
-                icon: const Icon(Icons.person_add_alt),
-                tooltip: 'Invite by email',
-                onPressed: () => _shareGroup(groupName),
+              final groupName = (snapshot.data?.data() as Map<String, dynamic>?)?['name'] ?? 'Group Details';
+              return Text(groupName);
+            },
+          ),
+          actions: [
+            StreamBuilder<DocumentSnapshot>(
+              stream: _getGroupStream(),
+              builder: (context, snapshot) {
+                final groupName = (snapshot.data?.data() as Map<String, dynamic>?)?['name'] ?? '';
+                return IconButton(
+                  icon: const Icon(Icons.person_add_alt),
+                  tooltip: 'Invite by email',
+                  onPressed: () => _shareGroup(groupName),
+                );
+              },
+            ),
+          ],
+          bottom: const TabBar(
+            tabs: [
+              Tab(text: "Expenses"),
+              Tab(text: "Balances"),
+            ],
+          ),
+        ),
+        body: TabBarView(
+          children: [
+            _buildExpensesTab(),
+            _buildBalancesTab(),
+          ],
+        ),
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: () => _showExpenseDialog(),
+          label: const Text("Add Expense"),
+          icon: const Icon(Icons.add),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExpensesTab() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Text("Members", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        ),
+        SizedBox(
+          height: 60,
+          child: StreamBuilder<DocumentSnapshot>(
+            stream: _getGroupStream(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+              final members = (snapshot.data!.data() as Map<String, dynamic>?)?['members']?.cast<String>() ?? [];
+              if (members.isEmpty) return const Center(child: Text("No members yet."));
+              return ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                itemCount: members.length,
+                itemBuilder: (context, index) {
+                  return MemberChip(uid: members[index]);
+                },
               );
             },
           ),
-        ],
-      ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Padding(
-            padding: EdgeInsets.all(16.0),
-            child: Text("Members", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          ),
-          SizedBox(
-            height: 60,
-            child: StreamBuilder<DocumentSnapshot>(
-              stream: _getGroupStream(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-                final members = (snapshot.data!.data() as Map<String, dynamic>?)?['members']?.cast<String>() ?? [];
-                if (members.isEmpty) return const Center(child: Text("No members yet."));
-                return ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  itemCount: members.length,
-                  itemBuilder: (context, index) {
-                    return MemberChip(uid: members[index]);
-                  },
-                );
-              },
-            ),
-          ),
-          const Divider(),
-          const Padding(
-            padding: EdgeInsets.all(16.0),
-            child: Text("Expenses", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          ),
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: _getGroupExpensesStream(),
-              builder: (context, snapshot) {
-                if (snapshot.hasError) return const Center(child: Text("Error loading expenses"));
-                if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-                if (snapshot.data!.docs.isEmpty) return const Center(child: Text("No expenses yet. Add one!"));
+        ),
+        const Divider(),
+        Expanded(
+          child: StreamBuilder<QuerySnapshot>(
+            stream: _getGroupExpensesStream(),
+            builder: (context, snapshot) {
+              if (snapshot.hasError) return const Center(child: Text("Error loading expenses"));
+              if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+              if (snapshot.data!.docs.isEmpty) return const Center(child: Text("No expenses yet. Add one!"));
 
-                return ListView.builder(
-                  itemCount: snapshot.data!.docs.length,
-                  itemBuilder: (context, index) {
-                    final expenseDoc = snapshot.data!.docs[index];
-                    final data = expenseDoc.data() as Map<String, dynamic>;
-                    final participants = (data['participants'] as List?)?.cast<String>() ?? [];
-                    return ListTile(
-                      title: Text(data['title'] ?? 'No Title', style: const TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle: UserNameDisplay(
-                        uid: data['paidBy'],
-                        builder: (name) => Text('Paid by $name • Split with ${participants.length}'),
-                      ),
-                      trailing: Text("₹${(data['amount'] as num).toStringAsFixed(2)}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                      onTap: () => _showExpenseDialog(expenseDoc: expenseDoc),
-                    );
-                  },
-                );
-              },
-            ),
+              return ListView.builder(
+                itemCount: snapshot.data!.docs.length,
+                itemBuilder: (context, index) {
+                  final expenseDoc = snapshot.data!.docs[index];
+                  final data = expenseDoc.data() as Map<String, dynamic>;
+                  final participants = (data['participants'] as List?)?.cast<String>() ?? [];
+                  return ListTile(
+                    title: Text(data['title'] ?? 'No Title', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: UserNameDisplay(
+                      uid: data['paidBy'],
+                      builder: (name) => Text('Paid by $name • Split with ${participants.length}'),
+                    ),
+                    trailing: Text("₹${(data['amount'] as num).toStringAsFixed(2)}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    onTap: () => _showExpenseDialog(expenseDoc: expenseDoc),
+                  );
+                },
+              );
+            },
           ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showExpenseDialog(),
-        label: const Text("Add Expense"),
-        icon: const Icon(Icons.add),
-      ),
+        ),
+      ],
     );
+  }
+
+  Widget _buildBalancesTab() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: _getGroupExpensesStream(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) return const Center(child: Text("Error loading balances"));
+        if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+        
+        final expenses = snapshot.data!.docs.map((doc) => doc.data() as Map<String, dynamic>).toList();
+        
+        // Import DebtSimplifier locally or ensure it's imported at top
+        // Assuming I'll add the import in a separate step or it's available.
+        // For now, I'll rely on the file being created.
+        // Wait, I need to add the import to the file first.
+        
+        // I will use a placeholder here and fix imports in next step if needed.
+        // Actually, I can't easily add import in this replace block if it's far away.
+        // I'll assume I can add the import at the top in a separate call.
+        
+        return FutureBuilder<List<Settlement>>(
+          future: _calculateSettlements(expenses),
+          builder: (context, settlementSnapshot) {
+             if (!settlementSnapshot.hasData) return const Center(child: CircularProgressIndicator());
+             final settlements = settlementSnapshot.data!;
+             
+             if (settlements.isEmpty) {
+               return const Center(
+                 child: Column(
+                   mainAxisAlignment: MainAxisAlignment.center,
+                   children: [
+                     Icon(Icons.check_circle_outline, size: 64, color: Colors.green),
+                     SizedBox(height: 16),
+                     Text("All settled up!", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                   ],
+                 ),
+               );
+             }
+
+             return ListView.builder(
+               padding: const EdgeInsets.all(16),
+               itemCount: settlements.length,
+               itemBuilder: (context, index) {
+                 final settlement = settlements[index];
+                 return Card(
+                   elevation: 2,
+                   margin: const EdgeInsets.only(bottom: 12),
+                   child: Padding(
+                     padding: const EdgeInsets.all(16.0),
+                     child: Row(
+                       children: [
+                         Expanded(
+                           child: Column(
+                             crossAxisAlignment: CrossAxisAlignment.start,
+                             children: [
+                               UserNameDisplay(
+                                 uid: settlement.fromUser,
+                                 builder: (name) => Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                               ),
+                               const Text("owes", style: TextStyle(color: Colors.grey)),
+                               UserNameDisplay(
+                                 uid: settlement.toUser,
+                                 builder: (name) => Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                               ),
+                             ],
+                           ),
+                         ),
+                         Text(
+                           "₹${settlement.amount.toStringAsFixed(2)}",
+                           style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.redAccent),
+                         ),
+                       ],
+                     ),
+                   ),
+                 );
+               },
+             );
+          },
+        );
+      },
+    );
+  }
+
+  Future<List<Settlement>> _calculateSettlements(List<Map<String, dynamic>> expenses) async {
+    // This is a bit of a hack to avoid importing DebtSimplifier if I haven't added the import yet.
+    // But I should really add the import.
+    // I'll assume the import 'package:sliceit/services/debt_simplifier.dart' is added.
+    return DebtSimplifier.simplifyDebts(expenses);
   }
 }
 

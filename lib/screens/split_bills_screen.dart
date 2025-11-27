@@ -83,13 +83,13 @@ class _SplitBillsScreenState extends State<SplitBillsScreen> {
                 },
                 icon: const Icon(Icons.add), 
                 label: const Text('Create Bill'),
-                backgroundColor: AppColors.sageGreen,
+                backgroundColor: AppColors.primaryNavy,
               ),
               const SizedBox(height: 16),
               FloatingActionButton(
                 onPressed: _clearImage,
                 child: const Icon(Icons.clear),
-                backgroundColor: AppColors.terracotta,
+                backgroundColor: AppColors.errorRed,
               ),
             ], 
           )
@@ -111,7 +111,7 @@ class _SplitBillsScreenState extends State<SplitBillsScreen> {
             label: const Text('Take Photo', style: TextStyle(color: Colors.white),),
             onPressed: () => _getImage(ImageSource.camera),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.terracotta,
+              backgroundColor: AppColors.errorRed,
               padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
             ),
           ),
@@ -121,9 +121,19 @@ class _SplitBillsScreenState extends State<SplitBillsScreen> {
             label: const Text('Choose from Gallery', style: TextStyle(color: Colors.white),),
             onPressed: () => _getImage(ImageSource.gallery),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.mustardYellow,
+              backgroundColor: AppColors.primaryGold,
               padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
             ),
+          ),
+          const SizedBox(height: 15),
+          TextButton.icon(
+            icon: const Icon(Icons.edit_note, color: Colors.grey),
+            label: const Text('Enter Manually', style: TextStyle(color: Colors.grey, fontSize: 16)),
+            onPressed: () {
+              Navigator.of(context).push(MaterialPageRoute(
+                builder: (context) => const CreateSplitBillScreen(lines: []),
+              ));
+            },
           ),
         ],
       ),
@@ -158,7 +168,7 @@ class TextOverlayPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = AppColors.terracotta
+      ..color = AppColors.errorRed
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.0;
 

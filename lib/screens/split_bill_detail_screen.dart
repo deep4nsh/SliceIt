@@ -125,7 +125,54 @@ class _SplitBillDetailScreenState extends State<SplitBillDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Split Details")),
+      appBar: AppBar(
+        title: const Text("Split Details"),
+        actions: [
+          StreamBuilder<DocumentSnapshot>(
+            stream: _firestore.collection('split_bills').doc(widget.splitId).snapshots(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) return const SizedBox.shrink();
+              final data = snapshot.data!.data() as Map<String, dynamic>?;
+              if (data == null) return const SizedBox.shrink();
+              
+              final createdBy = data['createdBy'] as String?;
+              final currentUserEmail = _auth.currentUser?.email;
+
+              if (createdBy == currentUserEmail) {
+                return IconButton(
+                  icon: const Icon(Icons.delete_outline, color: Colors.red),
+                  onPressed: () async {
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text("Delete Split Bill?"),
+                        content: const Text("This will delete this split bill for ALL participants. This action cannot be undone."),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text("Cancel"),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            style: TextButton.styleFrom(foregroundColor: Colors.red),
+                            child: const Text("Delete"),
+                          ),
+                        ],
+                      ),
+                    );
+
+                    if (confirm == true) {
+                      await _firestore.collection('split_bills').doc(widget.splitId).delete();
+                      if (context.mounted) Navigator.pop(context);
+                    }
+                  },
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
+        ],
+      ),
       body: StreamBuilder<DocumentSnapshot>(
         stream: _firestore.collection('split_bills').doc(widget.splitId).snapshots(),
         builder: (context, snapshot) {

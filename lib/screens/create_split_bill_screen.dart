@@ -29,7 +29,11 @@ class _CreateSplitBillScreenState extends State<CreateSplitBillScreen> {
   void initState() {
     super.initState();
     _parseTotalAmount();
-    _titleController.text = "Scanned Receipt";
+    if (widget.lines.isEmpty) {
+      _titleController.text = "New Split Bill";
+    } else {
+      _titleController.text = "Scanned Receipt";
+    }
     final currentUserEmail = _auth.currentUser?.email;
     if (currentUserEmail != null) {
       _participants.add(Participant(email: currentUserEmail, isIncluded: true));
@@ -272,7 +276,7 @@ class _CreateSplitBillScreenState extends State<CreateSplitBillScreen> {
                   ElevatedButton(
                     onPressed: _createSplit,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.sageGreen,
+                      backgroundColor: AppColors.primaryNavy,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       textStyle: AppTextStyles.button,
                     ),

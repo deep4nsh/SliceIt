@@ -6,27 +6,27 @@ class AppTextStyles {
     fontFamily: 'Poppins',
     fontWeight: FontWeight.bold,
     fontSize: 28,
-    color: AppColors.darkBlueGray,
+    color: AppColors.textPrimary,
   );
 
   static const heading2 = TextStyle(
     fontFamily: 'Poppins',
     fontWeight: FontWeight.w600,
     fontSize: 20,
-    color: AppColors.darkBlueGray,
+    color: AppColors.textPrimary,
   );
 
   static const body = TextStyle(
     fontFamily: 'Roboto',
     fontWeight: FontWeight.w400,
     fontSize: 16,
-    color: AppColors.darkBlueGray,
+    color: AppColors.textPrimary,
   );
 
   static const button = TextStyle(
     fontFamily: 'Poppins',
     fontWeight: FontWeight.w500,
     fontSize: 16,
-    color: AppColors.white,
+    color: AppColors.surfaceWhite,
   );
 }
