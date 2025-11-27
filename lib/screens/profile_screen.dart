@@ -121,9 +121,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   .doc(user.uid)
                   .set({'upiId': upi}, SetOptions(merge: true));
 
-              // Mirror to Realtime Database
-              await FirebaseDatabase.instance.ref('users/${user.uid}').update({'upiId': upi});
-
               _loadUserData(); // Reload data
               if (mounted) Navigator.pop(context);
             },
