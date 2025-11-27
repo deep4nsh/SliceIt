@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SliceIt • Join Group</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 24px; color: #1e1e1e; }
+    .card { max-width: 640px; margin: 0 auto; border: 1px solid #eee; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    h1 { margin-top: 0; font-size: 24px; }
+    .actions { margin-top: 20px; display: flex; gap: 12px; flex-wrap: wrap; }
+    .btn { background: #A4B640; color: #fff; border: 0; border-radius: 10px; padding: 12px 16px; cursor: pointer; text-decoration:none; display:inline-block; }
+    .btn.secondary { background: #444; }
+    .note { color:#666; font-size:14px; margin-top:12px; }
+    code { background: #f6f8fa; padding: 2px 6px; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Open SliceIt to Join Group</h1>
+    <p>If you have the app installed, tap “Open in App” to confirm joining.</p>
+    <div class="actions">
+      <a id="openApp" class="btn" href="#">Open in App</a>
+      <a id="fallbackScheme" class="btn secondary" href="#">Try direct link</a>
+    </div>
+    <p class="note">If nothing happens, install the app and try again.</p>
+    <p class="note">Debug info: <code id="debug"></code></p>
+  </div>
+
+  <script>
+    function q(name) { return new URLSearchParams(location.search).get(name) || ''; }
+    const groupId = q('id');
+    const inviter = q('inviter');
+
+    const scheme = `sliceit://group?id=${encodeURIComponent(groupId)}&inviter=${encodeURIComponent(inviter)}`;
+    document.getElementById('openApp').setAttribute('href', scheme);
+    document.getElementById('fallbackScheme').setAttribute('href', scheme);
+
+    document.getElementById('debug').textContent = `id=${groupId} inviter=${inviter}`;
+
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    if (isMobile && groupId) {
+      // Attempt to open the app automatically
+      setTimeout(() => { window.location.href = scheme; }, 300);
+    }
+  </script>
+</body>
+</html>

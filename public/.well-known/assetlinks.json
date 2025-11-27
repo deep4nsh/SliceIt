@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.example.sliceit",
+      "sha256_cert_fingerprints": [
+        "96:C2:2A:56:49:45:29:B9:7D:49:B0:46:DE:D4:5D:59:F0:79:49:FE:DA:ED:02:CC:3D:FE:BF:05:AD:26:65:17"
+      ]
+    }
+  }
+]

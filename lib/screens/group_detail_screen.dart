@@ -5,6 +5,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:sliceit/utils/deep_link_config.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:sliceit/services/invite_service.dart';
+import 'package:sliceit/services/upi_payment_service.dart';
 
 class GroupDetailScreen extends StatefulWidget {
   final String groupId;
@@ -40,6 +41,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   Future<void> _showExpenseDialog({DocumentSnapshot? expenseDoc}) async {
     final groupDoc = await _getGroupStream().first;
     final members = (groupDoc.data() as Map<String, dynamic>?)?['members']?.cast<String>() ?? [];
+    final currentUser = _auth.currentUser;
 
     if (mounted) {
       await showDialog(
@@ -48,6 +50,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           groupId: widget.groupId,
           groupMemberUids: members,
           expenseDoc: expenseDoc,
+          canEdit: expenseDoc == null || (expenseDoc.data() as Map<String, dynamic>)['paidBy'] == currentUser?.uid,
         ),
       );
     }
@@ -172,11 +175,13 @@ class _AddEditExpenseDialog extends StatefulWidget {
   final String groupId;
   final List<String> groupMemberUids;
   final DocumentSnapshot? expenseDoc;
+  final bool canEdit;
 
   const _AddEditExpenseDialog({
     required this.groupId,
     required this.groupMemberUids,
     this.expenseDoc,
+    this.canEdit = true,
   });
 
   @override
@@ -252,6 +257,42 @@ class _AddEditExpenseDialogState extends State<_AddEditExpenseDialog> {
     if (mounted) Navigator.pop(context);
   }
 
+  Future<void> _settleWithUpi() async {
+    final data = widget.expenseDoc!.data() as Map<String, dynamic>;
+    final paidByUid = data['paidBy'];
+    final amount = (data['amount'] as num).toDouble();
+    final participants = (data['participants'] as List).cast<String>();
+    
+    // Calculate split amount (assuming equal split for now as per existing logic)
+    final splitAmount = participants.isNotEmpty ? amount / participants.length : 0;
+
+    // Fetch payee (creator) details
+    final userDoc = await FirebaseFirestore.instance.collection('users').doc(paidByUid).get();
+    final upiId = userDoc.data()?['upiId'] as String?;
+
+    if (upiId == null || upiId.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('The bill creator has not set their UPI ID.')),
+        );
+      }
+      return;
+    }
+
+    // Initiate payment
+    // Note: We need to import UpiPaymentService. 
+    // Since I cannot add imports easily in this chunk, I will assume it is available or add it in a separate chunk if needed.
+    // However, UpiPaymentService is in a different file. I should probably move the logic or import it.
+    // For now, I'll use the same logic as SplitBillDetailScreen but adapted.
+    
+    // Wait, I need to import UpiPaymentService.
+    // I will add the import in a separate tool call or just use the class if it's exported.
+    // It is in 'package:sliceit/services/upi_payment_service.dart'.
+    // I'll add the import at the top of the file in a separate chunk.
+    
+    // ... (Implementation continues below)
+  }
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -265,12 +306,14 @@ class _AddEditExpenseDialogState extends State<_AddEditExpenseDialog> {
               TextFormField(
                 controller: _titleController,
                 decoration: const InputDecoration(labelText: "Title"),
+                enabled: widget.canEdit,
                 validator: (value) => (value?.isEmpty ?? true) ? "Please enter a title" : null,
               ),
               TextFormField(
                 controller: _amountController,
                 decoration: const InputDecoration(labelText: "Amount", prefixText: "₹"),
                 keyboardType: TextInputType.number,
+                enabled: widget.canEdit,
                 validator: (value) {
                   if (value == null || value.isEmpty) return "Please enter an amount";
                   if (double.tryParse(value) == null) return "Please enter a valid number";
@@ -282,7 +325,7 @@ class _AddEditExpenseDialogState extends State<_AddEditExpenseDialog> {
               CheckboxListTile(
                 title: const Text("Select All"),
                 value: _selectAll,
-                onChanged: _onSelectAll,
+                onChanged: widget.canEdit ? _onSelectAll : null,
                 controlAffinity: ListTileControlAffinity.leading,
               ),
               const Divider(),
@@ -290,12 +333,12 @@ class _AddEditExpenseDialogState extends State<_AddEditExpenseDialog> {
                 return CheckboxListTile(
                   title: UserNameDisplay(uid: uid, builder: (name) => Text(name)),
                   value: _selectedMembers[uid],
-                  onChanged: (bool? value) {
+                  onChanged: widget.canEdit ? (bool? value) {
                     setState(() {
                       _selectedMembers[uid] = value!;
                       _checkSelectAll();
                     });
-                  },
+                  } : null,
                    controlAffinity: ListTileControlAffinity.leading,
                 );
               }).toList(),
@@ -304,8 +347,14 @@ class _AddEditExpenseDialogState extends State<_AddEditExpenseDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
-        ElevatedButton(onPressed: _saveExpense, child: const Text("Save")),
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text("Close")),
+        if (widget.canEdit)
+          ElevatedButton(onPressed: _saveExpense, child: const Text("Save")),
+        if (!widget.canEdit && widget.expenseDoc != null)
+           _SettleButton(
+             expenseDoc: widget.expenseDoc!,
+             currentUserUid: FirebaseAuth.instance.currentUser?.uid,
+           ),
       ],
     );
   }
@@ -380,6 +429,91 @@ class _MemberChipState extends State<MemberChip> {
         ),
         label: Text(_name),
       ),
+    );
+  }
+}
+
+class _SettleButton extends StatefulWidget {
+  final DocumentSnapshot expenseDoc;
+  final String? currentUserUid;
+
+  const _SettleButton({required this.expenseDoc, required this.currentUserUid});
+
+  @override
+  State<_SettleButton> createState() => _SettleButtonState();
+}
+
+class _SettleButtonState extends State<_SettleButton> {
+  bool _isLoading = false;
+
+  Future<void> _settleWithUpi() async {
+    setState(() => _isLoading = true);
+    try {
+      final data = widget.expenseDoc.data() as Map<String, dynamic>;
+      final paidByUid = data['paidBy'];
+      final amount = (data['amount'] as num).toDouble();
+      final participants = (data['participants'] as List).cast<String>();
+      
+      if (!participants.contains(widget.currentUserUid)) {
+        if (mounted) {
+           ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('You are not a participant in this expense.')),
+          );
+        }
+        return;
+      }
+
+      // Calculate split amount
+      final splitAmount = participants.isNotEmpty ? amount / participants.length : 0.0;
+
+      // Fetch payee (creator) details
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(paidByUid).get();
+      final upiId = userDoc.data()?['upiId'] as String?;
+
+      if (upiId == null || upiId.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('The bill creator has not set their UPI ID.')),
+          );
+        }
+        return;
+      }
+
+      final upi = UpiPaymentService();
+      final status = await upi.pay(
+        upiId: upiId,
+        amount: splitAmount,
+        payeeName: userDoc.data()?['name'] ?? 'SliceIt User',
+        note: "Settle: ${data['title']}",
+      );
+
+      if (!mounted) return;
+      if (status == 'success') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Payment successful!')),
+        );
+      } else if (status == 'submitted') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Payment submitted.')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Payment failed or cancelled.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton(
+      onPressed: _isLoading ? null : _settleWithUpi,
+      style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+      child: _isLoading 
+        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+        : const Text("Settle with UPI"),
     );
   }
 }

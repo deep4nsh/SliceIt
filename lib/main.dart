@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
@@ -39,8 +40,10 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    _initDynamicLinks();
-    _initAppLinks();
+    if (!kIsWeb) {
+      _initDynamicLinks();
+      _initAppLinks();
+    }
     FirebaseAuth.instance.authStateChanges().listen((user) {
       if (user != null && _pendingInvite != null) {
         final uri = _pendingInvite!;
