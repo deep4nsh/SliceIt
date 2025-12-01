@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:firebase_database/firebase_database.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import '../services/auth_service.dart';
 import '../services/theme_provider.dart';
 import 'login_screen.dart';
@@ -100,33 +100,114 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final user = _auth.currentUser;
     if (user == null) return;
 
+    String? verifiedName;
+    bool isVerifying = false;
+    String? errorMessage;
+
     await showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text("Set UPI ID"),
-        content: TextField(
-          controller: upiController,
-          decoration: const InputDecoration(labelText: "UPI ID"),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel"),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final upi = upiController.text.trim();
-              await _firestore
-                  .collection('users')
-                  .doc(user.uid)
-                  .set({'upiId': upi}, SetOptions(merge: true));
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text("Set UPI ID"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: upiController,
+                decoration: InputDecoration(
+                  labelText: "UPI ID (e.g. name@bank)",
+                  errorText: errorMessage,
+                  suffixIcon: isVerifying
+                      ? const Padding(
+                          padding: EdgeInsets.all(12.0),
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : IconButton(
+                          icon: const Icon(Icons.check_circle_outline),
+                          onPressed: () async {
+                            final vpa = upiController.text.trim();
+                            if (vpa.isEmpty) return;
 
-              _loadUserData(); // Reload data
-              if (mounted) Navigator.pop(context);
-            },
-            child: const Text("Save"),
+                            setState(() {
+                              isVerifying = true;
+                              errorMessage = null;
+                              verifiedName = null;
+                            });
+
+                            try {
+                              final result = await FirebaseFunctions.instance
+                                  .httpsCallable('verifyVpa')
+                                  .call({'vpa': vpa});
+                              
+                              final data = result.data as Map<dynamic, dynamic>;
+                              if (data['valid'] == true) {
+                                setState(() {
+                                  verifiedName = data['name'];
+                                });
+                              }
+                            } catch (e) {
+                              setState(() {
+                                errorMessage = "Invalid VPA or verification failed";
+                              });
+                            } finally {
+                              setState(() {
+                                isVerifying = false;
+                              });
+                            }
+                          },
+                        ),
+                ),
+              ),
+              if (verifiedName != null) ...[
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.verified, color: Colors.green, size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          "Verified: $verifiedName",
+                          style: const TextStyle(
+                              color: Colors.green, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ]
+            ],
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel"),
+            ),
+            ElevatedButton(
+              onPressed: verifiedName == null
+                  ? null
+                  : () async {
+                      final upi = upiController.text.trim();
+                      await _firestore.collection('users').doc(user.uid).set({
+                        'upiId': upi,
+                        'vpaVerifiedName': verifiedName,
+                        'vpaStatus': 'VERIFIED',
+                        'updatedAt': FieldValue.serverTimestamp(),
+                      }, SetOptions(merge: true));
+
+                      _loadUserData(); // Reload data
+                      if (mounted) Navigator.pop(context);
+                    },
+              child: const Text("Save"),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -201,9 +282,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        "₹ ${userData?['monthlyBudget']?.toStringAsFixed(2) ?? 'Not Set'}",
-                        style: Theme.of(context).textTheme.headlineMedium,
+                      Expanded(
+                        child: Text(
+                          "₹ ${userData?['monthlyBudget']?.toStringAsFixed(2) ?? 'Not Set'}",
+                          style: Theme.of(context).textTheme.headlineMedium,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                       IconButton(
                         icon: const Icon(Icons.edit),
@@ -225,9 +309,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        userData?['upiId'] ?? 'Not Set',
-                        style: Theme.of(context).textTheme.headlineMedium,
+                      Expanded(
+                        child: Text(
+                          userData?['upiId'] ?? 'Not Set',
+                          style: Theme.of(context).textTheme.headlineMedium,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                       IconButton(
                         icon: const Icon(Icons.edit),

@@ -3,6 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../utils/colors.dart';
+import '../widgets/modern_card.dart';
+import '../widgets/animated_list_item.dart';
 
 class ExpensesScreen extends StatefulWidget {
   const ExpensesScreen({super.key});
@@ -91,6 +93,18 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       firstDate: DateTime(2020),
       lastDate: DateTime.now().add(const Duration(days: 1)),
       initialDateRange: _selectedDateRange,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.primaryOrange,
+              onPrimary: Colors.white,
+              onSurface: AppColors.textPrimary,
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
 
     if (picked != null && picked != _selectedDateRange) {
@@ -118,11 +132,13 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
               controller: titleController,
               decoration: const InputDecoration(labelText: "Title"),
             ),
+            const SizedBox(height: 12),
             TextField(
               controller: amountController,
               decoration: const InputDecoration(labelText: "Amount"),
               keyboardType: TextInputType.number,
             ),
+            const SizedBox(height: 12),
             TextField(
               controller: categoryController,
               decoration: const InputDecoration(labelText: "Category"),
@@ -193,6 +209,9 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Expenses"),
+        backgroundColor: Colors.transparent,
+        foregroundColor: AppColors.textPrimary,
+        elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.filter_list),
@@ -213,15 +232,19 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(8.0),
+            padding: const EdgeInsets.all(16.0),
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
                 hintText: 'Search by title or category...',
                 prefixIcon: const Icon(Icons.search),
+                filled: true,
+                fillColor: Colors.white,
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
                 ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               ),
             ),
           ),
@@ -233,14 +256,17 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Image.asset("assets/images/empty.png", height: 150),
-                  const SizedBox(height: 20),
-                  const Text("No expenses found.",
-                      textAlign: TextAlign.center),
+                  Icon(Icons.receipt_long_outlined, size: 64, color: AppColors.textSecondary.withOpacity(0.5)),
+                  const SizedBox(height: 16),
+                  Text(
+                    "No expenses found",
+                    style: TextStyle(color: AppColors.textSecondary, fontSize: 18),
+                  ),
                 ],
               ),
             )
                 : ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               itemCount: _filteredExpenses.length,
               itemBuilder: (_, index) {
                 final expense = _filteredExpenses[index];
@@ -250,30 +276,68 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 final formattedDate =
                 DateFormat('dd MMM yyyy').format(date);
 
-                return Dismissible(
-                  key: Key(expense['id']),
-                  direction: DismissDirection.endToStart,
-                  background: Container(
-                    color: Colors.red,
-                    alignment: Alignment.centerRight,
-                    padding: const EdgeInsets.only(right: 20),
-                    child: const Icon(Icons.delete, color: Colors.white),
-                  ),
-                  onDismissed: (_) => _deleteExpense(expense['id']),
-                  child: Card(
-                    margin: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 8),
-                    child: ListTile(
-                      title: Text(expense['title'] ?? ''),
-                      subtitle:
-                      Text("${expense['category'] ?? ''} • $formattedDate"),
-                      trailing: Text(
-                        "₹ ${expense['amount']?.toStringAsFixed(0) ?? '0'}",
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primaryNavy),
+                return AnimatedListItem(
+                  index: index,
+                  child: Dismissible(
+                    key: Key(expense['id']),
+                    direction: DismissDirection.endToStart,
+                    background: Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: AppColors.errorRed,
+                        borderRadius: BorderRadius.circular(24),
                       ),
+                      alignment: Alignment.centerRight,
+                      padding: const EdgeInsets.only(right: 20),
+                      child: const Icon(Icons.delete, color: Colors.white),
+                    ),
+                    onDismissed: (_) => _deleteExpense(expense['id']),
+                    child: ModernCard(
                       onTap: () => _addOrEditExpense(expense: expense),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppColors.secondaryTeal.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: const Icon(Icons.receipt, color: AppColors.secondaryTeal),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  expense['title'] ?? '',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  "${expense['category'] ?? ''} • $formattedDate",
+                                  style: TextStyle(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Text(
+                            "₹${expense['amount']?.toStringAsFixed(0) ?? '0'}",
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: AppColors.primaryOrange,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 );
@@ -285,6 +349,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       floatingActionButton: FloatingActionButton.extended(
         icon: const Icon(Icons.add),
         label: const Text("Add Expense"),
+        backgroundColor: AppColors.primaryOrange,
         onPressed: () => _addOrEditExpense(),
       ),
     );

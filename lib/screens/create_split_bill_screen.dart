@@ -1,16 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:sliceit/models/participant_model.dart';
 import 'package:sliceit/screens/split_bills_screen.dart';
 import 'package:sliceit/utils/colors.dart';
 import 'package:sliceit/utils/text_styles.dart';
+import 'package:sliceit/services/friend_service.dart';
+import 'package:sliceit/models/friend_model.dart';
+import 'package:sliceit/models/line_model.dart';
 
 enum SplitType { equal, unequal }
 
 class CreateSplitBillScreen extends StatefulWidget {
   final List<Line> lines;
-  const CreateSplitBillScreen({super.key, required this.lines});
+  final File? receiptImage;
+
+  const CreateSplitBillScreen({
+    super.key,
+    required this.lines,
+    this.receiptImage,
+  });
 
   @override
   State<CreateSplitBillScreen> createState() => _CreateSplitBillScreenState();
@@ -127,6 +138,15 @@ class _CreateSplitBillScreenState extends State<CreateSplitBillScreen> {
       final participantsEmails = includedParticipants.map((p) => p.email).toSet().toList();
       final paidStatus = {for (var p in participantsEmails) p: false};
 
+      String? receiptUrl;
+      if (widget.receiptImage != null) {
+        final storageRef = FirebaseStorage.instance
+            .ref()
+            .child('receipts/${_auth.currentUser!.uid}/${DateTime.now().millisecondsSinceEpoch}.jpg');
+        await storageRef.putFile(widget.receiptImage!);
+        receiptUrl = await storageRef.getDownloadURL();
+      }
+
       await _firestore.collection('split_bills').add({
         'title': _titleController.text,
         'totalAmount': double.parse(_amountController.text),
@@ -136,6 +156,7 @@ class _CreateSplitBillScreenState extends State<CreateSplitBillScreen> {
         'splitType': _splitType.toString(),
         'amounts': _splitType == SplitType.unequal ? {for (var p in includedParticipants) p.email: p.amount} : {},
         'createdAt': FieldValue.serverTimestamp(),
+        'receiptUrl': receiptUrl,
       });
 
       if (mounted) {
@@ -190,31 +211,43 @@ class _CreateSplitBillScreenState extends State<CreateSplitBillScreen> {
                     },
                   ),
                   const SizedBox(height: 16),
-                  FutureBuilder<QuerySnapshot>(
-                    future: _firestore.collection('users').doc(_auth.currentUser!.uid).collection('contacts').get(),
+                  StreamBuilder<List<Friend>>(
+                    stream: FriendService().getFriendsStream(),
                     builder: (context, snapshot) {
-                      final contacts = (snapshot.data?.docs ?? [])
-                          .map((d) => (d.data() as Map<String, dynamic>)['email'] as String?)
-                          .whereType<String>()
-                          .toList();
-                      if (contacts.isEmpty) return const SizedBox.shrink();
-                      return Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: contacts.map((email) {
-                          final alreadyAdded = _participants.any((p) => p.email == email);
-                          return InputChip(
-                            label: Text(email),
-                            selected: alreadyAdded,
-                            onPressed: () {
-                              setState(() {
-                                if (!alreadyAdded) {
-                                  _participants.add(Participant(email: email, isIncluded: true));
-                                }
-                              });
-                            },
-                          );
-                        }).toList(),
+                      final friends = snapshot.data ?? [];
+                      if (friends.isEmpty) return const SizedBox.shrink();
+                      
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text("Quick Add Friends", style: TextStyle(fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: friends.map((friend) {
+                              final alreadyAdded = _participants.any((p) => p.email == friend.email);
+                              return InputChip(
+                                avatar: friend.photoUrl != null 
+                                  ? CircleAvatar(backgroundImage: NetworkImage(friend.photoUrl!))
+                                  : null,
+                                label: Text(friend.name ?? friend.email),
+                                selected: alreadyAdded,
+                                onSelected: (selected) {
+                                  setState(() {
+                                    if (selected) {
+                                      if (!alreadyAdded) {
+                                        _participants.add(Participant(email: friend.email, isIncluded: true));
+                                      }
+                                    } else {
+                                      _participants.removeWhere((p) => p.email == friend.email);
+                                    }
+                                  });
+                                },
+                              );
+                            }).toList(),
+                          ),
+                        ],
                       );
                     },
                   ),

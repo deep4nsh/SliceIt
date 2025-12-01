@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:share_plus/share_plus.dart';
-import 'package:sliceit/utils/deep_link_config.dart';
+
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:sliceit/services/invite_service.dart';
-import 'package:sliceit/services/upi_payment_service.dart';
 import 'package:sliceit/services/debt_simplifier.dart';
 
 class GroupDetailScreen extends StatefulWidget {
@@ -25,9 +23,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     return _firestore.collection('groups').doc(widget.groupId).snapshots();
   }
 
-  Future<void> _launchEmailComposer(List<String> emails, {required String subject, required String body}) async {
-    // ... (rest of the function is unchanged)
-  }
+
 
   Stream<QuerySnapshot> _getGroupExpensesStream() {
     return _firestore
@@ -57,24 +53,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     }
   }
 
-  Future<void> _shareGroup(String groupName) async {
-    // ... (rest of the function is unchanged)
-  }
 
-  List<String> _parseEmails(String raw) {
-    // ... (rest of the function is unchanged)
-    return [];
-  }
 
-  bool _isValidEmail(String email) {
-    // ... (rest of the function is unchanged)
-    return true;
-  }
 
-  String _composeInviteBody(String groupId, String inviterUid) {
-    // ... (rest of the function is unchanged)
-    return '';
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -90,17 +71,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
             },
           ),
           actions: [
-            StreamBuilder<DocumentSnapshot>(
-              stream: _getGroupStream(),
-              builder: (context, snapshot) {
-                final groupName = (snapshot.data?.data() as Map<String, dynamic>?)?['name'] ?? '';
-                return IconButton(
-                  icon: const Icon(Icons.person_add_alt),
-                  tooltip: 'Invite by email',
-                  onPressed: () => _shareGroup(groupName),
-                );
-              },
-            ),
+            // Removed unused StreamBuilder
           ],
           bottom: const TabBar(
             tabs: [
@@ -360,41 +331,7 @@ class _AddEditExpenseDialogState extends State<_AddEditExpenseDialog> {
     if (mounted) Navigator.pop(context);
   }
 
-  Future<void> _settleWithUpi() async {
-    final data = widget.expenseDoc!.data() as Map<String, dynamic>;
-    final paidByUid = data['paidBy'];
-    final amount = (data['amount'] as num).toDouble();
-    final participants = (data['participants'] as List).cast<String>();
-    
-    // Calculate split amount (assuming equal split for now as per existing logic)
-    final splitAmount = participants.isNotEmpty ? amount / participants.length : 0;
 
-    // Fetch payee (creator) details
-    final userDoc = await FirebaseFirestore.instance.collection('users').doc(paidByUid).get();
-    final upiId = userDoc.data()?['upiId'] as String?;
-
-    if (upiId == null || upiId.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('The bill creator has not set their UPI ID.')),
-        );
-      }
-      return;
-    }
-
-    // Initiate payment
-    // Note: We need to import UpiPaymentService. 
-    // Since I cannot add imports easily in this chunk, I will assume it is available or add it in a separate chunk if needed.
-    // However, UpiPaymentService is in a different file. I should probably move the logic or import it.
-    // For now, I'll use the same logic as SplitBillDetailScreen but adapted.
-    
-    // Wait, I need to import UpiPaymentService.
-    // I will add the import in a separate tool call or just use the class if it's exported.
-    // It is in 'package:sliceit/services/upi_payment_service.dart'.
-    // I'll add the import at the top of the file in a separate chunk.
-    
-    // ... (Implementation continues below)
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -548,6 +485,7 @@ class _SettleButton extends StatefulWidget {
 
 class _SettleButtonState extends State<_SettleButton> {
   bool _isLoading = false;
+  String? _txnId;
 
   Future<void> _settleWithUpi() async {
     setState(() => _isLoading = true);
@@ -569,43 +507,91 @@ class _SettleButtonState extends State<_SettleButton> {
       // Calculate split amount
       final splitAmount = participants.isNotEmpty ? amount / participants.length : 0.0;
 
-      // Fetch payee (creator) details
-      final userDoc = await FirebaseFirestore.instance.collection('users').doc(paidByUid).get();
-      final upiId = userDoc.data()?['upiId'] as String?;
+      // 1. Call Cloud Function to Initiate Pay
+      final result = await FirebaseFunctions.instance.httpsCallable('initiatePay').call({
+        'expenseId': widget.expenseDoc.id,
+        'amount': splitAmount,
+        'receiverUid': paidByUid,
+      });
 
-      if (upiId == null || upiId.isEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('The bill creator has not set their UPI ID.')),
-          );
-        }
-        return;
+      final resp = result.data as Map<dynamic, dynamic>;
+      final txnId = resp['txnId'];
+      final vpa = resp['vpa'];
+      final name = resp['name'];
+      final note = resp['note'];
+      
+      _txnId = txnId;
+
+      // 2. Construct UPI URI
+      final uriString = 'upi://pay?pa=$vpa&pn=$name&tr=$txnId&tn=$note&am=$splitAmount&cu=INR';
+      final uri = Uri.parse(uriString);
+
+      // 3. Launch Intent
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        
+        // 4. Start Polling
+        _pollTransactionStatus(txnId);
+      } else {
+        throw "Could not launch UPI app";
       }
 
-      final upi = UpiPaymentService();
-      final status = await upi.pay(
-        upiId: upiId,
-        amount: splitAmount,
-        payeeName: userDoc.data()?['name'] ?? 'SliceIt User',
-        note: "Settle: ${data['title']}",
-      );
-
-      if (!mounted) return;
-      if (status == 'success') {
+    } catch (e) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Payment successful!')),
-        );
-      } else if (status == 'submitted') {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Payment submitted.')),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Payment failed or cancelled.')),
+          SnackBar(content: Text('Error: $e')),
         );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _pollTransactionStatus(String txnId) async {
+    if (!mounted) return;
+    
+    // Show processing dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const AlertDialog(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text("Verifying Payment..."),
+          ],
+        ),
+      ),
+    );
+
+    int attempts = 0;
+    bool success = false;
+
+    while (attempts < 10) { // Poll for ~30 seconds
+      await Future.delayed(const Duration(seconds: 3));
+      if (!mounted) return;
+
+      final doc = await FirebaseFirestore.instance.collection('transactions').doc(txnId).get();
+      if (doc.exists && doc.data()?['status'] == 'SUCCESS') {
+        success = true;
+        break;
+      }
+      attempts++;
+    }
+
+    if (!mounted) return;
+    Navigator.pop(context); // Close dialog
+
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Payment Successful! Bill Settled.')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Payment processing or failed. Check status later.')),
+      );
     }
   }
 

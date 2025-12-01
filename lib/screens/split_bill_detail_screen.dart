@@ -211,6 +211,23 @@ class _SplitBillDetailScreenState extends State<SplitBillDetailScreen> {
                 Text(title, style: Theme.of(context).textTheme.headlineMedium),
                 const SizedBox(height: 10),
                 Text("Total: ₹${totalAmount.toStringAsFixed(2)}", style: Theme.of(context).textTheme.titleLarge),
+                if (data['receiptUrl'] != null) ...[
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (_) => Dialog(
+                          child: InteractiveViewer(
+                            child: Image.network(data['receiptUrl']),
+                          ),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.receipt),
+                    label: const Text("View Receipt"),
+                  ),
+                ],
                 const SizedBox(height: 20),
                 const Divider(),
                 Text("Participants", style: Theme.of(context).textTheme.headlineSmall),

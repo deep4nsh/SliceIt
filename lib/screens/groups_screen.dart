@@ -7,6 +7,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:sliceit/screens/group_detail_screen.dart';
 import 'package:sliceit/utils/colors.dart';
 import 'package:sliceit/services/invite_service.dart';
+import '../widgets/modern_card.dart';
+import '../widgets/animated_list_item.dart';
 
 class GroupsScreen extends StatefulWidget {
   const GroupsScreen({super.key});
@@ -16,6 +18,7 @@ class GroupsScreen extends StatefulWidget {
 }
 
 class _GroupsScreenState extends State<GroupsScreen> {
+  // ... (existing methods: _getGroupsStream, _launchEmailComposer, _createGroup, _shareGroup, _parseEmails, _isValidEmail, _composeInviteBody) ...
   final _firestore = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
 
@@ -183,7 +186,12 @@ class _GroupsScreenState extends State<GroupsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Groups')),
+      appBar: AppBar(
+        title: const Text('Groups'),
+        backgroundColor: Colors.transparent,
+        foregroundColor: AppColors.textPrimary,
+        elevation: 0,
+      ),
       body: StreamBuilder<QuerySnapshot>(
         stream: _getGroupsStream(),
         builder: (context, snapshot) {
@@ -195,27 +203,68 @@ class _GroupsScreenState extends State<GroupsScreen> {
             return const Center(child: Text('Error loading groups. Check logs for details.'));
           }
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(child: Text('No groups found. Create one!'));
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.groups_outlined, size: 64, color: AppColors.textSecondary.withOpacity(0.5)),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No groups found',
+                    style: TextStyle(color: AppColors.textSecondary, fontSize: 18),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Create one to start splitting bills!',
+                    style: TextStyle(color: AppColors.textSecondary.withOpacity(0.7)),
+                  ),
+                ],
+              ),
+            );
           }
 
           return ListView.builder(
+            padding: const EdgeInsets.all(16),
             itemCount: snapshot.data!.docs.length,
             itemBuilder: (context, index) {
               final doc = snapshot.data!.docs[index];
               final data = doc.data() as Map<String, dynamic>;
               final groupName = data['name'] ?? 'Unnamed Group';
 
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: ListTile(
-                  title: Text(groupName, style: const TextStyle(fontWeight: FontWeight.bold)),
+              return AnimatedListItem(
+                index: index,
+                child: ModernCard(
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => GroupDetailScreen(groupId: doc.id)),
                   ),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.person_add_alt),
-                    tooltip: 'Invite by email',
-                    onPressed: () => _shareGroup(doc.id),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryPeach.withOpacity(0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.group, color: AppColors.primaryOrange),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Text(
+                          groupName,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.person_add_alt, color: AppColors.secondaryTeal),
+                        tooltip: 'Invite by email',
+                        onPressed: () => _shareGroup(doc.id),
+                      ),
+                      const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+                    ],
                   ),
                 ),
               );
@@ -227,7 +276,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
         onPressed: _createGroup,
         icon: const Icon(Icons.add),
         label: const Text('Create Group'),
-        backgroundColor: AppColors.primaryNavy,
+        backgroundColor: AppColors.primaryOrange,
       ),
     );
   }

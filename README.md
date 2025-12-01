@@ -1,4 +1,4 @@
-# SliceIt 🍕
+    # SliceIt 🍕
 
 **SliceIt** is a modern, intuitive expense-splitting application designed to make sharing costs with friends and family seamless and stress-free. Whether you're on a trip, sharing an apartment, or just dining out, SliceIt ensures everyone pays their fair share without the awkward math.
 
