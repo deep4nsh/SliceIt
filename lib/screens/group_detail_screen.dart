@@ -74,7 +74,36 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
             },
           ),
           actions: [
-            // Removed unused StreamBuilder
+            IconButton(
+              icon: const Icon(Icons.share, color: Colors.white),
+              onPressed: () async {
+                final groupDoc = await _firestore.collection('groups').doc(widget.groupId).get();
+                final groupName = groupDoc.data()?['name'] ?? 'SliceIt Group';
+                
+                final text = "Hey! Join my group '$groupName' on SliceIt to split bills easily.\n\nUse Group ID: ${widget.groupId}";
+                final url = Uri.parse("https://wa.me/?text=${Uri.encodeComponent(text)}");
+                
+                try {
+                  if (await canLaunchUrl(url)) {
+                    await launchUrl(url, mode: LaunchMode.externalApplication);
+                  } else {
+                    // Fallback to standard share if WhatsApp not found? 
+                    // For now, show snackbar as user specifically asked for WhatsApp
+                    if (context.mounted) {
+                       ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Could not launch WhatsApp')),
+                      );
+                    }
+                  }
+                } catch (e) {
+                   if (context.mounted) {
+                       ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error: $e')),
+                      );
+                    }
+                }
+              },
+            ),
           ],
           bottom: const TabBar(
             indicatorColor: AppColors.primaryGold,
