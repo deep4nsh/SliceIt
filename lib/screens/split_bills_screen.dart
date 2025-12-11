@@ -431,7 +431,7 @@ class _SplitBillsScreenState extends State<SplitBillsScreen> {
           child: friend.photoUrl == null ? const Icon(Icons.person) : null,
         ),
         title: Text(friend.name ?? "User", style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text("Owes you ₹0.00", style: TextStyle(color: Colors.green[700], fontSize: 12)), // Placeholder logic
+        // subtitle: Text("Owes you ₹0.00", style: TextStyle(color: Colors.green[700], fontSize: 12)), // Removed placeholder
         trailing: const Icon(Icons.chevron_right),
       ),
     );
