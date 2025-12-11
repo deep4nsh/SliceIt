@@ -149,29 +149,84 @@ class _SplitBillsScreenState extends State<SplitBillsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Summary Cards
-            Row(
-              children: [
-                Expanded(
-                  child: _buildSummaryCard(
-                    "You Owe",
-                    "₹567.58",
-                    AppColors.errorRed,
-                    Colors.white,
-                    Icons.arrow_outward,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildSummaryCard(
-                    "Owes you",
-                    "₹826.43",
-                    AppColors.successGreen,
-                    Colors.white,
-                    Icons.arrow_downward,
-                  ),
-                ),
-              ],
+            StreamBuilder<QuerySnapshot>(
+              stream: _firestore
+                  .collection('split_bills')
+                  .where('participants', arrayContains: user?.email)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                double totalYouOwe = 0;
+                double totalOwedToYou = 0;
+
+                if (snapshot.hasData) {
+                  final docs = snapshot.data!.docs;
+                  final currentUserEmail = user?.email;
+
+                  for (var doc in docs) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    final createdBy = data['createdBy'] as String?;
+                    final totalAmount = (data['totalAmount'] as num).toDouble();
+                    final participants = (data['participants'] as List).cast<String>();
+                    final paidStatus = (data['paidStatus'] as Map).cast<String, bool>();
+                    final splitType = data['splitType'] as String? ?? 'equal';
+                    final amounts = (data['amounts'] as Map?)?.cast<String, num>() ?? {};
+
+                    if (createdBy == currentUserEmail) {
+                      // People owe the current user
+                      for (var participant in participants) {
+                        if (participant != currentUserEmail) {
+                          final isPaid = paidStatus[participant] ?? false;
+                          if (!isPaid) {
+                             double amountOwed = 0;
+                             if (splitType == 'unequal') {
+                               amountOwed = (amounts[participant] ?? 0).toDouble();
+                             } else {
+                               amountOwed = participants.isNotEmpty ? totalAmount / participants.length : 0;
+                             }
+                             totalOwedToYou += amountOwed;
+                          }
+                        }
+                      }
+                    } else {
+                      // Current user might owe the creator
+                      final isPaid = paidStatus[currentUserEmail] ?? false;
+                      if (!isPaid) {
+                        double amountOwed = 0;
+                        if (splitType == 'unequal') {
+                          amountOwed = (amounts[currentUserEmail] ?? 0).toDouble();
+                        } else {
+                          amountOwed = participants.isNotEmpty ? totalAmount / participants.length : 0;
+                        }
+                        totalYouOwe += amountOwed;
+                      }
+                    }
+                  }
+                }
+
+                return Row(
+                  children: [
+                    Expanded(
+                      child: _buildSummaryCard(
+                        "You Owe",
+                        "₹${totalYouOwe.toStringAsFixed(2)}",
+                        AppColors.errorRed,
+                        Colors.white,
+                        Icons.arrow_outward,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _buildSummaryCard(
+                        "Owes you",
+                        "₹${totalOwedToYou.toStringAsFixed(2)}",
+                        AppColors.successGreen,
+                        Colors.white,
+                        Icons.arrow_downward,
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
             const SizedBox(height: 24),
 
