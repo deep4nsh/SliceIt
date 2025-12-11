@@ -5,6 +5,7 @@ import 'login_screen.dart';
 import '../utils/colors.dart';
 import '../widgets/modern_card.dart';
 import '../widgets/animated_list_item.dart';
+import '../services/home_stats_service.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -12,6 +13,7 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
+    final statsService = HomeStatsService();
 
     return Scaffold(
       body: CustomScrollView(
@@ -66,74 +68,110 @@ class HomeScreen extends StatelessWidget {
             ],
           ),
           SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Total Balance Card
-                  ModernCard(
-                    gradient: const LinearGradient(
-                      colors: [AppColors.primaryOrange, AppColors.primaryPeach],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: StreamBuilder<Map<String, double>>(
+              stream: statsService.getHomeStats(),
+              initialData: const {'spent': 0.0, 'owe': 0.0, 'owed': 0.0},
+              builder: (context, snapshot) {
+                final stats = snapshot.data ?? {'spent': 0.0, 'owe': 0.0, 'owed': 0.0};
+                final totalSpent = stats['spent']!;
+                final youOwe = stats['owe']!;
+                final owedToYou = stats['owed']!;
+
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Total Spent Card
+                      ModernCard(
+                        gradient: const LinearGradient(
+                          colors: [AppColors.primaryNavy, Color(0xFF2A2D3E)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Total Spent',
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.7),
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Icon(Icons.account_balance_wallet, color: AppColors.primaryGold, size: 20),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
                             Text(
-                              'Total Balance',
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.9),
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
+                              '₹ ${totalSpent.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 32,
+                                fontWeight: FontWeight.bold,
                               ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Icon(Icons.wallet, color: Colors.white, size: 20),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 12),
-                        const Text(
-                          '₹ 12,540',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 36,
-                            fontWeight: FontWeight.bold,
+                      ),
+                      const SizedBox(height: 16),
+                      // Debts and Credits
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ModernCard(
+                              color: AppColors.errorRed.withOpacity(0.1),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text("You Owe", style: TextStyle(color: AppColors.errorRed, fontSize: 12, fontWeight: FontWeight.bold)),
+                                  const SizedBox(height: 4),
+                                  Text("₹ ${youOwe.toStringAsFixed(2)}", style: const TextStyle(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                            ),
                           ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: ModernCard(
+                              color: AppColors.successGreen.withOpacity(0.1),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text("Owed to You", style: TextStyle(color: AppColors.successGreen, fontSize: 12, fontWeight: FontWeight.bold)),
+                                  const SizedBox(height: 4),
+                                  Text("₹ ${owedToYou.toStringAsFixed(2)}", style: const TextStyle(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 30),
+                      const Text(
+                        "Quick Actions",
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
                         ),
-                        const SizedBox(height: 20),
-                        Row(
-                          children: [
-                            _buildBalanceAction(Icons.add, "Add Money"),
-                            const SizedBox(width: 16),
-                            _buildBalanceAction(Icons.arrow_outward, "Send"),
-                          ],
-                        ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
                   ),
-                  const SizedBox(height: 30),
-                  const Text(
-                    "Quick Actions",
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-              ),
+                );
+              },
             ),
           ),
           SliverPadding(
