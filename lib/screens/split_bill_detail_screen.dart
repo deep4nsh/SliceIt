@@ -25,18 +25,32 @@ class _SplitBillDetailScreenState extends State<SplitBillDetailScreen> {
       'paidStatus.$userEmail': isPaid,
     });
 
-    if (isPaid && userEmail == _auth.currentUser?.email) {
-      await _addExpenseToPersonalLog(data, userEmail);
+    if (userEmail == _auth.currentUser?.email) {
+      await _updatePersonalLog(data, isPaid);
     }
   }
 
-  Future<void> _addExpenseToPersonalLog(Map<String, dynamic> data, String userEmail) async {
+  Future<void> _updatePersonalLog(Map<String, dynamic> data, bool isPaid) async {
+    final userUid = _auth.currentUser!.uid;
+    final logDocRef = _firestore
+        .collection('users')
+        .doc(userUid)
+        .collection('expenses')
+        .doc('split_${widget.splitId}');
+
+    if (!isPaid) {
+      // Remove from log if marked as unpaid
+      await logDocRef.delete();
+      return;
+    }
+
     final totalAmount = (data['totalAmount'] as num).toDouble();
     final participants = (data['participants'] as List);
     final splitType = data['splitType'] ?? 'equal';
+    final userEmail = _auth.currentUser?.email;
     double expenseAmount = 0;
 
-    if (splitType == 'unequal') {
+    if (splitType == 'unequal' && userEmail != null) {
       final amounts = (data['amounts'] as Map).cast<String, num>();
       expenseAmount = (amounts[userEmail] ?? 0).toDouble();
     } else {
@@ -44,11 +58,7 @@ class _SplitBillDetailScreenState extends State<SplitBillDetailScreen> {
     }
 
     if (expenseAmount > 0) {
-      await _firestore
-          .collection('users')
-          .doc(_auth.currentUser!.uid)
-          .collection('expenses')
-          .add({
+      await logDocRef.set({
         'title': "Split: ${data['title']}",
         'amount': expenseAmount,
         'category': 'Bill Split',

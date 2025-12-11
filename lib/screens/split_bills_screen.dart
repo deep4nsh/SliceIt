@@ -115,9 +115,9 @@ class _SplitBillsScreenState extends State<SplitBillsScreen> {
     final user = _auth.currentUser;
 
     return Scaffold(
-      backgroundColor: AppColors.backgroundLight,
+      backgroundColor: AppColors.secondaryTeal,
       appBar: AppBar(
-        backgroundColor: AppColors.primaryNavy,
+        backgroundColor: AppColors.primaryOrange,
         elevation: 0,
         title: Row(
           children: [
@@ -324,7 +324,7 @@ class _SplitBillsScreenState extends State<SplitBillsScreen> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: AppColors.secondaryTeal.withOpacity(0.1),
+                color: AppColors.primaryOrange.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(Icons.receipt_long, color: AppColors.secondaryTeal),

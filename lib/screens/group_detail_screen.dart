@@ -402,6 +402,7 @@ class _AddEditExpenseDialogState extends State<_AddEditExpenseDialog> {
            _SettleButton(
              expenseDoc: widget.expenseDoc!,
              currentUserUid: FirebaseAuth.instance.currentUser?.uid,
+             groupId: widget.groupId,
            ),
       ],
     );
@@ -462,8 +463,13 @@ class MemberChip extends StatelessWidget {
 class _SettleButton extends StatefulWidget {
   final DocumentSnapshot expenseDoc;
   final String? currentUserUid;
+  final String groupId;
 
-  const _SettleButton({required this.expenseDoc, required this.currentUserUid});
+  const _SettleButton({
+    required this.expenseDoc,
+    required this.currentUserUid,
+    required this.groupId,
+  });
 
   @override
   State<_SettleButton> createState() => _SettleButtonState();
@@ -480,10 +486,10 @@ class _SettleButtonState extends State<_SettleButton> {
       final paidByUid = data['paidBy'];
       final amount = (data['amount'] as num).toDouble();
       final participants = (data['participants'] as List).cast<String>();
-      
+
       if (!participants.contains(widget.currentUserUid)) {
         if (mounted) {
-           ScaffoldMessenger.of(context).showSnackBar(
+          ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('You are not a participant in this expense.')),
           );
         }
@@ -505,7 +511,7 @@ class _SettleButtonState extends State<_SettleButton> {
       final vpa = resp['vpa'];
       final name = resp['name'];
       final note = resp['note'];
-      
+
       _txnId = txnId;
 
       // 2. Construct UPI URI
@@ -515,9 +521,9 @@ class _SettleButtonState extends State<_SettleButton> {
       // 3. Launch Intent
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
-        
+
         // 4. Start Polling
-        _pollTransactionStatus(txnId);
+        _pollTransactionStatus(txnId, splitAmount, paidByUid);
       } else {
         throw "Could not launch UPI app";
       }
@@ -533,9 +539,9 @@ class _SettleButtonState extends State<_SettleButton> {
     }
   }
 
-  void _pollTransactionStatus(String txnId) async {
+  void _pollTransactionStatus(String txnId, double amount, String receiverUid) async {
     if (!mounted) return;
-    
+
     // Show processing dialog
     showDialog(
       context: context,
@@ -571,14 +577,33 @@ class _SettleButtonState extends State<_SettleButton> {
     Navigator.pop(context); // Close dialog
 
     if (success) {
+      await _recordSettlement(amount, receiverUid);
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Payment Successful! Bill Settled.')),
       );
+      Navigator.pop(context); // Close Expense Dialog
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Payment processing or failed. Check status later.')),
       );
     }
+  }
+
+  Future<void> _recordSettlement(double amount, String receiverUid) async {
+    // Current user paid 'amount' to 'receiverUid'
+    await FirebaseFirestore.instance
+        .collection('groups')
+        .doc(widget.groupId)
+        .collection('expenses')
+        .add({
+      'title': "Settlement Payment",
+      'amount': amount,
+      'paidBy': widget.currentUserUid,
+      'participants': [receiverUid], // The person who received money
+      'date': FieldValue.serverTimestamp(),
+      'isSettlement': true,
+    });
   }
 
   @override
@@ -597,7 +622,7 @@ class _SettleButtonState extends State<_SettleButton> {
     return ElevatedButton(
       onPressed: _isLoading ? null : _settleWithUpi,
       style: ElevatedButton.styleFrom(backgroundColor: AppColors.successGreen),
-      child: _isLoading 
+      child: _isLoading
         ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
         : const Text("Settle with UPI"),
     );

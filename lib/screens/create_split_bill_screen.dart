@@ -53,7 +53,7 @@ class _CreateSplitBillScreenState extends State<CreateSplitBillScreen> {
 
   void _parseTotalAmount() {
     double? bestCandidate;
-    final RegExp regex = RegExp(r'(\d+[.,]\d{2})');
+    final RegExp regex = RegExp(r'(\d+(?:[.,]\d{1,2})?)');
 
     for (final line in widget.lines.reversed) {
       final text = line.text.toLowerCase().replaceAll(',', '.');
