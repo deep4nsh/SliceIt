@@ -6,6 +6,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:sliceit/services/debt_simplifier.dart';
 import 'package:sliceit/utils/colors.dart';
+import 'package:sliceit/utils/deep_link_config.dart';
 
 class GroupDetailScreen extends StatefulWidget {
   final String groupId;
@@ -80,7 +81,11 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                 final groupDoc = await _firestore.collection('groups').doc(widget.groupId).get();
                 final groupName = groupDoc.data()?['name'] ?? 'SliceIt Group';
                 
-                final text = "Hey! Join my group '$groupName' on SliceIt to split bills easily.\n\nUse Group ID: ${widget.groupId}";
+                final currentUser = FirebaseAuth.instance.currentUser;
+                final inviterUid = currentUser?.uid ?? '';
+                final httpLink = DeepLinkConfig.groupHttp(widget.groupId, inviterUid);
+                
+                final text = "Hey! Join my group '$groupName' on SliceIt to split bills easily.\n\nTap here to join automatically:\n$httpLink";
                 final url = Uri.parse("https://wa.me/?text=${Uri.encodeComponent(text)}");
                 
                 try {
