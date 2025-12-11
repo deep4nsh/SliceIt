@@ -6,6 +6,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import '../services/auth_service.dart';
 import '../services/theme_provider.dart';
 import 'login_screen.dart';
+import '../utils/colors.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -219,11 +220,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Profile"),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new),
-          onPressed: () => Navigator.pop(context),
-        ),
+        title: const Text("Profile", style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: AppColors.primaryNavy,
+        foregroundColor: Colors.white,
+        elevation: 0,
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -233,14 +233,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             const SizedBox(height: 20),
-            CircleAvatar(
-              radius: 50,
-              backgroundImage: user?.photoURL != null
-                  ? NetworkImage(user!.photoURL!)
-                  : null,
-              child: user?.photoURL == null
-                  ? const Icon(Icons.person, size: 50)
-                  : null,
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.primaryGold, width: 2),
+              ),
+              child: CircleAvatar(
+                radius: 50,
+                backgroundImage: user?.photoURL != null
+                    ? NetworkImage(user!.photoURL!)
+                    : null,
+                child: user?.photoURL == null
+                    ? const Icon(Icons.person, size: 50, color: AppColors.textSecondary)
+                    : null,
+              ),
             ),
             const SizedBox(height: 12),
             Text(

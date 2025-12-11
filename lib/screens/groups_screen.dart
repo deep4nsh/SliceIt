@@ -187,9 +187,9 @@ class _GroupsScreenState extends State<GroupsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Groups'),
-        backgroundColor: Colors.transparent,
-        foregroundColor: AppColors.textPrimary,
+        title: const Text('Groups', style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: AppColors.primaryNavy,
+        foregroundColor: Colors.white,
         elevation: 0,
       ),
       body: StreamBuilder<QuerySnapshot>(
@@ -242,10 +242,10 @@ class _GroupsScreenState extends State<GroupsScreen> {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: AppColors.primaryPeach.withOpacity(0.2),
+                          color: AppColors.primaryGold.withOpacity(0.2),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.group, color: AppColors.primaryOrange),
+                        child: const Icon(Icons.group, color: AppColors.primaryGold),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
@@ -276,7 +276,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
         onPressed: _createGroup,
         icon: const Icon(Icons.add),
         label: const Text('Create Group'),
-        backgroundColor: AppColors.primaryOrange,
+        backgroundColor: AppColors.secondaryTeal,
       ),
     );
   }

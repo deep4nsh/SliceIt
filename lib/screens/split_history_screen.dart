@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:sliceit/screens/split_bill_detail_screen.dart';
+import 'package:sliceit/utils/colors.dart';
 
 class SplitHistoryScreen extends StatefulWidget {
   const SplitHistoryScreen({super.key});
@@ -25,7 +26,11 @@ class _SplitHistoryScreenState extends State<SplitHistoryScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Split Bill History')),
+      appBar: AppBar(
+        title: const Text('Split Bill History', style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: AppColors.primaryNavy,
+        foregroundColor: Colors.white,
+      ),
       body: StreamBuilder<QuerySnapshot>(
         stream: _firestore
             .collection('split_bills')
@@ -74,13 +79,13 @@ class _SplitHistoryScreenState extends State<SplitHistoryScreen> {
                 child: ListTile(
                   leading: Icon(
                     isPaid ? Icons.check_circle : Icons.cancel,
-                    color: isPaid ? Colors.green : Colors.red,
+                    color: isPaid ? AppColors.successGreen : AppColors.errorRed,
                   ),
                   title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
                   subtitle: Text('Your share: ₹${amountOwed.toStringAsFixed(2)} • $formattedDate'),
                   trailing: Text(
                     isPaid ? "Paid" : "Unpaid", 
-                    style: TextStyle(color: isPaid ? Colors.green : Colors.red, fontWeight: FontWeight.bold)
+                    style: TextStyle(color: isPaid ? AppColors.successGreen : AppColors.errorRed, fontWeight: FontWeight.bold)
                   ),
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => SplitBillDetailScreen(splitId: doc.id)),

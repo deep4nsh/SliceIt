@@ -115,23 +115,31 @@ class _SplitBillsScreenState extends State<SplitBillsScreen> {
     final user = _auth.currentUser;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF8E1), // Light orange/yellow background
+      backgroundColor: AppColors.backgroundLight,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppColors.primaryNavy,
         elevation: 0,
         title: Row(
           children: [
-            CircleAvatar(
-              backgroundImage: user?.photoURL != null ? NetworkImage(user!.photoURL!) : null,
-              child: user?.photoURL == null ? const Icon(Icons.person) : null,
+            Container(
+              padding: const EdgeInsets.all(2),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+              ),
+              child: CircleAvatar(
+                radius: 18,
+                backgroundImage: user?.photoURL != null ? NetworkImage(user!.photoURL!) : null,
+                child: user?.photoURL == null ? const Icon(Icons.person, size: 20) : null,
+              ),
             ),
             const SizedBox(width: 10),
-            const Text("Split Bills", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+            const Text("Split Bills", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ],
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications_none, color: Colors.black),
+            icon: const Icon(Icons.notifications_none, color: Colors.white),
             onPressed: () {},
           ),
         ],
@@ -148,7 +156,7 @@ class _SplitBillsScreenState extends State<SplitBillsScreen> {
                   child: _buildSummaryCard(
                     "You Owe",
                     "₹567.58",
-                    Colors.black,
+                    AppColors.errorRed,
                     Colors.white,
                     Icons.arrow_outward,
                   ),
@@ -158,7 +166,7 @@ class _SplitBillsScreenState extends State<SplitBillsScreen> {
                   child: _buildSummaryCard(
                     "Owes you",
                     "₹826.43",
-                    Colors.black,
+                    AppColors.successGreen,
                     Colors.white,
                     Icons.arrow_downward,
                   ),
@@ -172,7 +180,7 @@ class _SplitBillsScreenState extends State<SplitBillsScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text("Pending Bills", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                TextButton(onPressed: () {}, child: const Text("View All", style: TextStyle(color: Colors.orange))),
+                TextButton(onPressed: () {}, child: const Text("View All", style: TextStyle(color: AppColors.secondaryTeal))),
               ],
             ),
             
@@ -252,9 +260,9 @@ class _SplitBillsScreenState extends State<SplitBillsScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _createNewBill(context),
-        backgroundColor: Colors.orange,
-        icon: const Icon(Icons.add),
-        label: const Text("Create Bill"),
+        backgroundColor: AppColors.primaryGold,
+        icon: const Icon(Icons.add, color: AppColors.primaryNavy),
+        label: const Text("Create Bill", style: TextStyle(color: AppColors.primaryNavy, fontWeight: FontWeight.bold)),
       ),
     );
   }
@@ -316,10 +324,10 @@ class _SplitBillsScreenState extends State<SplitBillsScreen> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.1),
+                color: AppColors.secondaryTeal.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.receipt_long, color: Colors.orange),
+              child: const Icon(Icons.receipt_long, color: AppColors.secondaryTeal),
             ),
             const SizedBox(width: 16),
             Expanded(

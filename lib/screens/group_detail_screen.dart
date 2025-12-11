@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:sliceit/services/debt_simplifier.dart';
+import 'package:sliceit/utils/colors.dart';
 
 class GroupDetailScreen extends StatefulWidget {
   final String groupId;
@@ -63,17 +64,23 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
+          backgroundColor: AppColors.primaryNavy,
+          foregroundColor: Colors.white,
           title: StreamBuilder<DocumentSnapshot>(
             stream: _getGroupStream(),
             builder: (context, snapshot) {
               final groupName = (snapshot.data?.data() as Map<String, dynamic>?)?['name'] ?? 'Group Details';
-              return Text(groupName);
+              return Text(groupName, style: const TextStyle(fontWeight: FontWeight.bold));
             },
           ),
           actions: [
             // Removed unused StreamBuilder
           ],
           bottom: const TabBar(
+            indicatorColor: AppColors.primaryGold,
+            indicatorWeight: 3,
+            labelColor: AppColors.primaryGold,
+            unselectedLabelColor: Colors.white70,
             tabs: [
               Tab(text: "Expenses"),
               Tab(text: "Balances"),
@@ -88,6 +95,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         ),
         floatingActionButton: FloatingActionButton.extended(
           onPressed: () => _showExpenseDialog(),
+          backgroundColor: AppColors.secondaryTeal,
           label: const Text("Add Expense"),
           icon: const Icon(Icons.add),
         ),
@@ -390,7 +398,7 @@ class _AddEditExpenseDialogState extends State<_AddEditExpenseDialog> {
         TextButton(onPressed: () => Navigator.pop(context), child: const Text("Close")),
         if (widget.canEdit)
           ElevatedButton(onPressed: _saveExpense, child: const Text("Save")),
-        if (!widget.canEdit && widget.expenseDoc != null)
+        if (widget.expenseDoc != null)
            _SettleButton(
              expenseDoc: widget.expenseDoc!,
              currentUserUid: FirebaseAuth.instance.currentUser?.uid,
@@ -400,7 +408,6 @@ class _AddEditExpenseDialogState extends State<_AddEditExpenseDialog> {
   }
 }
 
-// Helper widget to fetch and display a user's name from their UID
 class UserNameDisplay extends StatelessWidget {
   final String uid;
   final Widget Function(String name) builder;
@@ -412,62 +419,41 @@ class UserNameDisplay extends StatelessWidget {
     return FutureBuilder<DocumentSnapshot>(
       future: FirebaseFirestore.instance.collection('users').doc(uid).get(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Text("Loading...");
-        }
-        final name = (snapshot.data?.data() as Map<String, dynamic>?)?['name'] ?? 'Unknown User';
+        if (snapshot.connectionState == ConnectionState.waiting) return builder('...');
+        if (snapshot.hasError || !snapshot.hasData) return builder('Unknown');
+        final data = snapshot.data!.data() as Map<String, dynamic>?;
+        final name = data?['name'] ?? 'User';
         return builder(name);
       },
     );
   }
 }
 
-// A new widget to fetch and display member info
-class MemberChip extends StatefulWidget {
+class MemberChip extends StatelessWidget {
   final String uid;
   const MemberChip({super.key, required this.uid});
 
   @override
-  State<MemberChip> createState() => _MemberChipState();
-}
-
-class _MemberChipState extends State<MemberChip> {
-  String _name = '...';
-  String? _imageUrl;
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchUserInfo();
-  }
-
-  Future<void> _fetchUserInfo() async {
-    if (!mounted) return;
-    try {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(widget.uid).get();
-      if (mounted && doc.exists) {
-        setState(() {
-          _name = doc.data()?['name'] ?? '...';
-          _imageUrl = doc.data()?['photoUrl'];
-        });
-      } else {
-         setState(() => _name = 'Unknown');
-      }
-    } catch (e) {
-      if (mounted) setState(() => _name = 'Error');
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4.0),
-      child: Chip(
-        avatar: CircleAvatar(
-          backgroundImage: _imageUrl != null ? NetworkImage(_imageUrl!) : null,
-          child: _imageUrl == null ? Text(_name.substring(0, 1)) : null,
-        ),
-        label: Text(_name),
+      padding: const EdgeInsets.only(right: 8.0),
+      child: FutureBuilder<DocumentSnapshot>(
+        future: FirebaseFirestore.instance.collection('users').doc(uid).get(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) return const Chip(label: Text('...'));
+          final data = snapshot.data!.data() as Map<String, dynamic>?;
+          final name = data?['name'] ?? 'Unknown';
+          final photoUrl = data?['photoUrl'];
+          
+          return Chip(
+            avatar: CircleAvatar(
+              backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
+              child: photoUrl == null ? Text(name.isNotEmpty ? name[0] : '?') : null,
+            ),
+            label: Text(name),
+            backgroundColor: AppColors.backgroundLight,
+          );
+        },
       ),
     );
   }
@@ -597,9 +583,20 @@ class _SettleButtonState extends State<_SettleButton> {
 
   @override
   Widget build(BuildContext context) {
+    final data = widget.expenseDoc.data() as Map<String, dynamic>;
+    final paidBy = data['paidBy'];
+    final isPayer = paidBy == widget.currentUserUid;
+
+    if (isPayer) {
+      return const ElevatedButton(
+        onPressed: null, // Disabled
+        child: Text("You Paid"),
+      );
+    }
+
     return ElevatedButton(
       onPressed: _isLoading ? null : _settleWithUpi,
-      style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+      style: ElevatedButton.styleFrom(backgroundColor: AppColors.successGreen),
       child: _isLoading 
         ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
         : const Text("Settle with UPI"),
