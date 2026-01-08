@@ -10,6 +10,7 @@ import 'package:sliceit/utils/text_styles.dart';
 import 'package:sliceit/services/friend_service.dart';
 import 'package:sliceit/models/friend_model.dart';
 import 'package:sliceit/models/line_model.dart';
+import 'package:sliceit/services/bill_parser_service.dart';
 
 enum SplitType { equal, unequal }
 
@@ -52,45 +53,9 @@ class _CreateSplitBillScreenState extends State<CreateSplitBillScreen> {
   }
 
   void _parseTotalAmount() {
-    double? bestCandidate;
-    final RegExp regex = RegExp(r'(\d+(?:[.,]\d{1,2})?)');
-
-    for (final line in widget.lines.reversed) {
-      final text = line.text.toLowerCase().replaceAll(',', '.');
-      if (text.contains('total') || text.contains('subtotal') || text.contains('amount') || text.contains('due')) {
-        final Iterable<RegExpMatch> matches = regex.allMatches(text);
-        if (matches.isNotEmpty) {
-          for (final match in matches) {
-            final value = double.tryParse(match.group(1)!);
-            if (value != null) {
-              if (bestCandidate == null || value > bestCandidate) {
-                bestCandidate = value;
-              }
-            }
-          }
-        }
-      }
-    }
-
-    if (bestCandidate == null) {
-      for (final line in widget.lines) {
-        final text = line.text.replaceAll(',', '.');
-        final Iterable<RegExpMatch> matches = regex.allMatches(text);
-        if (matches.isNotEmpty) {
-          for (final match in matches) {
-            final value = double.tryParse(match.group(1)!);
-            if (value != null) {
-              if (bestCandidate == null || value > bestCandidate) {
-                bestCandidate = value;
-              }
-            }
-          }
-        }
-      }
-    }
-
-    if (bestCandidate != null) {
-      _amountController.text = bestCandidate.toStringAsFixed(2);
+    final amount = BillParserService().parseTotalAmount(widget.lines);
+    if (amount != null) {
+      _amountController.text = amount.toStringAsFixed(2);
     }
   }
 
