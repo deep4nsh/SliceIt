@@ -178,12 +178,16 @@ class _SplitBillsScreenState extends State<SplitBillsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Single listener for all split bill data (replaces two separate listeners)
                 StreamBuilder<QuerySnapshot>(
                   stream: _firestore
                       .collection('split_bills')
                       .where('participants', arrayContains: userEmail)
+                      .orderBy('createdAt', descending: true)
+                      .limit(10)
                       .snapshots(),
                   builder: (context, snapshot) {
+                    // Calculate summary totals from the same snapshot
                     double totalYouOwe = 0;
                     double totalOwedToYou = 0;
 
@@ -232,67 +236,63 @@ class _SplitBillsScreenState extends State<SplitBillsScreen> {
                       }
                     }
 
-                    return Row(
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: _buildSummaryCard(
-                            "You Owe",
-                            "₹${totalYouOwe.toStringAsFixed(2)}",
-                            AppColors.errorRed,
-                            Colors.white,
-                            Icons.arrow_outward,
-                          ),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildSummaryCard(
+                                "You Owe",
+                                "₹${totalYouOwe.toStringAsFixed(2)}",
+                                AppColors.errorRed,
+                                Colors.white,
+                                Icons.arrow_outward,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: _buildSummaryCard(
+                                "Owes you",
+                                "₹${totalOwedToYou.toStringAsFixed(2)}",
+                                AppColors.successGreen,
+                                Colors.white,
+                                Icons.arrow_downward,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: _buildSummaryCard(
-                            "Owes you",
-                            "₹${totalOwedToYou.toStringAsFixed(2)}",
-                            AppColors.successGreen,
-                            Colors.white,
-                            Icons.arrow_downward,
-                          ),
+                        const SizedBox(height: 24),
+
+                        // Pending Bills Header
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text("Pending Bills", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                            TextButton(
+                              onPressed: () => Navigator.of(context).pushNamed('/split_history'),
+                              child: const Text("View All", style: TextStyle(color: AppColors.secondaryTeal)),
+                            ),
+                          ],
                         ),
+
+                        // Pending Bills List (from same snapshot)
+                        if (!snapshot.hasData)
+                          const Center(child: CircularProgressIndicator())
+                        else if (snapshot.data!.docs.isEmpty)
+                          const Text("No pending bills")
+                        else
+                          ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: snapshot.data!.docs.length,
+                            itemBuilder: (context, index) {
+                              final data = snapshot.data!.docs[index].data() as Map<String, dynamic>;
+                              final splitId = snapshot.data!.docs[index].id;
+                              return _buildBillCard(context, data, splitId, user?.email);
+                            },
+                          ),
                       ],
-                    );
-                  },
-                ),
-                const SizedBox(height: 24),
-
-                // Pending Bills Header
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text("Pending Bills", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pushNamed('/split_history'),
-                      child: const Text("View All", style: TextStyle(color: AppColors.secondaryTeal)),
-                    ),
-                  ],
-                ),
-                
-                // Pending Bills List
-                StreamBuilder<QuerySnapshot>(
-                  stream: _firestore
-                      .collection('split_bills')
-                      .where('participants', arrayContains: userEmail)
-                      .orderBy('createdAt', descending: true)
-                      .limit(5)
-                      .snapshots(),
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-                    final docs = snapshot.data!.docs;
-                    if (docs.isEmpty) return const Text("No pending bills");
-
-                    return ListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: docs.length,
-                      itemBuilder: (context, index) {
-                        final data = docs[index].data() as Map<String, dynamic>;
-                        final splitId = docs[index].id;
-                        return _buildBillCard(context, data, splitId, user?.email);
-                      },
                     );
                   },
                 ),
