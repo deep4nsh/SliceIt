@@ -31,7 +31,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
       return _nameCache[uid]!;
     }
     final doc = await _firestore.collection('users').doc(uid).get();
-    final name = (doc.data() as Map<String, dynamic>?)?['name'] ?? 'User';
+    final name = doc.data()?['name'] ?? 'User';
     _nameCache[uid] = name;
     return name;
   }
@@ -464,11 +464,11 @@ class UserNameDisplay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final future = cacheFn != null
+    final Future<String> future = cacheFn != null
         ? cacheFn!(uid)
-        : FirebaseFirestore.instance.collection('users').doc(uid).get().then((doc) {
-            final data = doc.data() as Map<String, dynamic>?;
-            return data?['name'] ?? 'User';
+        : FirebaseFirestore.instance.collection('users').doc(uid).get().then<String>((doc) {
+            final data = doc.data();
+            return (data?['name'] as String?) ?? 'User';
           });
 
     return FutureBuilder<String>(
@@ -494,7 +494,7 @@ class MemberChip extends StatelessWidget {
       padding: const EdgeInsets.only(right: 8.0),
       child: FutureBuilder<Map<String, dynamic>>(
         future: FirebaseFirestore.instance.collection('users').doc(uid).get().then((doc) {
-          return doc.data() as Map<String, dynamic>? ?? {};
+          return doc.data() ?? {};
         }),
         builder: (context, snapshot) {
           if (!snapshot.hasData) return const Chip(label: Text('...'));

@@ -476,7 +476,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
       final topExpensesList = <DocumentSnapshot>[];
 
       for (var doc in snapshot.docs) {
-        final data = doc.data();
+        final data = doc.data() as Map<String, dynamic>;
         final category = data['category'] as String? ?? 'Uncategorized';
         final amount = (data['amount'] as num).toDouble();
         final timestamp = data['date'] as Timestamp?;
@@ -509,7 +509,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
           ..sort((a, b) => (a['key'] as String).compareTo(b['key'] as String));
 
         final cachedSpots = trendList.asMap().entries.map((entry) {
-          return FlSpot(entry.key.toDouble(), entry.value['amount']);
+          return FlSpot(entry.key.toDouble(), entry.value['amount'] as double);
         }).toList();
 
         final sortedCats = categoryData.entries.toList()
