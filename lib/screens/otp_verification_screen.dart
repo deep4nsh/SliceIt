@@ -5,7 +5,7 @@ import 'package:firebase_database/firebase_database.dart';
 import '../utils/colors.dart';
 import '../utils/text_styles.dart';
 import '../widgets/custom_button.dart';
-import 'home_screen.dart';
+import 'main_shell.dart';
 
 class OtpVerificationScreen extends StatefulWidget {
   final String verificationId;
@@ -66,7 +66,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
         if (!mounted) return;
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          MaterialPageRoute(builder: (_) => const MainShell()),
         );
       } else {
         throw Exception("No authenticated user found.");

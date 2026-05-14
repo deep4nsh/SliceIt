@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/colors.dart';
-import 'home_screen.dart';
+import 'main_shell.dart';
 import 'onboarding_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -29,11 +29,11 @@ class _SplashScreenState extends State<SplashScreen> {
 
       if (!mounted) return;
 
-      // Navigate to HomeScreen if logged in, else OnboardingScreen
+      // Navigate to MainShell if logged in, else OnboardingScreen
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => user != null ? const HomeScreen() : const OnboardingScreen(),
+          builder: (_) => user != null ? const MainShell() : const OnboardingScreen(),
         ),
       );
     } catch (e) {

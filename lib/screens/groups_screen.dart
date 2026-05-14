@@ -2,14 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:sliceit/utils/deep_link_config.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:sliceit/screens/group_detail_screen.dart';
-import 'package:sliceit/utils/colors.dart';
-import 'package:sliceit/services/invite_service.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+
+import '../utils/deep_link_config.dart';
+import '../screens/group_detail_screen.dart';
+import '../utils/colors.dart';
+import '../utils/text_styles.dart';
+import '../utils/app_spacing.dart';
+import '../services/invite_service.dart';
 import '../widgets/modern_card.dart';
 import '../widgets/animated_list_item.dart';
+import '../widgets/mesh_background.dart';
 
+/// Modernized GroupsScreen showcasing high-fidelity dark-first design, 
+/// glassmorphic item layouts, atmospheric background meshes, and clean typography.
 class GroupsScreen extends StatefulWidget {
   const GroupsScreen({super.key});
 
@@ -18,7 +25,6 @@ class GroupsScreen extends StatefulWidget {
 }
 
 class _GroupsScreenState extends State<GroupsScreen> {
-  // ... (existing methods: _getGroupsStream, _launchEmailComposer, _createGroup, _shareGroup, _parseEmails, _isValidEmail, _composeInviteBody) ...
   final _firestore = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
 
@@ -50,28 +56,71 @@ class _GroupsScreenState extends State<GroupsScreen> {
 
   Future<void> _createGroup() async {
     final groupNameController = TextEditingController();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     await showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Create Group'),
+        backgroundColor: isDark ? AppColors.darkSurface2 : AppColors.lightSurface1,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+          side: BorderSide(
+            color: isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder,
+            width: 1,
+          ),
+        ),
+        title: Text(
+          'Create Group',
+          style: AppTextStyles.h2.copyWith(
+            color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+            fontSize: 20,
+          ),
+        ),
         content: TextField(
           controller: groupNameController,
-          decoration: const InputDecoration(labelText: 'Group Name'),
+          style: AppTextStyles.bodyL.copyWith(
+            color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+          ),
+          decoration: InputDecoration(
+            labelText: 'Group Name',
+            labelStyle: AppTextStyles.bodyM.copyWith(
+              color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
+            ),
+            enabledBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: (isDark ? AppColors.secondaryAccent : AppColors.primaryAccent).withValues(alpha: 0.3)),
+            ),
+            focusedBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent),
+            ),
+          ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancel',
+              style: AppTextStyles.button.copyWith(
+                color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
+              ),
+            ),
+          ),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
+              foregroundColor: isDark ? AppColors.textDarkPrimary : Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusMd)),
+              elevation: 0,
+            ),
             onPressed: () async {
-              if (groupNameController.text.isEmpty) return;
+              if (groupNameController.text.trim().isEmpty) return;
               await _firestore.collection('groups').add({
-                'name': groupNameController.text,
+                'name': groupNameController.text.trim(),
                 'createdBy': _auth.currentUser!.uid,
                 'members': [_auth.currentUser!.uid],
               });
               if (mounted) Navigator.pop(context);
             },
-            child: const Text('Create'),
+            child: const Text('Create', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -84,20 +133,56 @@ class _GroupsScreenState extends State<GroupsScreen> {
 
     final controller = TextEditingController();
     final formKey = GlobalKey<FormState>();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     await showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Invite by Email'),
+        backgroundColor: isDark ? AppColors.darkSurface2 : AppColors.lightSurface1,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+          side: BorderSide(
+            color: isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder,
+            width: 1,
+          ),
+        ),
+        title: Text(
+          'Invite by Email',
+          style: AppTextStyles.h2.copyWith(
+            color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+            fontSize: 20,
+          ),
+        ),
         content: Form(
           key: formKey,
           child: TextFormField(
             controller: controller,
             maxLines: 4,
-            decoration: const InputDecoration(
+            style: AppTextStyles.bodyM.copyWith(
+              color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+            ),
+            decoration: InputDecoration(
               labelText: 'Email addresses',
               hintText: 'Enter comma or newline separated emails',
-              border: OutlineInputBorder(),
+              labelStyle: AppTextStyles.bodyM.copyWith(
+                color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
+              ),
+              hintStyle: AppTextStyles.bodyM.copyWith(
+                color: (isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary).withValues(alpha: 0.5),
+                fontSize: 12,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                borderSide: BorderSide(color: isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                borderSide: BorderSide(color: isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                borderSide: BorderSide(color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent),
+              ),
             ),
             validator: (value) {
               final emails = _parseEmails(value ?? '');
@@ -109,13 +194,27 @@ class _GroupsScreenState extends State<GroupsScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancel',
+              style: AppTextStyles.button.copyWith(
+                color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
+              ),
+            ),
+          ),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
+              foregroundColor: isDark ? AppColors.textDarkPrimary : Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusMd)),
+              elevation: 0,
+            ),
             onPressed: () async {
               if (!formKey.currentState!.validate()) return;
               final emails = _parseEmails(controller.text);
 
-              // Persist invites (optional tracking)
+              // Persist invites
               final batch = _firestore.batch();
               for (final email in emails) {
                 final doc = _firestore
@@ -134,7 +233,6 @@ class _GroupsScreenState extends State<GroupsScreen> {
 
               // Send real emails via Cloud Function
               try {
-                // Fetch inviter name from user profile
                 final userDoc = await _firestore.collection('users').doc(currentUser.uid).get();
                 final inviterName = userDoc.data()?['name'] ?? currentUser.displayName ?? 'A friend';
 
@@ -149,11 +247,15 @@ class _GroupsScreenState extends State<GroupsScreen> {
                 );
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Invites sent to ${emails.length} recipient(s)')),
+                    SnackBar(
+                      content: Text('Invites sent to ${emails.length} recipient(s)', style: AppTextStyles.bodyM),
+                      backgroundColor: isDark ? AppColors.darkSurface2 : AppColors.textDarkPrimary,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusMd)),
+                    ),
                   );
                 }
               } catch (_) {
-                // Fallback: open email composer/share
                 await _launchEmailComposer(
                   emails,
                   subject: 'Join my SliceIt group',
@@ -163,7 +265,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
 
               if (mounted) Navigator.pop(context);
             },
-            child: const Text('Send Invites'),
+            child: const Text('Send Invites', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -191,98 +293,211 @@ class _GroupsScreenState extends State<GroupsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Groups', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: AppColors.primaryNavy,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: _getGroupsStream(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            debugPrint("Firestore Error in GroupsScreen: ${snapshot.error}");
-            return const Center(child: Text('Error loading groups. Check logs for details.'));
-          }
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.groups_outlined, size: 64, color: AppColors.textSecondary.withValues(alpha: 0.5)),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No groups found',
-                    style: TextStyle(color: AppColors.textSecondary, fontSize: 18),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Create one to start splitting bills!',
-                    style: TextStyle(color: AppColors.textSecondary.withValues(alpha: 0.7)),
-                  ),
-                ],
-              ),
-            );
-          }
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: snapshot.data!.docs.length,
-            itemBuilder: (context, index) {
-              final doc = snapshot.data!.docs[index];
-              final data = doc.data() as Map<String, dynamic>;
-              final groupName = data['name'] ?? 'Unnamed Group';
-
-              return AnimatedListItem(
-                index: index,
-                child: ModernCard(
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => GroupDetailScreen(groupId: doc.id)),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: AppColors.primaryGold.withValues(alpha: 0.2),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.group, color: AppColors.primaryGold),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Text(
-                          groupName,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.person_add_alt, color: AppColors.secondaryTeal),
-                        tooltip: 'Invite by email',
-                        onPressed: () => _shareGroup(doc.id, groupName),
-                      ),
-                      const Icon(Icons.chevron_right, color: AppColors.textSecondary),
-                    ],
-                  ),
+    return MeshBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          title: Text(
+            'Groups',
+            style: AppTextStyles.h2.copyWith(
+              color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          centerTitle: false,
+        ),
+        body: StreamBuilder<QuerySnapshot>(
+          stream: _getGroupsStream(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return Center(
+                child: CircularProgressIndicator(
+                  color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
                 ),
               );
-            },
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _createGroup,
-        icon: const Icon(Icons.add),
-        label: const Text('Create Group'),
-        backgroundColor: AppColors.secondaryTeal,
+            }
+            if (snapshot.hasError) {
+              debugPrint("Firestore Error in GroupsScreen: ${snapshot.error}");
+              return Center(
+                child: Text(
+                  'Error loading groups. Check logs for details.',
+                  style: AppTextStyles.bodyL.copyWith(color: AppColors.error),
+                ),
+              );
+            }
+            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: (isDark ? AppColors.darkSurface2 : AppColors.lightSurface2).withValues(alpha: 0.6),
+                        border: Border.all(
+                          color: (isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder),
+                          width: 1,
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.groups_outlined,
+                        size: 48,
+                        color: (isDark ? AppColors.secondaryAccent : AppColors.primaryAccent).withValues(alpha: 0.6),
+                      ),
+                    ).animate().scale(duration: 400.ms, curve: Curves.easeOutBack),
+                    const SizedBox(height: 20),
+                    Text(
+                      'No groups found',
+                      style: AppTextStyles.h3.copyWith(
+                        color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ).animate().fade(duration: 300.ms, delay: 100.ms),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Create one to start splitting bills!',
+                      style: AppTextStyles.bodyM.copyWith(
+                        color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
+                      ),
+                    ).animate().fade(duration: 300.ms, delay: 200.ms),
+                  ],
+                ),
+              );
+            }
+
+            final docs = snapshot.data!.docs;
+
+            return ListView.separated(
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.only(
+                left: AppSpacing.screenPadding,
+                right: AppSpacing.screenPadding,
+                top: 8,
+                bottom: 120, // Pad for bottom shell nav
+              ),
+              itemCount: docs.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                final doc = docs[index];
+                final data = doc.data() as Map<String, dynamic>;
+                final groupName = data['name'] ?? 'Unnamed Group';
+
+                // Cycle dynamic ambient colors for group list avatars to elevate premium look
+                final colors = [
+                  AppColors.primaryAccent,
+                  AppColors.secondaryAccent,
+                  AppColors.accentViolet,
+                  AppColors.success,
+                  AppColors.warning,
+                ];
+                final avatarColor = colors[index % colors.length];
+
+                return AnimatedListItem(
+                  index: index,
+                  child: ModernCard(
+                    margin: EdgeInsets.zero,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    color: isDark ? AppColors.darkSurface1 : AppColors.lightSurface1,
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => GroupDetailScreen(groupId: doc.id)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 46,
+                          height: 46,
+                          decoration: BoxDecoration(
+                            color: avatarColor.withValues(alpha: isDark ? 0.15 : 0.1),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: avatarColor.withValues(alpha: 0.3),
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Center(
+                            child: Text(
+                              groupName.isNotEmpty ? groupName[0].toUpperCase() : 'G',
+                              style: AppTextStyles.h3.copyWith(
+                                color: avatarColor,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                groupName,
+                                style: AppTextStyles.bodyL.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+                                  letterSpacing: -0.2,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Tap to view split bills',
+                                style: AppTextStyles.label.copyWith(
+                                  color: (isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary)
+                                      .withValues(alpha: 0.7),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.normal,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            Icons.person_add_alt_1_rounded,
+                            color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
+                            size: 20,
+                          ),
+                          tooltip: 'Invite by email',
+                          onPressed: () => _shareGroup(doc.id, groupName),
+                        ),
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          color: (isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary)
+                              .withValues(alpha: 0.5),
+                          size: 20,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        ),
+        floatingActionButton: FloatingActionButton.extended(
+          elevation: 4,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusLg)),
+          onPressed: _createGroup,
+          icon: Icon(
+            Icons.add_rounded,
+            color: isDark ? AppColors.textDarkPrimary : Colors.white,
+          ),
+          label: Text(
+            'Create Group',
+            style: AppTextStyles.button.copyWith(
+              color: isDark ? AppColors.textDarkPrimary : Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          backgroundColor: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
+        ),
       ),
     );
   }

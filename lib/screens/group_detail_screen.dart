@@ -1,13 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:sliceit/services/debt_simplifier.dart';
-import 'package:sliceit/utils/colors.dart';
-import 'package:sliceit/utils/deep_link_config.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
+import '../services/debt_simplifier.dart';
+import '../utils/colors.dart';
+import '../utils/text_styles.dart';
+import '../utils/app_spacing.dart';
+import '../utils/deep_link_config.dart';
+import '../widgets/modern_card.dart';
+import '../widgets/animated_list_item.dart';
+import '../widgets/mesh_background.dart';
+
+/// Highly stylized GroupDetailScreen integrating rich Tab structures,
+/// reactive modern settlement calculation cards, glass dialog forms, and smooth kinetics.
 class GroupDetailScreen extends StatefulWidget {
   final String groupId;
 
@@ -36,8 +44,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     return name;
   }
 
-
-
   Stream<QuerySnapshot> _getGroupExpensesStream() {
     return _firestore
         .collection('groups')
@@ -47,7 +53,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         .snapshots();
   }
 
-  // Unified function to show the Add/Edit Expense Dialog
   Future<void> _showExpenseDialog({DocumentSnapshot? expenseDoc}) async {
     final groupDoc = await _getGroupStream().first;
     final members = (groupDoc.data() as Map<String, dynamic>?)?['members']?.cast<String>() ?? [];
@@ -60,145 +65,319 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           groupId: widget.groupId,
           groupMemberUids: members,
           expenseDoc: expenseDoc,
-          canEdit: expenseDoc == null || (expenseDoc.data() as Map<String, dynamic>)['paidBy'] == currentUser?.uid,
+          canEdit: expenseDoc == null || ((expenseDoc.data() as Map<String, dynamic>)['paidBy'] == currentUser?.uid),
         ),
       );
     }
   }
 
-
-
-
-
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        appBar: AppBar(
-          backgroundColor: AppColors.primaryNavy,
-          foregroundColor: Colors.white,
-          title: StreamBuilder<DocumentSnapshot>(
-            stream: _getGroupStream(),
-            builder: (context, snapshot) {
-              final groupName = (snapshot.data?.data() as Map<String, dynamic>?)?['name'] ?? 'Group Details';
-              return Text(groupName, style: const TextStyle(fontWeight: FontWeight.bold));
-            },
-          ),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.share, color: Colors.white),
-              onPressed: () async {
-                final groupDoc = await _firestore.collection('groups').doc(widget.groupId).get();
-                final groupName = groupDoc.data()?['name'] ?? 'SliceIt Group';
-                
-                final currentUser = FirebaseAuth.instance.currentUser;
-                final inviterUid = currentUser?.uid ?? '';
-                final httpLink = DeepLinkConfig.groupHttp(widget.groupId, inviterUid);
-                
-                final text = "Hey! Join my group '$groupName' on SliceIt to split bills easily.\n\nTap here to join automatically:\n$httpLink";
-                final url = Uri.parse("https://wa.me/?text=${Uri.encodeComponent(text)}");
-                
-                try {
-                  if (await canLaunchUrl(url)) {
-                    await launchUrl(url, mode: LaunchMode.externalApplication);
-                  } else {
-                    // Fallback to standard share if WhatsApp not found? 
-                    // For now, show snackbar as user specifically asked for WhatsApp
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return MeshBackground(
+      child: DefaultTabController(
+        length: 2,
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            iconTheme: IconThemeData(color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary),
+            title: StreamBuilder<DocumentSnapshot>(
+              stream: _getGroupStream(),
+              builder: (context, snapshot) {
+                final groupName = (snapshot.data?.data() as Map<String, dynamic>?)?['name'] ?? 'Group Details';
+                return Text(
+                  groupName,
+                  style: AppTextStyles.h2.copyWith(
+                    color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                );
+              },
+            ),
+            actions: [
+              IconButton(
+                icon: Icon(Icons.share_rounded, color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary),
+                tooltip: 'Share invite link via WhatsApp',
+                onPressed: () async {
+                  final groupDoc = await _firestore.collection('groups').doc(widget.groupId).get();
+                  final groupName = groupDoc.data()?['name'] ?? 'SliceIt Group';
+
+                  final currentUser = FirebaseAuth.instance.currentUser;
+                  final inviterUid = currentUser?.uid ?? '';
+                  final httpLink = DeepLinkConfig.groupHttp(widget.groupId, inviterUid);
+
+                  final text = "Hey! Join my group '$groupName' on SliceIt to split bills easily.\n\nTap here to join automatically:\n$httpLink";
+                  final url = Uri.parse("https://wa.me/?text=${Uri.encodeComponent(text)}");
+
+                  try {
+                    if (await canLaunchUrl(url)) {
+                      await launchUrl(url, mode: LaunchMode.externalApplication);
+                    } else {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Could not launch WhatsApp', style: AppTextStyles.bodyM),
+                            backgroundColor: AppColors.error,
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      }
+                    }
+                  } catch (e) {
                     if (context.mounted) {
-                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Could not launch WhatsApp')),
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Error: $e', style: AppTextStyles.bodyM),
+                          backgroundColor: AppColors.error,
+                          behavior: SnackBarBehavior.floating,
+                        ),
                       );
                     }
                   }
-                } catch (e) {
-                   if (context.mounted) {
-                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Error: $e')),
-                      );
-                    }
-                }
-              },
+                },
+              ),
+            ],
+            bottom: TabBar(
+              indicatorColor: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
+              indicatorWeight: 3,
+              labelColor: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
+              labelStyle: AppTextStyles.bodyL.copyWith(fontWeight: FontWeight.bold),
+              unselectedLabelColor: (isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary).withValues(alpha: 0.7),
+              unselectedLabelStyle: AppTextStyles.bodyL.copyWith(fontWeight: FontWeight.normal),
+              dividerColor: (isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder).withValues(alpha: 0.5),
+              tabs: const [
+                Tab(text: "Expenses"),
+                Tab(text: "Balances"),
+              ],
             ),
-          ],
-          bottom: const TabBar(
-            indicatorColor: AppColors.primaryGold,
-            indicatorWeight: 3,
-            labelColor: AppColors.primaryGold,
-            unselectedLabelColor: Colors.white70,
-            tabs: [
-              Tab(text: "Expenses"),
-              Tab(text: "Balances"),
+          ),
+          body: TabBarView(
+            children: [
+              _buildExpensesTab(isDark),
+              _buildBalancesTab(isDark),
             ],
           ),
-        ),
-        body: TabBarView(
-          children: [
-            _buildExpensesTab(),
-            _buildBalancesTab(),
-          ],
-        ),
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: () => _showExpenseDialog(),
-          backgroundColor: AppColors.secondaryTeal,
-          label: const Text("Add Expense"),
-          icon: const Icon(Icons.add),
+          floatingActionButton: FloatingActionButton.extended(
+            elevation: 4,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusLg)),
+            onPressed: () => _showExpenseDialog(),
+            backgroundColor: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
+            label: Text(
+              "Add Expense",
+              style: AppTextStyles.button.copyWith(
+                color: isDark ? AppColors.textDarkPrimary : Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            icon: Icon(
+              Icons.add_rounded,
+              color: isDark ? AppColors.textDarkPrimary : Colors.white,
+            ),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildExpensesTab() {
+  Widget _buildExpensesTab(bool isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.all(16.0),
-          child: Text("Members", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.screenPadding, 16, AppSpacing.screenPadding, 8),
+          child: Text(
+            "Members",
+            style: AppTextStyles.h3.copyWith(
+              color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ),
         SizedBox(
-          height: 60,
+          height: 48,
           child: StreamBuilder<DocumentSnapshot>(
             stream: _getGroupStream(),
             builder: (context, snapshot) {
-              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+              if (!snapshot.hasData) {
+                return Center(
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent),
+                  ),
+                );
+              }
               final members = (snapshot.data!.data() as Map<String, dynamic>?)?['members']?.cast<String>() ?? [];
-              if (members.isEmpty) return const Center(child: Text("No members yet."));
+              if (members.isEmpty) {
+                return Center(
+                  child: Text(
+                    "No members yet.",
+                    style: AppTextStyles.bodyM.copyWith(color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary),
+                  ),
+                );
+              }
               return ListView.builder(
+                physics: const BouncingScrollPhysics(),
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
                 itemCount: members.length,
                 itemBuilder: (context, index) {
-                  return MemberChip(uid: members[index], cacheFn: _getCachedName);
+                  return MemberChip(uid: members[index], cacheFn: _getCachedName, isDark: isDark);
                 },
               );
             },
           ),
         ),
-        const Divider(),
+        const SizedBox(height: 8),
+        Divider(color: (isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder).withValues(alpha: 0.5), height: 1),
         Expanded(
           child: StreamBuilder<QuerySnapshot>(
             stream: _getGroupExpensesStream(),
             builder: (context, snapshot) {
-              if (snapshot.hasError) return const Center(child: Text("Error loading expenses"));
-              if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-              if (snapshot.data!.docs.isEmpty) return const Center(child: Text("No expenses yet. Add one!"));
+              if (snapshot.hasError) {
+                return Center(
+                  child: Text("Error loading expenses", style: AppTextStyles.bodyL.copyWith(color: AppColors.error)),
+                );
+              }
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return Center(
+                  child: CircularProgressIndicator(color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent),
+                );
+              }
+              if (snapshot.data!.docs.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.receipt_long_rounded,
+                        size: 48,
+                        color: (isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary).withValues(alpha: 0.4),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        "No expenses yet",
+                        style: AppTextStyles.h3.copyWith(
+                          color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "Tap below to add the first expense!",
+                        style: AppTextStyles.bodyM.copyWith(
+                          color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
+                        ),
+                      ),
+                    ],
+                  ).animate().fade(duration: 300.ms),
+                );
+              }
 
-              return ListView.builder(
-                itemCount: snapshot.data!.docs.length,
+              final docs = snapshot.data!.docs;
+
+              return ListView.separated(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.only(
+                  left: AppSpacing.screenPadding,
+                  right: AppSpacing.screenPadding,
+                  top: 16,
+                  bottom: 120, // Cushion to completely avoid floating action button overlap
+                ),
+                itemCount: docs.length,
+                separatorBuilder: (context, index) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
-                  final expenseDoc = snapshot.data!.docs[index];
+                  final expenseDoc = docs[index];
                   final data = expenseDoc.data() as Map<String, dynamic>;
                   final participants = (data['participants'] as List?)?.cast<String>() ?? [];
-                  return ListTile(
-                    title: Text(data['title'] ?? 'No Title', style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: UserNameDisplay(
-                      uid: data['paidBy'],
-                      builder: (name) => Text('Paid by $name • Split with ${participants.length}'),
-                      cacheFn: _getCachedName,
+                  final amount = (data['amount'] as num?)?.toDouble() ?? 0.0;
+                  final title = data['title'] ?? 'No Title';
+                  final isSettlement = data['isSettlement'] == true;
+
+                  return AnimatedListItem(
+                    index: index,
+                    child: ModernCard(
+                      margin: EdgeInsets.zero,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      color: isDark ? AppColors.darkSurface1 : AppColors.lightSurface1,
+                      onTap: () => _showExpenseDialog(expenseDoc: expenseDoc),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: (isSettlement
+                                      ? AppColors.success
+                                      : (isDark ? AppColors.secondaryAccent : AppColors.primaryAccent))
+                                  .withValues(alpha: isDark ? 0.15 : 0.1),
+                              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                              border: Border.all(
+                                color: (isSettlement
+                                        ? AppColors.success
+                                        : (isDark ? AppColors.secondaryAccent : AppColors.primaryAccent))
+                                    .withValues(alpha: 0.2),
+                                width: 1,
+                              ),
+                            ),
+                            child: Icon(
+                              isSettlement ? Icons.handshake_rounded : Icons.receipt_rounded,
+                              color: isSettlement
+                                  ? AppColors.success
+                                  : (isDark ? AppColors.secondaryAccent : AppColors.primaryAccent),
+                              size: 22,
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  title,
+                                  style: AppTextStyles.bodyL.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+                                    letterSpacing: -0.2,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 2),
+                                UserNameDisplay(
+                                  uid: data['paidBy'] ?? '',
+                                  cacheFn: _getCachedName,
+                                  builder: (name) => Text(
+                                    isSettlement
+                                        ? 'Paid by $name'
+                                        : 'Paid by $name • Split with ${participants.length}',
+                                    style: AppTextStyles.label.copyWith(
+                                      color: (isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary)
+                                          .withValues(alpha: 0.8),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.normal,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            "₹${amount.toStringAsFixed(2)}",
+                            style: AppTextStyles.h3.copyWith(
+                              color: isSettlement
+                                  ? AppColors.success
+                                  : (isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    trailing: Text("₹${(data['amount'] as num).toStringAsFixed(2)}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    onTap: () => _showExpenseDialog(expenseDoc: expenseDoc),
                   );
                 },
               );
@@ -209,96 +388,153 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     );
   }
 
-  Widget _buildBalancesTab() {
+  Widget _buildBalancesTab(bool isDark) {
     return StreamBuilder<QuerySnapshot>(
       stream: _getGroupExpensesStream(),
       builder: (context, snapshot) {
-        if (snapshot.hasError) return const Center(child: Text("Error loading balances"));
-        if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-        
-        final expenses = snapshot.data!.docs.map((doc) => doc.data() as Map<String, dynamic>).toList();
-        
-        // Import DebtSimplifier locally or ensure it's imported at top
-        // Assuming I'll add the import in a separate step or it's available.
-        // For now, I'll rely on the file being created.
-        // Wait, I need to add the import to the file first.
-        
-        // I will use a placeholder here and fix imports in next step if needed.
-        // Actually, I can't easily add import in this replace block if it's far away.
-        // I'll assume I can add the import at the top in a separate call.
-        
-        return FutureBuilder<List<Settlement>>(
-          future: _calculateSettlements(expenses),
-          builder: (context, settlementSnapshot) {
-             if (!settlementSnapshot.hasData) return const Center(child: CircularProgressIndicator());
-             final settlements = settlementSnapshot.data!;
-             
-             if (settlements.isEmpty) {
-               return const Center(
-                 child: Column(
-                   mainAxisAlignment: MainAxisAlignment.center,
-                   children: [
-                     Icon(Icons.check_circle_outline, size: 64, color: Colors.green),
-                     SizedBox(height: 16),
-                     Text("All settled up!", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                   ],
-                 ),
-               );
-             }
+        if (snapshot.hasError) {
+          return Center(child: Text("Error loading balances", style: AppTextStyles.bodyL.copyWith(color: AppColors.error)));
+        }
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(child: CircularProgressIndicator(color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent));
+        }
 
-             return ListView.builder(
-               padding: const EdgeInsets.all(16),
-               itemCount: settlements.length,
-               itemBuilder: (context, index) {
-                 final settlement = settlements[index];
-                 return Card(
-                   elevation: 2,
-                   margin: const EdgeInsets.only(bottom: 12),
-                   child: Padding(
-                     padding: const EdgeInsets.all(16.0),
-                     child: Row(
-                       children: [
-                         Expanded(
-                           child: Column(
-                             crossAxisAlignment: CrossAxisAlignment.start,
-                             children: [
-                               UserNameDisplay(
-                                 uid: settlement.fromUser,
-                                 builder: (name) => Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                               ),
-                               const Text("owes", style: TextStyle(color: Colors.grey)),
-                               UserNameDisplay(
-                                 uid: settlement.toUser,
-                                 builder: (name) => Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                               ),
-                             ],
-                           ),
-                         ),
-                         Text(
-                           "₹${settlement.amount.toStringAsFixed(2)}",
-                           style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.redAccent),
-                         ),
-                       ],
-                     ),
-                   ),
-                 );
-               },
-             );
+        final expenses = snapshot.data!.docs.map((doc) => doc.data() as Map<String, dynamic>).toList();
+
+        final settlements = DebtSimplifier.simplifyDebts(expenses);
+        if (settlements.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.success.withValues(alpha: 0.15),
+                  ),
+                  child: const Icon(Icons.check_circle_rounded, size: 54, color: AppColors.success),
+                ).animate().scale(duration: 400.ms, curve: Curves.easeOutBack),
+                const SizedBox(height: 16),
+                Text(
+                  "All settled up!",
+                  style: AppTextStyles.h2.copyWith(
+                    color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ).animate().fade(duration: 300.ms, delay: 100.ms),
+                const SizedBox(height: 4),
+                Text(
+                  "Group balances are perfectly matched.",
+                  style: AppTextStyles.bodyM.copyWith(
+                    color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
+                  ),
+                ).animate().fade(duration: 300.ms, delay: 200.ms),
+              ],
+            ),
+          );
+        }
+
+        return ListView.separated(
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.only(
+            left: AppSpacing.screenPadding,
+            right: AppSpacing.screenPadding,
+            top: 16,
+            bottom: 120,
+          ),
+          itemCount: settlements.length,
+          separatorBuilder: (context, index) => const SizedBox(height: 12),
+          itemBuilder: (context, index) {
+            final settlement = settlements[index];
+
+            return AnimatedListItem(
+              index: index,
+              child: ModernCard(
+                margin: EdgeInsets.zero,
+                padding: const EdgeInsets.all(16),
+                color: isDark ? AppColors.darkSurface1 : AppColors.lightSurface1,
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.error.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.arrow_outward_rounded, color: AppColors.error, size: 20),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Flexible(
+                                child: UserNameDisplay(
+                                  uid: settlement.fromUser,
+                                  cacheFn: _getCachedName,
+                                  builder: (name) => Text(
+                                    name,
+                                    style: AppTextStyles.bodyL.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 6.0),
+                                child: Text(
+                                  "owes",
+                                  style: AppTextStyles.bodyM.copyWith(
+                                    color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ),
+                              Flexible(
+                                child: UserNameDisplay(
+                                  uid: settlement.toUser,
+                                  cacheFn: _getCachedName,
+                                  builder: (name) => Text(
+                                    name,
+                                    style: AppTextStyles.bodyL.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      "₹${settlement.amount.toStringAsFixed(2)}",
+                      style: AppTextStyles.h3.copyWith(
+                        color: AppColors.error,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
           },
         );
       },
     );
   }
-
-  Future<List<Settlement>> _calculateSettlements(List<Map<String, dynamic>> expenses) async {
-    // This is a bit of a hack to avoid importing DebtSimplifier if I haven't added the import yet.
-    // But I should really add the import.
-    // I'll assume the import 'package:sliceit/services/debt_simplifier.dart' is added.
-    return DebtSimplifier.simplifyDebts(expenses);
-  }
 }
 
-// Dialog for Adding and Editing Expenses
 class _AddEditExpenseDialog extends StatefulWidget {
   final String groupId;
   final List<String> groupMemberUids;
@@ -351,8 +587,8 @@ class _AddEditExpenseDialogState extends State<_AddEditExpenseDialog> {
   Future<void> _saveExpense() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final title = _titleController.text;
-    final amount = double.tryParse(_amountController.text);
+    final title = _titleController.text.trim();
+    final amount = double.tryParse(_amountController.text.trim());
     final currentUser = FirebaseAuth.instance.currentUser;
     if (amount == null || currentUser == null) return;
 
@@ -362,7 +598,13 @@ class _AddEditExpenseDialogState extends State<_AddEditExpenseDialog> {
         .toList();
 
     if (participants.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please select at least one participant.")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Please select at least one participant.", style: AppTextStyles.bodyM),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
       return;
     }
 
@@ -375,7 +617,7 @@ class _AddEditExpenseDialogState extends State<_AddEditExpenseDialog> {
     };
 
     final collection = FirebaseFirestore.instance.collection('groups').doc(widget.groupId).collection('expenses');
-    
+
     if (widget.expenseDoc == null) {
       await collection.add(expenseData);
     } else {
@@ -385,71 +627,172 @@ class _AddEditExpenseDialogState extends State<_AddEditExpenseDialog> {
     if (mounted) Navigator.pop(context);
   }
 
-
-
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return AlertDialog(
-      title: Text(widget.expenseDoc == null ? "Add Expense" : "Edit Expense"),
+      backgroundColor: isDark ? AppColors.darkSurface2 : AppColors.lightSurface1,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+        side: BorderSide(
+          color: isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder,
+          width: 1,
+        ),
+      ),
+      title: Text(
+        widget.expenseDoc == null ? "Add Expense" : "Expense Details",
+        style: AppTextStyles.h2.copyWith(
+          color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+          fontSize: 20,
+        ),
+      ),
       content: Form(
         key: _formKey,
         child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               TextFormField(
                 controller: _titleController,
-                decoration: const InputDecoration(labelText: "Title"),
+                style: AppTextStyles.bodyL.copyWith(color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary),
+                decoration: InputDecoration(
+                  labelText: "Title",
+                  labelStyle: AppTextStyles.bodyM.copyWith(color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary),
+                  enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: (isDark ? AppColors.secondaryAccent : AppColors.primaryAccent).withValues(alpha: 0.3)),
+                  ),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent),
+                  ),
+                ),
                 enabled: widget.canEdit,
-                validator: (value) => (value?.isEmpty ?? true) ? "Please enter a title" : null,
+                validator: (value) => (value?.trim().isEmpty ?? true) ? "Please enter a title" : null,
               ),
+              const SizedBox(height: 12),
               TextFormField(
                 controller: _amountController,
-                decoration: const InputDecoration(labelText: "Amount", prefixText: "₹"),
-                keyboardType: TextInputType.number,
+                style: AppTextStyles.bodyL.copyWith(color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary),
+                decoration: InputDecoration(
+                  labelText: "Amount",
+                  prefixText: "₹ ",
+                  prefixStyle: AppTextStyles.bodyL.copyWith(color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent),
+                  labelStyle: AppTextStyles.bodyM.copyWith(color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary),
+                  enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: (isDark ? AppColors.secondaryAccent : AppColors.primaryAccent).withValues(alpha: 0.3)),
+                  ),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent),
+                  ),
+                ),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 enabled: widget.canEdit,
                 validator: (value) {
-                  if (value == null || value.isEmpty) return "Please enter an amount";
-                  if (double.tryParse(value) == null) return "Please enter a valid number";
+                  if (value == null || value.trim().isEmpty) return "Please enter an amount";
+                  if (double.tryParse(value.trim()) == null) return "Please enter a valid number";
                   return null;
                 },
               ),
-              const SizedBox(height: 20),
-              const Text("Split with:", style: TextStyle(fontWeight: FontWeight.bold)),
-              CheckboxListTile(
-                title: const Text("Select All"),
-                value: _selectAll,
-                onChanged: widget.canEdit ? _onSelectAll : null,
-                controlAffinity: ListTileControlAffinity.leading,
+              const SizedBox(height: 24),
+              Text(
+                "Split with:",
+                style: AppTextStyles.label.copyWith(
+                  color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
+                ),
               ),
-              const Divider(),
-              ...widget.groupMemberUids.map((uid) {
-                return CheckboxListTile(
-                  title: UserNameDisplay(uid: uid, builder: (name) => Text(name)),
-                  value: _selectedMembers[uid],
-                  onChanged: widget.canEdit ? (bool? value) {
-                    setState(() {
-                      _selectedMembers[uid] = value!;
-                      _checkSelectAll();
-                    });
-                  } : null,
-                   controlAffinity: ListTileControlAffinity.leading,
-                );
-              }),
+              const SizedBox(height: 8),
+              Theme(
+                data: Theme.of(context).copyWith(
+                  checkboxTheme: CheckboxThemeData(
+                    fillColor: WidgetStateProperty.resolveWith((states) {
+                      if (states.contains(WidgetState.selected)) {
+                        return isDark ? AppColors.secondaryAccent : AppColors.primaryAccent;
+                      }
+                      return Colors.transparent;
+                    }),
+                    checkColor: WidgetStateProperty.all(isDark ? AppColors.textDarkPrimary : Colors.white),
+                    side: BorderSide(color: (isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary).withValues(alpha: 0.5)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(
+                        "Select All",
+                        style: AppTextStyles.bodyM.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+                        ),
+                      ),
+                      value: _selectAll,
+                      onChanged: widget.canEdit ? _onSelectAll : null,
+                      controlAffinity: ListTileControlAffinity.leading,
+                      dense: true,
+                    ),
+                    Divider(color: (isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder).withValues(alpha: 0.5), height: 8),
+                    ...widget.groupMemberUids.map((uid) {
+                      return CheckboxListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: UserNameDisplay(
+                          uid: uid,
+                          builder: (name) => Text(
+                            name,
+                            style: AppTextStyles.bodyM.copyWith(
+                              color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+                            ),
+                          ),
+                        ),
+                        value: _selectedMembers[uid] ?? false,
+                        onChanged: widget.canEdit
+                            ? (bool? value) {
+                                setState(() {
+                                  _selectedMembers[uid] = value ?? false;
+                                  _checkSelectAll();
+                                });
+                              }
+                            : null,
+                        controlAffinity: ListTileControlAffinity.leading,
+                        dense: true,
+                      );
+                    }),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text("Close")),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(
+            "Close",
+            style: AppTextStyles.button.copyWith(
+              color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
+            ),
+          ),
+        ),
         if (widget.canEdit)
-          ElevatedButton(onPressed: _saveExpense, child: const Text("Save")),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
+              foregroundColor: isDark ? AppColors.textDarkPrimary : Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusMd)),
+              elevation: 0,
+            ),
+            onPressed: _saveExpense,
+            child: const Text("Save", style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
         if (widget.expenseDoc != null)
-           _SettleButton(
-             expenseDoc: widget.expenseDoc!,
-             currentUserUid: FirebaseAuth.instance.currentUser?.uid,
-             groupId: widget.groupId,
-           ),
+          _SettleButton(
+            expenseDoc: widget.expenseDoc!,
+            currentUserUid: FirebaseAuth.instance.currentUser?.uid,
+            groupId: widget.groupId,
+          ),
       ],
     );
   }
@@ -464,6 +807,8 @@ class UserNameDisplay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (uid.isEmpty) return builder('Unknown');
+
     final Future<String> future = cacheFn != null
         ? cacheFn!(uid)
         : FirebaseFirestore.instance.collection('users').doc(uid).get().then<String>((doc) {
@@ -485,8 +830,9 @@ class UserNameDisplay extends StatelessWidget {
 class MemberChip extends StatelessWidget {
   final String uid;
   final Future<String> Function(String uid)? cacheFn;
+  final bool isDark;
 
-  const MemberChip({super.key, required this.uid, this.cacheFn});
+  const MemberChip({super.key, required this.uid, this.cacheFn, this.isDark = true});
 
   @override
   Widget build(BuildContext context) {
@@ -497,18 +843,43 @@ class MemberChip extends StatelessWidget {
           return doc.data() ?? {};
         }),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) return const Chip(label: Text('...'));
+          if (!snapshot.hasData) {
+            return Chip(
+              label: Text('...', style: AppTextStyles.bodyM),
+              backgroundColor: isDark ? AppColors.darkSurface1 : AppColors.lightSurface1,
+              side: BorderSide(color: isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder),
+            );
+          }
           final data = snapshot.data!;
           final name = data['name'] ?? 'Unknown';
           final photoUrl = data['photoUrl'];
 
           return Chip(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
             avatar: CircleAvatar(
+              radius: 12,
+              backgroundColor: (isDark ? AppColors.secondaryAccent : AppColors.primaryAccent).withValues(alpha: 0.2),
               backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
-              child: photoUrl == null ? Text(name.isNotEmpty ? name[0] : '?') : null,
+              child: photoUrl == null
+                  ? Text(
+                      name.isNotEmpty ? name[0].toUpperCase() : '?',
+                      style: AppTextStyles.label.copyWith(
+                        color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
+                        fontSize: 10,
+                      ),
+                    )
+                  : null,
             ),
-            label: Text(name),
-            backgroundColor: AppColors.backgroundLight,
+            label: Text(
+              name,
+              style: AppTextStyles.bodyM.copyWith(
+                color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            backgroundColor: isDark ? AppColors.darkSurface1 : AppColors.lightSurface1,
+            side: BorderSide(color: isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusLg)),
           );
         },
       ),
@@ -545,16 +916,18 @@ class _SettleButtonState extends State<_SettleButton> {
       if (!participants.contains(widget.currentUserUid)) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('You are not a participant in this expense.')),
+            SnackBar(
+              content: Text('You are not a participant in this expense.', style: AppTextStyles.bodyM),
+              backgroundColor: AppColors.warning,
+              behavior: SnackBarBehavior.floating,
+            ),
           );
         }
         return;
       }
 
-      // Calculate split amount
       final splitAmount = participants.isNotEmpty ? amount / participants.length : 0.0;
 
-      // 1. Call Cloud Function to Initiate Pay
       final result = await FirebaseFunctions.instance.httpsCallable('initiatePay').call({
         'expenseId': widget.expenseDoc.id,
         'amount': splitAmount,
@@ -566,24 +939,24 @@ class _SettleButtonState extends State<_SettleButton> {
       final vpa = resp['vpa'];
       final name = resp['name'];
       final note = resp['note'];
-      // 2. Construct UPI URI
+
       final uriString = 'upi://pay?pa=$vpa&pn=$name&tr=$txnId&tn=$note&am=$splitAmount&cu=INR';
       final uri = Uri.parse(uriString);
 
-      // 3. Launch Intent
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
-
-        // 4. Start Polling
         _pollTransactionStatus(txnId, splitAmount, paidByUid);
       } else {
         throw "Could not launch UPI app";
       }
-
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          SnackBar(
+            content: Text('Error: $e', style: AppTextStyles.bodyM),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
     } finally {
@@ -593,18 +966,23 @@ class _SettleButtonState extends State<_SettleButton> {
 
   void _pollTransactionStatus(String txnId, double amount, String receiverUid) async {
     if (!mounted) return;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    // Show processing dialog
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const AlertDialog(
+      builder: (_) => AlertDialog(
+        backgroundColor: isDark ? AppColors.darkSurface2 : AppColors.lightSurface1,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusLg)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text("Verifying Payment..."),
+            CircularProgressIndicator(color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent),
+            const SizedBox(height: 16),
+            Text(
+              "Verifying Payment...",
+              style: AppTextStyles.bodyL.copyWith(color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary),
+            ),
           ],
         ),
       ),
@@ -613,7 +991,7 @@ class _SettleButtonState extends State<_SettleButton> {
     int attempts = 0;
     bool success = false;
 
-    while (attempts < 10) { // Poll for ~30 seconds
+    while (attempts < 10) {
       await Future.delayed(const Duration(seconds: 3));
       if (!mounted) return;
 
@@ -626,24 +1004,31 @@ class _SettleButtonState extends State<_SettleButton> {
     }
 
     if (!mounted) return;
-    Navigator.pop(context); // Close dialog
+    Navigator.pop(context);
 
     if (success) {
       await _recordSettlement(amount, receiverUid);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Payment Successful! Bill Settled.')),
+        SnackBar(
+          content: Text('Payment Successful! Bill Settled.', style: AppTextStyles.bodyM),
+          backgroundColor: AppColors.success,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
-      Navigator.pop(context); // Close Expense Dialog
+      Navigator.pop(context);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Payment processing or failed. Check status later.')),
+        SnackBar(
+          content: Text('Payment processing or failed. Check status later.', style: AppTextStyles.bodyM),
+          backgroundColor: AppColors.warning,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     }
   }
 
   Future<void> _recordSettlement(double amount, String receiverUid) async {
-    // Current user paid 'amount' to 'receiverUid'
     await FirebaseFirestore.instance
         .collection('groups')
         .doc(widget.groupId)
@@ -652,7 +1037,7 @@ class _SettleButtonState extends State<_SettleButton> {
       'title': "Settlement Payment",
       'amount': amount,
       'paidBy': widget.currentUserUid,
-      'participants': [receiverUid], // The person who received money
+      'participants': [receiverUid],
       'date': FieldValue.serverTimestamp(),
       'isSettlement': true,
     });
@@ -665,18 +1050,26 @@ class _SettleButtonState extends State<_SettleButton> {
     final isPayer = paidBy == widget.currentUserUid;
 
     if (isPayer) {
-      return const ElevatedButton(
-        onPressed: null, // Disabled
-        child: Text("You Paid"),
+      return ElevatedButton(
+        onPressed: null,
+        style: ElevatedButton.styleFrom(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusMd)),
+        ),
+        child: const Text("You Paid"),
       );
     }
 
     return ElevatedButton(
       onPressed: _isLoading ? null : _settleWithUpi,
-      style: ElevatedButton.styleFrom(backgroundColor: AppColors.successGreen),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: AppColors.success,
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusMd)),
+        elevation: 0,
+      ),
       child: _isLoading
-        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-        : const Text("Settle with UPI"),
+          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+          : const Text("Settle with UPI", style: TextStyle(fontWeight: FontWeight.bold)),
     );
   }
 }

@@ -6,7 +6,7 @@ import '../utils/colors.dart';
 import '../utils/text_styles.dart';
 import '../widgets/custom_button.dart';
 import 'otp_verification_screen.dart';
-import 'home_screen.dart';
+import 'main_shell.dart';
 
 class PhoneVerificationScreen extends StatefulWidget {
   const PhoneVerificationScreen({super.key});
@@ -45,7 +45,7 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
     if (!mounted) return;
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => const HomeScreen()),
+      MaterialPageRoute(builder: (_) => const MainShell()),
     );
   }
 
@@ -131,7 +131,7 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
             onPressed: () {
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (_) => const HomeScreen()),
+                MaterialPageRoute(builder: (_) => const MainShell()),
               );
             },
             child: const Text(
@@ -209,7 +209,7 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
                   onPressed: () {
                     Navigator.pushReplacement(
                       context,
-                      MaterialPageRoute(builder: (_) => const HomeScreen()),
+                      MaterialPageRoute(builder: (_) => const MainShell()),
                     );
                   },
                   child: const Text(

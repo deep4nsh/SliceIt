@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+
 import '../models/subscription_model.dart';
 import '../utils/colors.dart';
 import '../utils/text_styles.dart';
+import '../utils/app_spacing.dart';
 import '../widgets/modern_card.dart';
 import '../widgets/animated_list_item.dart';
+import '../widgets/mesh_background.dart';
 
 class SubscriptionsScreen extends StatefulWidget {
   const SubscriptionsScreen({super.key});
@@ -15,8 +19,8 @@ class SubscriptionsScreen extends StatefulWidget {
 }
 
 class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
-  final _firestore = FirebaseFirestore.instance;
-  final _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   Stream<List<Subscription>> _getSubscriptionsStream() {
     final user = _auth.currentUser;
@@ -43,14 +47,27 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
 
     final categories = ['Streaming', 'Music', 'Cloud Storage', 'Fitness', 'Software', 'Other'];
     final cycles = ['monthly', 'yearly'];
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     await showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
+      builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) {
           return AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-            title: const Text('Add Subscription', style: AppTextStyles.heading2),
+            backgroundColor: isDark ? AppColors.darkSurface1 : AppColors.lightSurface1,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+              side: BorderSide(
+                color: isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder,
+              ),
+            ),
+            title: Text(
+              'Add Subscription',
+              style: AppTextStyles.h2.copyWith(
+                color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -58,16 +75,62 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
                 children: [
                   TextField(
                     controller: titleController,
-                    decoration: const InputDecoration(labelText: 'Service Name', border: OutlineInputBorder()),
+                    style: AppTextStyles.bodyL.copyWith(
+                      color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+                    ),
+                    decoration: InputDecoration(
+                      labelText: 'Service Name',
+                      labelStyle: AppTextStyles.bodyM.copyWith(
+                        color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                        borderSide: BorderSide(
+                          color: isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder,
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                        borderSide: const BorderSide(color: AppColors.primaryAccent),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: amountController,
-                    decoration: const InputDecoration(labelText: 'Amount', prefixText: '₹ ', border: OutlineInputBorder()),
+                    style: AppTextStyles.bodyL.copyWith(
+                      color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+                    ),
+                    decoration: InputDecoration(
+                      labelText: 'Amount',
+                      labelStyle: AppTextStyles.bodyM.copyWith(
+                        color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
+                      ),
+                      prefixText: '₹ ',
+                      prefixStyle: AppTextStyles.bodyL.copyWith(
+                        color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                        borderSide: BorderSide(
+                          color: isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder,
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                        borderSide: const BorderSide(color: AppColors.primaryAccent),
+                      ),
+                    ),
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   ),
                   const SizedBox(height: 16),
-                  const Text('Category', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+                  Text(
+                    'Category',
+                    style: AppTextStyles.label.copyWith(
+                      color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
+                    ),
+                  ),
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 8,
@@ -82,16 +145,28 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
                             setDialogState(() => selectedCategory = cat);
                           }
                         },
-                        selectedColor: AppColors.secondaryTeal.withValues(alpha: 0.2),
-                        labelStyle: TextStyle(
-                          color: isSelected ? AppColors.successGreen : AppColors.textPrimary,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        selectedColor: AppColors.secondaryAccent.withValues(alpha: 0.2),
+                        backgroundColor: isDark ? AppColors.darkSurface2 : AppColors.lightSurface2,
+                        side: BorderSide(
+                          color: isSelected
+                              ? AppColors.secondaryAccent
+                              : (isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder),
+                        ),
+                        labelStyle: AppTextStyles.label.copyWith(
+                          color: isSelected
+                              ? (isDark ? AppColors.secondaryAccent : AppColors.primaryAccent)
+                              : (isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary),
                         ),
                       );
                     }).toList(),
                   ),
                   const SizedBox(height: 16),
-                  const Text('Billing Cycle', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+                  Text(
+                    'Billing Cycle',
+                    style: AppTextStyles.label.copyWith(
+                      color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
+                    ),
+                  ),
                   const SizedBox(height: 8),
                   Row(
                     children: cycles.map((cyc) {
@@ -107,10 +182,17 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
                                 setDialogState(() => selectedCycle = cyc);
                               }
                             },
-                            selectedColor: AppColors.primaryOrange.withValues(alpha: 0.2),
-                            labelStyle: TextStyle(
-                              color: isSelected ? AppColors.primaryOrange : AppColors.textPrimary,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            selectedColor: AppColors.primaryAccent.withValues(alpha: 0.2),
+                            backgroundColor: isDark ? AppColors.darkSurface2 : AppColors.lightSurface2,
+                            side: BorderSide(
+                              color: isSelected
+                                  ? AppColors.primaryAccent
+                                  : (isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder),
+                            ),
+                            labelStyle: AppTextStyles.label.copyWith(
+                              color: isSelected
+                                  ? AppColors.primaryAccent
+                                  : (isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary),
                             ),
                           ),
                         ),
@@ -118,7 +200,12 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
                     }).toList(),
                   ),
                   const SizedBox(height: 16),
-                  const Text('Next Due Date', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+                  Text(
+                    'Next Due Date',
+                    style: AppTextStyles.label.copyWith(
+                      color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
+                    ),
+                  ),
                   const SizedBox(height: 8),
                   InkWell(
                     onTap: () async {
@@ -127,26 +214,54 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
                         initialDate: selectedDate,
                         firstDate: DateTime.now(),
                         lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
+                        builder: (context, child) {
+                          return Theme(
+                            data: Theme.of(context).copyWith(
+                              colorScheme: isDark
+                                  ? const ColorScheme.dark(
+                                      primary: AppColors.secondaryAccent,
+                                      onPrimary: Colors.black,
+                                      onSurface: Colors.white,
+                                    )
+                                  : const ColorScheme.light(
+                                      primary: AppColors.primaryAccent,
+                                      onPrimary: Colors.white,
+                                      onSurface: Colors.black,
+                                    ),
+                            ),
+                            child: child!,
+                          );
+                        },
                       );
                       if (picked != null) {
                         setDialogState(() => selectedDate = picked);
                       }
                     },
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
-                        borderRadius: BorderRadius.circular(12),
+                        color: isDark ? AppColors.darkSurface2 : AppColors.lightSurface2,
+                        border: Border.all(
+                          color: isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder,
+                        ),
+                        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
                             "${selectedDate.day}/${selectedDate.month}/${selectedDate.year}",
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                            style: AppTextStyles.bodyL.copyWith(
+                              color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
-                          const Icon(Icons.calendar_today_rounded, color: AppColors.secondaryTeal, size: 20),
+                          Icon(
+                            Icons.calendar_today_rounded,
+                            color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
+                            size: 20,
+                          ),
                         ],
                       ),
                     ),
@@ -155,11 +270,22 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
               ),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: Text(
+                  'Cancel',
+                  style: AppTextStyles.button.copyWith(
+                    color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
+                  ),
+                ),
+              ),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryOrange,
+                  backgroundColor: AppColors.primaryAccent,
                   foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                  ),
                 ),
                 onPressed: () async {
                   final title = titleController.text.trim();
@@ -180,10 +306,17 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
                     );
 
                     await _firestore.collection('subscriptions').add(newSub.toMap());
-                    if (context.mounted) Navigator.pop(context);
+                    if (dialogContext.mounted) Navigator.pop(dialogContext);
+                  } else {
+                    ScaffoldMessenger.of(dialogContext).showSnackBar(
+                      SnackBar(
+                        content: Text('Please enter valid details', style: AppTextStyles.bodyM),
+                        backgroundColor: AppColors.warning,
+                      ),
+                    );
                   }
                 },
-                child: const Text('Add'),
+                child: Text('Add', style: AppTextStyles.button.copyWith(fontWeight: FontWeight.bold)),
               ),
             ],
           );
@@ -204,25 +337,61 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${sub.title} renewed! Next due: ${nextDate.day}/${nextDate.month}/${nextDate.year}'),
-          backgroundColor: AppColors.successGreen,
+          content: Text(
+            '${sub.title} renewed! Next due: ${nextDate.day}/${nextDate.month}/${nextDate.year}',
+            style: AppTextStyles.bodyM.copyWith(color: Colors.white),
+          ),
+          backgroundColor: AppColors.success,
         ),
       );
     }
   }
 
   Future<void> _deleteSubscription(String id) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Subscription?'),
-        content: const Text('Are you sure you want to stop tracking this recurring bill?'),
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: isDark ? AppColors.darkSurface1 : AppColors.lightSurface1,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+          side: BorderSide(
+            color: isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder,
+          ),
+        ),
+        title: Text(
+          'Delete Subscription?',
+          style: AppTextStyles.h2.copyWith(
+            color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Text(
+          'Are you sure you want to stop tracking this recurring bill?',
+          style: AppTextStyles.bodyM.copyWith(
+            color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
+          ),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(
+              'Cancel',
+              style: AppTextStyles.button.copyWith(
+                color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
+              ),
+            ),
+          ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.errorRed),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+              ),
+            ),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text('Delete', style: AppTextStyles.button.copyWith(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -232,7 +401,10 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
       await _firestore.collection('subscriptions').doc(id).delete();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Subscription deleted'), backgroundColor: AppColors.textSecondary),
+          SnackBar(
+            content: Text('Subscription deleted', style: AppTextStyles.bodyM.copyWith(color: Colors.white)),
+            backgroundColor: AppColors.textDarkSecondary,
+          ),
         );
       }
     }
@@ -258,274 +430,360 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
   Color _getCategoryColor(String category) {
     switch (category) {
       case 'Streaming':
-        return AppColors.primaryOrange;
+        return AppColors.warning;
       case 'Music':
-        return const Color(0xFF6C63FF);
+        return AppColors.accentViolet;
       case 'Cloud Storage':
-        return AppColors.secondaryTeal;
+        return AppColors.secondaryAccent;
       case 'Fitness':
-        return AppColors.successGreen;
+        return AppColors.success;
       case 'Software':
-        return AppColors.primaryPeach;
+        return AppColors.primaryAccent;
       default:
-        return AppColors.textSecondary;
+        return AppColors.textLightSecondary;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Subscriptions', style: TextStyle(fontWeight: FontWeight.bold)),
-      ),
-      body: StreamBuilder<List<Subscription>>(
-        stream: _getSubscriptionsStream(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-          if (snapshot.hasError) {
-            return const Center(child: Text('Error loading subscriptions.'));
-          }
-
-          final subs = snapshot.data ?? [];
-          
-          // Sort upcoming nearest first
-          subs.sort((a, b) => a.nextDueDate.compareTo(b.nextDueDate));
-
-          // Calculate summary analytics
-          double totalMonthly = 0.0;
-          double totalYearly = 0.0;
-          for (final s in subs) {
-            if (s.billingCycle == 'yearly') {
-              totalYearly += s.amount;
-              totalMonthly += s.amount / 12;
-            } else {
-              totalMonthly += s.amount;
-              totalYearly += s.amount * 12;
+    return MeshBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          title: Text(
+            'Subscriptions',
+            style: AppTextStyles.h2.copyWith(
+              color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          centerTitle: true,
+        ),
+        body: StreamBuilder<List<Subscription>>(
+          stream: _getSubscriptionsStream(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
             }
-          }
 
-          return Column(
-            children: [
-              // Premium Visual Summary Card
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                child: ModernCard(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF6C63FF), Color(0xFF4ECDC4)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    children: [
-                      const Text(
-                        'Total Recurring Outflow',
-                        style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w600),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        '₹${totalMonthly.toStringAsFixed(0)} /mo',
-                        style: const TextStyle(color: Colors.white, fontSize: 34, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 12),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(16),
+            if (snapshot.hasError) {
+              return Center(
+                child: Text(
+                  'Error loading subscriptions.',
+                  style: AppTextStyles.bodyM.copyWith(color: AppColors.error),
+                ),
+              );
+            }
+
+            final subs = snapshot.data ?? [];
+
+            // Sort upcoming nearest first
+            subs.sort((a, b) => a.nextDueDate.compareTo(b.nextDueDate));
+
+            // Calculate summary analytics
+            double totalMonthly = 0.0;
+            double totalYearly = 0.0;
+            for (final s in subs) {
+              if (s.billingCycle == 'yearly') {
+                totalYearly += s.amount;
+                totalMonthly += s.amount / 12;
+              } else {
+                totalMonthly += s.amount;
+                totalYearly += s.amount * 12;
+              }
+            }
+
+            return Column(
+              children: [
+                // Premium Visual Summary Card
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding, vertical: 8.0),
+                  child: ModernCard(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      children: [
+                        Text(
+                          'Total Recurring Outflow',
+                          style: AppTextStyles.label.copyWith(
+                            color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
+                          ),
                         ),
-                        child: Text(
-                          'Est. Annual: ₹${totalYearly.toStringAsFixed(0)}',
-                          style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
+                        const SizedBox(height: 6),
+                        Text(
+                          '₹${totalMonthly.toStringAsFixed(0)} /mo',
+                          style: AppTextStyles.h1.copyWith(
+                            color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
+                            fontSize: 34,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: (isDark ? AppColors.darkSurface2 : AppColors.lightSurface2).withValues(alpha: 0.6),
+                            borderRadius: BorderRadius.circular(AppSpacing.radiusButton),
+                            border: Border.all(
+                              color: isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder,
+                            ),
+                          ),
+                          child: Text(
+                            'Est. Annual: ₹${totalYearly.toStringAsFixed(0)}',
+                            style: AppTextStyles.label.copyWith(
+                              color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ).animate().fade().scaleXY(begin: 0.95, end: 1.0),
+                ),
+
+                // Title Header
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding, vertical: 8.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Active Cycles',
+                        style: AppTextStyles.h2.copyWith(
+                          color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        '${subs.length} Tracked',
+                        style: AppTextStyles.label.copyWith(
+                          color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
                         ),
                       ),
                     ],
                   ),
                 ),
-              ),
 
-              // Title Header
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('Active Cycles', style: AppTextStyles.heading2),
-                    Text('${subs.length} Tracked', style: const TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
-                  ],
-                ),
-              ),
+                // Main List
+                Expanded(
+                  child: subs.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.event_repeat_rounded,
+                                size: 72,
+                                color: (isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary)
+                                    .withValues(alpha: 0.2),
+                              ).animate(onPlay: (c) => c.repeat(reverse: true)).scaleXY(begin: 0.95, end: 1.05),
+                              const SizedBox(height: 16),
+                              Text(
+                                'No Subscriptions Tracked',
+                                style: AppTextStyles.h3.copyWith(
+                                  color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Add streaming, cloud, or gym memberships\nto stay ahead of automatic renewals.',
+                                textAlign: TextAlign.center,
+                                style: AppTextStyles.bodyM.copyWith(
+                                  color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding, vertical: 8),
+                          itemCount: subs.length,
+                          itemBuilder: (context, index) {
+                            final sub = subs[index];
+                            final now = DateTime.now();
+                            final today = DateTime(now.year, now.month, now.day);
+                            final due = DateTime(sub.nextDueDate.year, sub.nextDueDate.month, sub.nextDueDate.day);
+                            final daysLeft = due.difference(today).inDays;
 
-              // Main List
-              Expanded(
-                child: subs.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.event_repeat_rounded, size: 72, color: AppColors.textSecondary.withValues(alpha: 0.3)),
-                            const SizedBox(height: 16),
-                            const Text('No Subscriptions Tracked', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textSecondary)),
-                            const SizedBox(height: 8),
-                            const Text('Add streaming, cloud, or gym memberships\nto stay ahead of automatic renewals.', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: 13)),
-                          ],
-                        ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        itemCount: subs.length,
-                        itemBuilder: (context, index) {
-                          final sub = subs[index];
-                          final now = DateTime.now();
-                          final today = DateTime(now.year, now.month, now.day);
-                          final due = DateTime(sub.nextDueDate.year, sub.nextDueDate.month, sub.nextDueDate.day);
-                          final daysLeft = due.difference(today).inDays;
+                            String statusText;
+                            Color statusColor;
 
-                          String statusText;
-                          Color statusColor;
+                            if (daysLeft < 0) {
+                              statusText = 'Overdue by ${-daysLeft}d';
+                              statusColor = AppColors.error;
+                            } else if (daysLeft == 0) {
+                              statusText = 'Renews Today!';
+                              statusColor = AppColors.warning;
+                            } else if (daysLeft <= 3) {
+                              statusText = 'Due in ${daysLeft}d';
+                              statusColor = AppColors.warning;
+                            } else {
+                              statusText = 'In ${daysLeft}d';
+                              statusColor = AppColors.success;
+                            }
 
-                          if (daysLeft < 0) {
-                            statusText = 'Overdue by ${-daysLeft}d';
-                            statusColor = AppColors.errorRed;
-                          } else if (daysLeft == 0) {
-                            statusText = 'Renews Today!';
-                            statusColor = AppColors.primaryOrange;
-                          } else if (daysLeft <= 3) {
-                            statusText = 'Due in ${daysLeft}d';
-                            statusColor = AppColors.warningOrange;
-                          } else {
-                            statusText = 'In ${daysLeft}d';
-                            statusColor = AppColors.successGreen;
-                          }
+                            final catColor = _getCategoryColor(sub.category);
+                            final catIcon = _getCategoryIcon(sub.category);
 
-                          final catColor = _getCategoryColor(sub.category);
-                          final catIcon = _getCategoryIcon(sub.category);
-
-                          return AnimatedListItem(
-                            index: index,
-                            child: ModernCard(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.all(10),
-                                        decoration: BoxDecoration(
-                                          color: catColor.withValues(alpha: 0.15),
-                                          borderRadius: BorderRadius.circular(14),
+                            return AnimatedListItem(
+                              index: index,
+                              child: ModernCard(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                padding: const EdgeInsets.all(16),
+                                color: isDark ? AppColors.darkSurface1 : AppColors.lightSurface1,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(10),
+                                          decoration: BoxDecoration(
+                                            color: catColor.withValues(alpha: 0.15),
+                                            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                                          ),
+                                          child: Icon(catIcon, color: catColor, size: 24),
                                         ),
-                                        child: Icon(catIcon, color: catColor, size: 24),
-                                      ),
-                                      const SizedBox(width: 14),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                        const SizedBox(width: 14),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                sub.title,
+                                                style: AppTextStyles.bodyL.copyWith(
+                                                  fontWeight: FontWeight.bold,
+                                                  color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Row(
+                                                children: [
+                                                  Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                    decoration: BoxDecoration(
+                                                      color: (isDark ? AppColors.darkSurface2 : AppColors.lightSurface2)
+                                                          .withValues(alpha: 0.8),
+                                                      borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                                                      border: Border.all(
+                                                        color: isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder,
+                                                      ),
+                                                    ),
+                                                    child: Text(
+                                                      sub.category,
+                                                      style: AppTextStyles.label.copyWith(
+                                                        fontSize: 10,
+                                                        color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 6),
+                                                  Text(
+                                                    '•  ${sub.billingCycle.toUpperCase()}',
+                                                    style: AppTextStyles.label.copyWith(
+                                                      fontSize: 10,
+                                                      color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
+                                                      fontWeight: FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        Column(
+                                          crossAxisAlignment: CrossAxisAlignment.end,
                                           children: [
                                             Text(
-                                              sub.title,
-                                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                                              '₹${sub.amount.toStringAsFixed(0)}',
+                                              style: AppTextStyles.h3.copyWith(
+                                                fontWeight: FontWeight.bold,
+                                                color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
+                                              ),
                                             ),
-                                            const SizedBox(height: 2),
-                                            Row(
-                                              children: [
-                                                Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                                  decoration: BoxDecoration(
-                                                    color: Colors.grey.withValues(alpha: 0.1),
-                                                    borderRadius: BorderRadius.circular(6),
-                                                  ),
-                                                  child: Text(
-                                                    sub.category,
-                                                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
-                                                  ),
+                                            const SizedBox(height: 4),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                              decoration: BoxDecoration(
+                                                color: statusColor.withValues(alpha: 0.12),
+                                                borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                                              ),
+                                              child: Text(
+                                                statusText,
+                                                style: AppTextStyles.label.copyWith(
+                                                  color: statusColor,
+                                                  fontSize: 10,
                                                 ),
-                                                const SizedBox(width: 6),
-                                                Text(
-                                                  '•  ${sub.billingCycle.toUpperCase()}',
-                                                  style: const TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.w500),
-                                                ),
-                                              ],
+                                              ),
                                             ),
                                           ],
                                         ),
-                                      ),
-                                      Column(
-                                        crossAxisAlignment: CrossAxisAlignment.end,
-                                        children: [
-                                          Text(
-                                            '₹${sub.amount.toStringAsFixed(0)}',
-                                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        TextButton.icon(
+                                          style: TextButton.styleFrom(
+                                            foregroundColor: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
+                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                            minimumSize: Size.zero,
+                                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                           ),
-                                          const SizedBox(height: 4),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                            decoration: BoxDecoration(
-                                              color: statusColor.withValues(alpha: 0.12),
-                                              borderRadius: BorderRadius.circular(10),
-                                            ),
-                                            child: Text(
-                                              statusText,
-                                              style: TextStyle(color: statusColor, fontSize: 11, fontWeight: FontWeight.bold),
+                                          icon: const Icon(Icons.delete_outline_rounded, size: 16),
+                                          label: Text('Remove', style: AppTextStyles.label.copyWith(fontSize: 12)),
+                                          onPressed: () => _deleteSubscription(sub.id),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        ElevatedButton.icon(
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: AppColors.success.withValues(alpha: 0.15),
+                                            foregroundColor: AppColors.success,
+                                            elevation: 0,
+                                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                            minimumSize: Size.zero,
+                                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
                                             ),
                                           ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 12),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.end,
-                                    children: [
-                                      TextButton.icon(
-                                        style: TextButton.styleFrom(
-                                          foregroundColor: AppColors.textSecondary,
-                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                          minimumSize: Size.zero,
-                                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                          icon: const Icon(Icons.check_circle_outline_rounded, size: 16),
+                                          label: Text('Renew Cycle', style: AppTextStyles.label.copyWith(fontSize: 12, color: AppColors.success)),
+                                          onPressed: () => _renewSubscription(sub),
                                         ),
-                                        icon: const Icon(Icons.delete_outline_rounded, size: 16),
-                                        label: const Text('Remove', style: TextStyle(fontSize: 12)),
-                                        onPressed: () => _deleteSubscription(sub.id),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      ElevatedButton.icon(
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: AppColors.successGreen.withValues(alpha: 0.15),
-                                          foregroundColor: AppColors.successGreen,
-                                          elevation: 0,
-                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                          minimumSize: Size.zero,
-                                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                        ),
-                                        icon: const Icon(Icons.check_circle_outline_rounded, size: 16),
-                                        label: const Text('Renew Cycle', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                                        onPressed: () => _renewSubscription(sub),
-                                      ),
-                                    ],
-                                  ),
-                                ],
+                                      ],
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          );
-                        },
-                      ),
-              ),
-            ],
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _addSubscription,
-        backgroundColor: AppColors.primaryOrange,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add),
-        label: const Text('Add Subscription', style: TextStyle(fontWeight: FontWeight.bold)),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            );
+          },
+        ),
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: _addSubscription,
+          backgroundColor: AppColors.primaryAccent,
+          foregroundColor: Colors.white,
+          elevation: 4,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
+          ),
+          icon: const Icon(Icons.add_rounded, color: Colors.white),
+          label: Text(
+            'Add Subscription',
+            style: AppTextStyles.button.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
       ),
     );
   }
