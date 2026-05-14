@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -22,19 +23,27 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   List<Map<String, dynamic>> _filteredExpenses = [];
   bool _isLoading = true;
   DateTimeRange? _selectedDateRange;
+  Timer? _debounce;
+  static final DateFormat _dateFormatter = DateFormat('dd MMM yyyy');
 
   @override
   void initState() {
     super.initState();
     _fetchExpenses();
-    _searchController.addListener(_filterExpenses);
+    _searchController.addListener(_onSearchChanged);
   }
 
   @override
   void dispose() {
-    _searchController.removeListener(_filterExpenses);
+    _searchController.removeListener(_onSearchChanged);
+    _debounce?.cancel();
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _onSearchChanged() {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), _filterExpenses);
   }
 
   Future<void> _fetchExpenses() async {
@@ -273,8 +282,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 final date = expense['date'] != null
                     ? (expense['date'] as Timestamp).toDate()
                     : DateTime.now();
-                final formattedDate =
-                DateFormat('dd MMM yyyy').format(date);
+                final formattedDate = _dateFormatter.format(date);
 
                 return AnimatedListItem(
                   index: index,

@@ -20,9 +20,20 @@ class GroupDetailScreen extends StatefulWidget {
 class _GroupDetailScreenState extends State<GroupDetailScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final Map<String, String> _nameCache = {};
 
   Stream<DocumentSnapshot> _getGroupStream() {
     return _firestore.collection('groups').doc(widget.groupId).snapshots();
+  }
+
+  Future<String> _getCachedName(String uid) async {
+    if (_nameCache.containsKey(uid)) {
+      return _nameCache[uid]!;
+    }
+    final doc = await _firestore.collection('users').doc(uid).get();
+    final name = (doc.data() as Map<String, dynamic>?)?['name'] ?? 'User';
+    _nameCache[uid] = name;
+    return name;
   }
 
 
@@ -158,7 +169,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 itemCount: members.length,
                 itemBuilder: (context, index) {
-                  return MemberChip(uid: members[index]);
+                  return MemberChip(uid: members[index], cacheFn: _getCachedName);
                 },
               );
             },
@@ -184,6 +195,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                     subtitle: UserNameDisplay(
                       uid: data['paidBy'],
                       builder: (name) => Text('Paid by $name • Split with ${participants.length}'),
+                      cacheFn: _getCachedName,
                     ),
                     trailing: Text("₹${(data['amount'] as num).toStringAsFixed(2)}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                     onTap: () => _showExpenseDialog(expenseDoc: expenseDoc),
@@ -446,19 +458,25 @@ class _AddEditExpenseDialogState extends State<_AddEditExpenseDialog> {
 class UserNameDisplay extends StatelessWidget {
   final String uid;
   final Widget Function(String name) builder;
+  final Future<String> Function(String uid)? cacheFn;
 
-  const UserNameDisplay({super.key, required this.uid, required this.builder});
+  const UserNameDisplay({super.key, required this.uid, required this.builder, this.cacheFn});
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<DocumentSnapshot>(
-      future: FirebaseFirestore.instance.collection('users').doc(uid).get(),
+    final future = cacheFn != null
+        ? cacheFn!(uid)
+        : FirebaseFirestore.instance.collection('users').doc(uid).get().then((doc) {
+            final data = doc.data() as Map<String, dynamic>?;
+            return data?['name'] ?? 'User';
+          });
+
+    return FutureBuilder<String>(
+      future: future,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) return builder('...');
         if (snapshot.hasError || !snapshot.hasData) return builder('Unknown');
-        final data = snapshot.data!.data() as Map<String, dynamic>?;
-        final name = data?['name'] ?? 'User';
-        return builder(name);
+        return builder(snapshot.data!);
       },
     );
   }
@@ -466,20 +484,24 @@ class UserNameDisplay extends StatelessWidget {
 
 class MemberChip extends StatelessWidget {
   final String uid;
-  const MemberChip({super.key, required this.uid});
+  final Future<String> Function(String uid)? cacheFn;
+
+  const MemberChip({super.key, required this.uid, this.cacheFn});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(right: 8.0),
-      child: FutureBuilder<DocumentSnapshot>(
-        future: FirebaseFirestore.instance.collection('users').doc(uid).get(),
+      child: FutureBuilder<Map<String, dynamic>>(
+        future: FirebaseFirestore.instance.collection('users').doc(uid).get().then((doc) {
+          return doc.data() as Map<String, dynamic>? ?? {};
+        }),
         builder: (context, snapshot) {
           if (!snapshot.hasData) return const Chip(label: Text('...'));
-          final data = snapshot.data!.data() as Map<String, dynamic>?;
-          final name = data?['name'] ?? 'Unknown';
-          final photoUrl = data?['photoUrl'];
-          
+          final data = snapshot.data!;
+          final name = data['name'] ?? 'Unknown';
+          final photoUrl = data['photoUrl'];
+
           return Chip(
             avatar: CircleAvatar(
               backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,

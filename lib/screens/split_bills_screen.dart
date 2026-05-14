@@ -26,7 +26,19 @@ class _SplitBillsScreenState extends State<SplitBillsScreen> {
 
   // Camera/OCR related variables (moved from old implementation)
   final picker = ImagePicker();
-  final TextRecognizer textRecognizer = GoogleMlKit.vision.textRecognizer();
+  late final TextRecognizer textRecognizer;
+
+  @override
+  void initState() {
+    super.initState();
+    textRecognizer = GoogleMlKit.vision.textRecognizer();
+  }
+
+  @override
+  void dispose() {
+    textRecognizer.close();
+    super.dispose();
+  }
 
   Future<void> _createNewBill(BuildContext context) async {
     showModalBottomSheet(
@@ -252,7 +264,10 @@ class _SplitBillsScreenState extends State<SplitBillsScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text("Pending Bills", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                    TextButton(onPressed: () {}, child: const Text("View All", style: TextStyle(color: AppColors.secondaryTeal))),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pushNamed('/split_history'),
+                      child: const Text("View All", style: TextStyle(color: AppColors.secondaryTeal)),
+                    ),
                   ],
                 ),
                 

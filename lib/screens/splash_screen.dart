@@ -20,21 +20,31 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   void _navigateNext() async {
-    // Delay for 2 seconds
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      // Listen to auth state changes with a 3-second timeout
+      final user = await FirebaseAuth.instance
+          .authStateChanges()
+          .first
+          .timeout(const Duration(seconds: 3), onTimeout: () => FirebaseAuth.instance.currentUser);
 
-    // Check if user is logged in
-    final user = FirebaseAuth.instance.currentUser;
+      if (!mounted) return;
 
-    if (!mounted) return;
-
-    // Navigate to HomeScreen if logged in, else OnboardingScreen
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => user != null ? const HomeScreen() : const OnboardingScreen(),
-      ),
-    );
+      // Navigate to HomeScreen if logged in, else OnboardingScreen
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => user != null ? const HomeScreen() : const OnboardingScreen(),
+        ),
+      );
+    } catch (e) {
+      debugPrint('Auth error: $e');
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const OnboardingScreen()),
+        );
+      }
+    }
   }
 
   @override
