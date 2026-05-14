@@ -332,7 +332,7 @@ class _AddEditExpenseDialogState extends State<_AddEditExpenseDialog> {
   void _onSelectAll(bool? value) {
     setState(() {
       _selectAll = value ?? false;
-      _selectedMembers.updateAll((_, __) => _selectAll);
+      _selectedMembers.updateAll((key, value) => _selectAll);
     });
   }
 
@@ -423,7 +423,7 @@ class _AddEditExpenseDialogState extends State<_AddEditExpenseDialog> {
                   } : null,
                    controlAffinity: ListTileControlAffinity.leading,
                 );
-              }).toList(),
+              }),
             ],
           ),
         ),
@@ -511,7 +511,6 @@ class _SettleButton extends StatefulWidget {
 
 class _SettleButtonState extends State<_SettleButton> {
   bool _isLoading = false;
-  String? _txnId;
 
   Future<void> _settleWithUpi() async {
     setState(() => _isLoading = true);
@@ -545,9 +544,6 @@ class _SettleButtonState extends State<_SettleButton> {
       final vpa = resp['vpa'];
       final name = resp['name'];
       final note = resp['note'];
-
-      _txnId = txnId;
-
       // 2. Construct UPI URI
       final uriString = 'upi://pay?pa=$vpa&pn=$name&tr=$txnId&tn=$note&am=$splitAmount&cu=INR';
       final uri = Uri.parse(uriString);

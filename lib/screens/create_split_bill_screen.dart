@@ -4,7 +4,6 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:sliceit/models/participant_model.dart';
-import 'package:sliceit/screens/split_bills_screen.dart';
 import 'package:sliceit/utils/colors.dart';
 import 'package:sliceit/utils/text_styles.dart';
 import 'package:sliceit/services/friend_service.dart';
@@ -35,7 +34,7 @@ class _CreateSplitBillScreenState extends State<CreateSplitBillScreen> {
   final _auth = FirebaseAuth.instance;
   bool _isSaving = false;
   SplitType _splitType = SplitType.equal;
-  List<Participant> _participants = [];
+  final List<Participant> _participants = [];
 
   @override
   void initState() {

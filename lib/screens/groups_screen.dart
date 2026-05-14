@@ -78,7 +78,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
     );
   }
 
-  Future<void> _shareGroup(String groupId) async {
+  Future<void> _shareGroup(String groupId, String groupName) async {
     final currentUser = _auth.currentUser;
     if (currentUser == null) return;
 
@@ -134,12 +134,18 @@ class _GroupsScreenState extends State<GroupsScreen> {
 
               // Send real emails via Cloud Function
               try {
+                // Fetch inviter name from user profile
+                final userDoc = await _firestore.collection('users').doc(currentUser.uid).get();
+                final inviterName = userDoc.data()?['name'] ?? currentUser.displayName ?? 'A friend';
+
                 await InviteService.sendGroupInvites(
                   groupId: groupId,
                   inviterUid: currentUser.uid,
+                  inviterName: inviterName,
+                  groupName: groupName,
                   emails: emails,
                   subject: 'Join my SliceIt group',
-                  body: _composeInviteBody(groupId, currentUser.uid), inviterName: '', groupName: '',
+                  body: _composeInviteBody(groupId, currentUser.uid),
                 );
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -207,7 +213,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.groups_outlined, size: 64, color: AppColors.textSecondary.withOpacity(0.5)),
+                  Icon(Icons.groups_outlined, size: 64, color: AppColors.textSecondary.withValues(alpha: 0.5)),
                   const SizedBox(height: 16),
                   Text(
                     'No groups found',
@@ -216,7 +222,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
                   const SizedBox(height: 8),
                   Text(
                     'Create one to start splitting bills!',
-                    style: TextStyle(color: AppColors.textSecondary.withOpacity(0.7)),
+                    style: TextStyle(color: AppColors.textSecondary.withValues(alpha: 0.7)),
                   ),
                 ],
               ),
@@ -242,7 +248,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: AppColors.primaryGold.withOpacity(0.2),
+                          color: AppColors.primaryGold.withValues(alpha: 0.2),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(Icons.group, color: AppColors.primaryGold),
@@ -261,7 +267,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
                       IconButton(
                         icon: const Icon(Icons.person_add_alt, color: AppColors.secondaryTeal),
                         tooltip: 'Invite by email',
-                        onPressed: () => _shareGroup(doc.id),
+                        onPressed: () => _shareGroup(doc.id, groupName),
                       ),
                       const Icon(Icons.chevron_right, color: AppColors.textSecondary),
                     ],

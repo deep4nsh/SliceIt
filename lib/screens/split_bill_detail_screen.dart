@@ -114,6 +114,7 @@ class _SplitBillDetailScreenState extends State<SplitBillDetailScreen> {
     if (!mounted) return;
     if (status == 'success') {
       await _markAsPaid(payerEmail, true);
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Payment successful. Marked as paid.')),
       );
@@ -263,7 +264,7 @@ class _SplitBillDetailScreenState extends State<SplitBillDetailScreen> {
                       ),
                     ),
                   );
-                }).toList(),
+                }),
                 if (currentUserIsParticipant && !currentUserHasPaid && createdBy != currentUserEmail)
                   Padding(
                     padding: const EdgeInsets.only(top: 24.0),
@@ -286,9 +287,9 @@ class _SplitBillDetailScreenState extends State<SplitBillDetailScreen> {
                            return Container(
                              padding: const EdgeInsets.all(12),
                              decoration: BoxDecoration(
-                               color: Colors.orange.withOpacity(0.1),
+                               color: Colors.orange.withValues(alpha: 0.1),
                                borderRadius: BorderRadius.circular(8),
-                               border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                               border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
                              ),
                              child: Row(
                                children: [
@@ -312,8 +313,8 @@ class _SplitBillDetailScreenState extends State<SplitBillDetailScreen> {
                             createdByEmail: createdBy!,
                             payerEmail: currentUserEmail!,
                           ),
-                          child: const Text('Settle with UPI'),
                           style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
+                          child: const Text('Settle with UPI'),
                         );
                       },
                     ),

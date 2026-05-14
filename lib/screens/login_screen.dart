@@ -46,18 +46,18 @@ class _LoginScreenState extends State<LoginScreen> {
                       
                       try {
                         final userCred = await authService.signInWithGoogle();
-                        if (userCred != null && mounted) {
+                        if (userCred != null && context.mounted) {
                           Navigator.pushReplacement(
                             context,
                             MaterialPageRoute(builder: (_) => const HomeScreen()),
                           );
-                        } else if (mounted) {
+                        } else if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text("Google Sign-In cancelled or failed")),
                           );
                         }
                       } catch (e) {
-                        if (mounted) {
+                        if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text("Google Sign-In failed. Please try again.")),
                           );

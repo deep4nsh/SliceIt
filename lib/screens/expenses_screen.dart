@@ -256,7 +256,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.receipt_long_outlined, size: 64, color: AppColors.textSecondary.withOpacity(0.5)),
+                  Icon(Icons.receipt_long_outlined, size: 64, color: AppColors.textSecondary.withValues(alpha: 0.5)),
                   const SizedBox(height: 16),
                   Text(
                     "No expenses found",
@@ -299,7 +299,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: AppColors.secondaryTeal.withOpacity(0.1),
+                              color: AppColors.secondaryTeal.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(16),
                             ),
                             child: const Icon(Icons.receipt, color: AppColors.secondaryTeal),

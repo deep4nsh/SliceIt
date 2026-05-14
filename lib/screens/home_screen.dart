@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../services/auth_service.dart';
-import 'login_screen.dart';
 import '../utils/colors.dart';
 import '../widgets/modern_card.dart';
 import '../widgets/animated_list_item.dart';
@@ -98,7 +96,7 @@ class HomeScreen extends StatelessWidget {
                                 Text(
                                   'Total Spent',
                                   style: TextStyle(
-                                    color: Colors.white.withOpacity(0.7),
+                                    color: Colors.white.withValues(alpha: 0.7),
                                     fontSize: 14,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -106,7 +104,7 @@ class HomeScreen extends StatelessWidget {
                                 Container(
                                   padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.1),
+                                    color: Colors.white.withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: const Icon(Icons.account_balance_wallet, color: AppColors.primaryGold, size: 20),
@@ -131,7 +129,7 @@ class HomeScreen extends StatelessWidget {
                         children: [
                           Expanded(
                             child: ModernCard(
-                              color: AppColors.errorRed.withOpacity(0.1),
+                              color: AppColors.errorRed.withValues(alpha: 0.1),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -145,7 +143,7 @@ class HomeScreen extends StatelessWidget {
                           const SizedBox(width: 16),
                           Expanded(
                             child: ModernCard(
-                              color: AppColors.successGreen.withOpacity(0.1),
+                              color: AppColors.successGreen.withValues(alpha: 0.1),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -239,26 +237,6 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildBalanceAction(IconData icon, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.white, size: 16),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildAnimatedFeatureCard(
     BuildContext context, {
     required int index,
@@ -278,7 +256,7 @@ class HomeScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, color: color, size: 28),

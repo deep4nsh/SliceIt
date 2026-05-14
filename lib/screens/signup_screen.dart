@@ -3,7 +3,6 @@ import '../utils/colors.dart';
 import '../utils/text_styles.dart';
 import '../services/auth_service.dart';
 import 'login_screen.dart';
-import 'home_screen.dart'; // Import HomeScreen
 import 'phone_verification_screen.dart';
 
 class SignupScreen extends StatefulWidget {

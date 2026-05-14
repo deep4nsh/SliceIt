@@ -20,6 +20,8 @@ class InviteService {
         'inviterUid': inviterUid,
         'inviterName': inviterName,
         'groupName': groupName,
+        'subject': subject,
+        'body': body,
       });
     } on FirebaseFunctionsException catch (e) {
       debugPrint('sendGroupInvites failed: ${e.code} ${e.message}');

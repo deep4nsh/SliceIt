@@ -55,6 +55,7 @@ class _MyAppState extends State<MyApp> {
 
   Future<void> _initDynamicLinks() async {
     // Handle links when app is already open
+    // ignore: deprecated_member_use
     FirebaseDynamicLinks.instance.onLink.listen((dynamicLink) {
       _handleDynamicLink(dynamicLink.link);
     }).onError((error) {
@@ -62,7 +63,9 @@ class _MyAppState extends State<MyApp> {
     });
 
     // Handle initial link that opened the app
+    // ignore: deprecated_member_use
     final PendingDynamicLinkData? initialLink =
+        // ignore: deprecated_member_use
         await FirebaseDynamicLinks.instance.getInitialLink();
     if (initialLink != null) {
       // Wait until the first frame is rendered to ensure context is available
@@ -141,12 +144,16 @@ class _MyAppState extends State<MyApp> {
                 onPressed: () async {
                   debugPrint('DeepLink: joining groupId=$groupId');
                   await _joinGroup(groupId);
-                  if (Navigator.of(dialogContext).canPop()) {
-                    Navigator.of(dialogContext).pop();
+                  if (dialogContext.mounted) {
+                    if (Navigator.of(dialogContext).canPop()) {
+                      Navigator.of(dialogContext).pop();
+                    }
                   }
-                  ScaffoldMessenger.of(ctx).showSnackBar(
-                    const SnackBar(content: Text('Group joined successfully!')),
-                  );
+                  if (ctx.mounted) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      const SnackBar(content: Text('Group joined successfully!')),
+                    );
+                  }
                 },
                 child: const Text('Join'),
               ),
@@ -167,6 +174,18 @@ class _MyAppState extends State<MyApp> {
     await groupRef.update({
       'members': FieldValue.arrayUnion([user.uid])
     });
+
+    // Mark the invite as accepted if an email is present
+    if (user.email != null && user.email!.isNotEmpty) {
+      try {
+        await groupRef
+            .collection('invites')
+            .doc(user.email)
+            .update({'status': 'accepted'});
+      } catch (_) {
+        // Invite doc might not exist if joined via universal link directly
+      }
+    }
   }
 
   @override
@@ -212,7 +231,7 @@ class _MyAppState extends State<MyApp> {
                   backgroundColor: AppColors.primaryOrange,
                   foregroundColor: Colors.white,
                   elevation: 4,
-                  shadowColor: AppColors.primaryOrange.withOpacity(0.4),
+                  shadowColor: AppColors.primaryOrange.withValues(alpha: 0.4),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                   textStyle: const TextStyle(
@@ -279,7 +298,7 @@ class _MyAppState extends State<MyApp> {
                   backgroundColor: AppColors.primaryOrange,
                   foregroundColor: Colors.white,
                   elevation: 4,
-                  shadowColor: AppColors.primaryOrange.withOpacity(0.4),
+                  shadowColor: AppColors.primaryOrange.withValues(alpha: 0.4),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                   textStyle: const TextStyle(
