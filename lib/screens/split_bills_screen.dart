@@ -144,174 +144,193 @@ class _SplitBillsScreenState extends State<SplitBillsScreen> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            StreamBuilder<QuerySnapshot>(
-              stream: _firestore
-                  .collection('split_bills')
-                  .where('participants', arrayContains: user?.email)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                double totalYouOwe = 0;
-                double totalOwedToYou = 0;
+      body: Builder(
+        builder: (context) {
+          final userEmail = user?.email;
+          final hasEmail = userEmail != null && userEmail.isNotEmpty;
+          if (!hasEmail) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(20.0),
+                child: Text(
+                  "Please update your email address in your Profile to view and manage split bills.",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey, fontSize: 16),
+                ),
+              ),
+            );
+          }
 
-                if (snapshot.hasData) {
-                  final docs = snapshot.data!.docs;
-                  final currentUserEmail = user?.email;
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                StreamBuilder<QuerySnapshot>(
+                  stream: _firestore
+                      .collection('split_bills')
+                      .where('participants', arrayContains: userEmail)
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    double totalYouOwe = 0;
+                    double totalOwedToYou = 0;
 
-                  for (var doc in docs) {
-                    final data = doc.data() as Map<String, dynamic>;
-                    final createdBy = data['createdBy'] as String?;
-                    final totalAmount = (data['totalAmount'] as num).toDouble();
-                    final participants = (data['participants'] as List).cast<String>();
-                    final paidStatus = (data['paidStatus'] as Map).cast<String, bool>();
-                    final splitType = data['splitType'] as String? ?? 'equal';
-                    final amounts = (data['amounts'] as Map?)?.cast<String, num>() ?? {};
+                    if (snapshot.hasData) {
+                      final docs = snapshot.data!.docs;
+                      final currentUserEmail = user?.email;
 
-                    if (createdBy == currentUserEmail) {
-                      // People owe the current user
-                      for (var participant in participants) {
-                        if (participant != currentUserEmail) {
-                          final isPaid = paidStatus[participant] ?? false;
+                      for (var doc in docs) {
+                        final data = doc.data() as Map<String, dynamic>;
+                        final createdBy = data['createdBy'] as String?;
+                        final totalAmount = (data['totalAmount'] as num).toDouble();
+                        final participants = (data['participants'] as List).cast<String>();
+                        final paidStatus = (data['paidStatus'] as Map).cast<String, bool>();
+                        final splitType = data['splitType'] as String? ?? 'equal';
+                        final amounts = (data['amounts'] as Map?)?.cast<String, num>() ?? {};
+
+                        if (createdBy == currentUserEmail) {
+                          // People owe the current user
+                          for (var participant in participants) {
+                            if (participant != currentUserEmail) {
+                              final isPaid = paidStatus[participant] ?? false;
+                              if (!isPaid) {
+                                 double amountOwed = 0;
+                                 if (splitType == 'unequal') {
+                                   amountOwed = (amounts[participant] ?? 0).toDouble();
+                                 } else {
+                                   amountOwed = participants.isNotEmpty ? totalAmount / participants.length : 0;
+                                 }
+                                 totalOwedToYou += amountOwed;
+                              }
+                            }
+                          }
+                        } else {
+                          // Current user might owe the creator
+                          final isPaid = paidStatus[currentUserEmail] ?? false;
                           if (!isPaid) {
-                             double amountOwed = 0;
-                             if (splitType == 'unequal') {
-                               amountOwed = (amounts[participant] ?? 0).toDouble();
-                             } else {
-                               amountOwed = participants.isNotEmpty ? totalAmount / participants.length : 0;
-                             }
-                             totalOwedToYou += amountOwed;
+                            double amountOwed = 0;
+                            if (splitType == 'unequal') {
+                              amountOwed = (amounts[currentUserEmail] ?? 0).toDouble();
+                            } else {
+                              amountOwed = participants.isNotEmpty ? totalAmount / participants.length : 0;
+                            }
+                            totalYouOwe += amountOwed;
                           }
                         }
                       }
-                    } else {
-                      // Current user might owe the creator
-                      final isPaid = paidStatus[currentUserEmail] ?? false;
-                      if (!isPaid) {
-                        double amountOwed = 0;
-                        if (splitType == 'unequal') {
-                          amountOwed = (amounts[currentUserEmail] ?? 0).toDouble();
-                        } else {
-                          amountOwed = participants.isNotEmpty ? totalAmount / participants.length : 0;
-                        }
-                        totalYouOwe += amountOwed;
-                      }
                     }
-                  }
-                }
 
-                return Row(
+                    return Row(
+                      children: [
+                        Expanded(
+                          child: _buildSummaryCard(
+                            "You Owe",
+                            "₹${totalYouOwe.toStringAsFixed(2)}",
+                            AppColors.errorRed,
+                            Colors.white,
+                            Icons.arrow_outward,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: _buildSummaryCard(
+                            "Owes you",
+                            "₹${totalOwedToYou.toStringAsFixed(2)}",
+                            AppColors.successGreen,
+                            Colors.white,
+                            Icons.arrow_downward,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+                const SizedBox(height: 24),
+
+                // Pending Bills Header
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Expanded(
-                      child: _buildSummaryCard(
-                        "You Owe",
-                        "₹${totalYouOwe.toStringAsFixed(2)}",
-                        AppColors.errorRed,
-                        Colors.white,
-                        Icons.arrow_outward,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _buildSummaryCard(
-                        "Owes you",
-                        "₹${totalOwedToYou.toStringAsFixed(2)}",
-                        AppColors.successGreen,
-                        Colors.white,
-                        Icons.arrow_downward,
+                    const Text("Pending Bills", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    TextButton(onPressed: () {}, child: const Text("View All", style: TextStyle(color: AppColors.secondaryTeal))),
+                  ],
+                ),
+                
+                // Pending Bills List
+                StreamBuilder<QuerySnapshot>(
+                  stream: _firestore
+                      .collection('split_bills')
+                      .where('participants', arrayContains: userEmail)
+                      .orderBy('createdAt', descending: true)
+                      .limit(5)
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                    final docs = snapshot.data!.docs;
+                    if (docs.isEmpty) return const Text("No pending bills");
+
+                    return ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: docs.length,
+                      itemBuilder: (context, index) {
+                        final data = docs[index].data() as Map<String, dynamic>;
+                        final splitId = docs[index].id;
+                        return _buildBillCard(context, data, splitId, user?.email);
+                      },
+                    );
+                  },
+                ),
+
+                const SizedBox(height: 24),
+
+                // Friends Header
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text("Friends", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    IconButton(
+                      icon: const Icon(Icons.add_circle_outline),
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const AddFriendScreen()),
                       ),
                     ),
                   ],
-                );
-              },
-            ),
-            const SizedBox(height: 24),
-
-            // Pending Bills Header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text("Pending Bills", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                TextButton(onPressed: () {}, child: const Text("View All", style: TextStyle(color: AppColors.secondaryTeal))),
-              ],
-            ),
-            
-            // Pending Bills List
-            StreamBuilder<QuerySnapshot>(
-              stream: _firestore
-                  .collection('split_bills')
-                  .where('participants', arrayContains: user?.email)
-                  .orderBy('createdAt', descending: true)
-                  .limit(5)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-                final docs = snapshot.data!.docs;
-                if (docs.isEmpty) return const Text("No pending bills");
-
-                return ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: docs.length,
-                  itemBuilder: (context, index) {
-                    final data = docs[index].data() as Map<String, dynamic>;
-                    final splitId = docs[index].id;
-                    return _buildBillCard(context, data, splitId, user?.email);
-                  },
-                );
-              },
-            ),
-
-            const SizedBox(height: 24),
-
-            // Friends Header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text("Friends", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                IconButton(
-                  icon: const Icon(Icons.add_circle_outline),
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const AddFriendScreen()),
-                  ),
                 ),
+
+                // Friends List
+                StreamBuilder<List<Friend>>(
+                  stream: _friendService.getFriendsStream(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    final friends = snapshot.data ?? [];
+                    if (friends.isEmpty) {
+                      return const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(20.0),
+                          child: Text("No friends added yet. Add friends to split bills easily!"),
+                        ),
+                      );
+                    }
+
+                    return ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: friends.length,
+                      itemBuilder: (context, index) {
+                        return _buildFriendItem(friends[index]);
+                      },
+                    );
+                  },
+                ),
+                const SizedBox(height: 80), // Space for FAB
               ],
             ),
-
-            // Friends List
-            StreamBuilder<List<Friend>>(
-              stream: _friendService.getFriendsStream(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                final friends = snapshot.data ?? [];
-                if (friends.isEmpty) {
-                  return const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(20.0),
-                      child: Text("No friends added yet. Add friends to split bills easily!"),
-                    ),
-                  );
-                }
-
-                return ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: friends.length,
-                  itemBuilder: (context, index) {
-                    return _buildFriendItem(friends[index]);
-                  },
-                );
-              },
-            ),
-            const SizedBox(height: 80), // Space for FAB
-          ],
-        ),
+          );
+        },
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _createNewBill(context),
@@ -337,8 +356,8 @@ class _SplitBillsScreenState extends State<SplitBillsScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(title, style: TextStyle(color: textColor.withOpacity(0.7))),
-              Icon(icon, color: textColor.withOpacity(0.7), size: 20),
+              Text(title, style: TextStyle(color: textColor.withValues(alpha: 0.7))),
+              Icon(icon, color: textColor.withValues(alpha: 0.7), size: 20),
             ],
           ),
         ],
@@ -379,7 +398,7 @@ class _SplitBillsScreenState extends State<SplitBillsScreen> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: AppColors.primaryOrange.withOpacity(0.1),
+                color: AppColors.primaryOrange.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(Icons.receipt_long, color: AppColors.secondaryTeal),
@@ -401,7 +420,7 @@ class _SplitBillsScreenState extends State<SplitBillsScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.1),
+                    color: statusColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(

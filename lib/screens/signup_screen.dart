@@ -4,6 +4,7 @@ import '../utils/text_styles.dart';
 import '../services/auth_service.dart';
 import 'login_screen.dart';
 import 'home_screen.dart'; // Import HomeScreen
+import 'phone_verification_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -48,13 +49,14 @@ class _SignupScreenState extends State<SignupScreen> {
                   final userCred = await authService.signInWithGoogle();
                   debugPrint("Google Sign-In completed. UserCred: ${userCred != null ? 'Success' : 'Null'}");
 
-                  if (userCred != null && mounted) {
-                    debugPrint("Navigating to HomeScreen...");
+                  if (!context.mounted) return;
+                  if (userCred != null) {
+                    debugPrint("Navigating to PhoneVerificationScreen...");
                     Navigator.pushReplacement(
                       context,
-                      MaterialPageRoute(builder: (_) => const HomeScreen()),
+                      MaterialPageRoute(builder: (_) => const PhoneVerificationScreen()),
                     );
-                  } else if (mounted) {
+                  } else {
                     debugPrint("Google Sign-In was cancelled or failed");
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text("Google Sign-Up cancelled or failed")),
@@ -62,11 +64,10 @@ class _SignupScreenState extends State<SignupScreen> {
                   }
                 } catch (e) {
                   debugPrint("Google Sign-In error: $e");
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text("Google Sign-Up failed: ${e.toString()}")),
-                    );
-                  }
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Google Sign-Up failed: ${e.toString()}")),
+                  );
                 } finally {
                   if (mounted) setState(() => _isLoading = false);
                 }

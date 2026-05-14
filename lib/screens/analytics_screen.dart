@@ -143,7 +143,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
         final data = doc.data();
         final category = data['category'] as String? ?? 'Uncategorized';
         final amount = (data['amount'] as num).toDouble();
-        final date = (data['date'] as Timestamp).toDate();
+        final timestamp = data['date'] as Timestamp?;
+        final date = timestamp?.toDate() ?? DateTime.now();
         
         // Category aggregation
         categoryData.update(category, (value) => value + amount, ifAbsent: () => amount);
