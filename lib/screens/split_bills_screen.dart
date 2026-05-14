@@ -195,7 +195,7 @@ class _SplitBillsScreenState extends State<SplitBillsScreen> {
                               final isPaid = paidStatus[participant] ?? false;
                               if (!isPaid) {
                                  double amountOwed = 0;
-                                 if (splitType == 'unequal') {
+                                 if (splitType.contains('unequal')) {
                                    amountOwed = (amounts[participant] ?? 0).toDouble();
                                  } else {
                                    amountOwed = participants.isNotEmpty ? totalAmount / participants.length : 0;
@@ -209,7 +209,7 @@ class _SplitBillsScreenState extends State<SplitBillsScreen> {
                           final isPaid = paidStatus[currentUserEmail] ?? false;
                           if (!isPaid) {
                             double amountOwed = 0;
-                            if (splitType == 'unequal') {
+                            if (splitType.contains('unequal')) {
                               amountOwed = (amounts[currentUserEmail] ?? 0).toDouble();
                             } else {
                               amountOwed = participants.isNotEmpty ? totalAmount / participants.length : 0;

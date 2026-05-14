@@ -50,7 +50,7 @@ class _SplitBillDetailScreenState extends State<SplitBillDetailScreen> {
     final userEmail = _auth.currentUser?.email;
     double expenseAmount = 0;
 
-    if (splitType == 'unequal' && userEmail != null) {
+    if (splitType.toString().contains('unequal') && userEmail != null) {
       final amounts = (data['amounts'] as Map).cast<String, num>();
       expenseAmount = (amounts[userEmail] ?? 0).toDouble();
     } else {
@@ -207,7 +207,7 @@ class _SplitBillDetailScreenState extends State<SplitBillDetailScreen> {
 
           double amountOwedByCurrentUser = 0;
           if (currentUserIsParticipant) {
-            if (splitType == 'unequal') {
+            if (splitType.contains('unequal')) {
               amountOwedByCurrentUser = (amounts[currentUserEmail] ?? 0).toDouble();
             } else {
               amountOwedByCurrentUser = participants.isNotEmpty ? totalAmount / participants.length : 0;
@@ -246,7 +246,7 @@ class _SplitBillDetailScreenState extends State<SplitBillDetailScreen> {
                   ...participants.where((email) => email != createdBy).map((email) {
                   final isPaid = paidStatus[email] ?? false;
                   final canToggle = createdBy == currentUserEmail || email == currentUserEmail;
-                  final amountOwed = splitType == 'unequal'
+                  final amountOwed = splitType.contains('unequal')
                       ? (amounts[email] ?? 0).toDouble()
                       : (participants.isNotEmpty ? totalAmount / participants.length : 0);
 

@@ -66,7 +66,7 @@ class _SplitHistoryScreenState extends State<SplitHistoryScreen> {
               final amounts = (data['amounts'] as Map?)?.cast<String, num>() ?? {};
 
               double amountOwed = 0;
-              if (splitType == 'unequal') {
+              if (splitType.contains('unequal')) {
                 amountOwed = (amounts[currentUserEmail] ?? 0).toDouble();
               } else {
                 amountOwed = participants.isNotEmpty ? totalAmount / participants.length : 0;

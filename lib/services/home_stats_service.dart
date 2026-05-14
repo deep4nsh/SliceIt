@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -11,109 +12,192 @@ class HomeStatsService {
       return Stream.value({'spent': 0.0, 'owe': 0.0, 'owed': 0.0});
     }
 
-    // Combine streams from Groups and Split Bills
-    // This is complex because we need to listen to *all* expenses in *all* groups.
-    // For a scalable solution, we'd use Cloud Functions to maintain a 'stats' document on the user.
-    // For this implementation, we will fetch snapshots.
-    
-    // Actually, listening to a query of all groups, then for each group listenting to expenses is too many listeners.
-    // We will do a one-time fetch for "Total Spent" (or simplified stream) and "Balances".
-    // Better: For "Total Balance" logic, we might need to iterate.
-    
-    // Let's implement a simpler version:
-    // 1. Fetch all groups user is in.
-    // 2. Fetch all expenses in those groups.
-    // 3. Calculate metrics.
-    // This is read-heavy.
-    
-    // Alternative: Just listen to `users/{uid}` if we updated stats there. (We didn't).
-    
-    // Let's use a Stream that emits periodically or on refresh? 
-    // Or just a Future for now? User asked for "real money spent data".
-    // I will use a Stream that combines latest values.
-    
-    return _firestore
-        .collection('groups')
-        .where('members', arrayContains: user.uid)
-        .snapshots()
-        .asyncMap((groupsSnapshot) async {
-          double totalSpent = 0.0;
-          double youOwe = 0.0; // Net negative
-          double owedToYou = 0.0; // Net positive
+    late StreamController<Map<String, double>> controller;
+    StreamSubscription? groupsSub;
+    StreamSubscription? splitBillsSub;
+    final Map<String, StreamSubscription> expensesSubs = {};
+    final Map<String, List<QueryDocumentSnapshot>> groupExpensesDocs = {};
 
-          // 1. Group Expenses
-          for (var groupDoc in groupsSnapshot.docs) {
-             final expensesSnapshot = await groupDoc.reference.collection('expenses').get();
-             for (var expenseDoc in expensesSnapshot.docs) {
-               final data = expenseDoc.data();
-               final amount = (data['amount'] as num).toDouble();
-               final paidBy = data['paidBy'] as String;
-               final participants = (data['participants'] as List).cast<String>();
-               
-               if (participants.isEmpty) continue;
-               final splitAmount = amount / participants.length;
-               
-               // Spent: My share of any expense
-               if (participants.contains(user.uid)) {
-                 totalSpent += splitAmount;
-               }
-               
-               // Debts/Credits
-               if (paidBy == user.uid) {
-                 // I paid. Others owe me.
-                 // Owed to me = Amount - My Share (if I participated)
-                 // If I am a participant, I paid for myself (0 net) + others (positive net)
-                 // If I am NOT a participant, I paid for others (positive net)
-                 if (participants.contains(user.uid)) {
-                   owedToYou += (amount - splitAmount);
-                 } else {
-                   owedToYou += amount;
-                 }
-               } else if (participants.contains(user.uid)) {
-                 // Someone else paid, and I am a participant. I Owe.
-                 youOwe += splitAmount;
-               }
-             }
-          }
-          
-          // 2. Split Bills (Direct splits)
-          // ... (Existing logic for Split Bills if separate collection)
-          // Assuming Split Bills are similar structure
-          final splitBillsSnapshot = await _firestore
-              .collection('split_bills')
-              .where('participants', arrayContains: user.email) // Note: using email for split bills?
-              .get();
-              
-          // Note: SplitBillsScreen uses email for participants array.
-          // We need user email.
-          final userEmail = user.email;
-          if (userEmail != null) {
-            for (var doc in splitBillsSnapshot.docs) {
-              final data = doc.data();
-              final totalAmount = (data['totalAmount'] as num).toDouble();
-               final createdBy = data['createdBy'] as String; // Email
-               final participants = (data['participants'] as List).cast<String>();
-               // Simplified equal split logic from SplitBillsScreen
-               final splitAmt = totalAmount / participants.length;
-               
-               if (createdBy == userEmail) {
-                 // I paid/created.
-                 owedToYou += (totalAmount - splitAmt);
-                 // Assuming I am also a participant? SplitBillsScreen logic implies createdBy is owed.
-                 totalSpent += splitAmt;
-               } else {
-                 // I owe
-                 youOwe += splitAmt;
-                 totalSpent += splitAmt;
-               }
+    List<QueryDocumentSnapshot>? latestSplitBills;
+    bool isGroupsLoaded = false;
+
+    void updateStats() {
+      if (!isGroupsLoaded || latestSplitBills == null) return;
+
+      double totalSpent = 0.0;
+      double youOwe = 0.0;
+      double owedToYou = 0.0;
+
+      // 1. Group Expenses (Net Balance per Group)
+      groupExpensesDocs.forEach((groupId, docs) {
+        double groupNetBalance = 0.0;
+
+        for (var expenseDoc in docs) {
+          final data = expenseDoc.data() as Map<String, dynamic>?;
+          if (data == null) continue;
+
+          final amount = (data['amount'] as num?)?.toDouble() ?? 0.0;
+          final paidBy = data['paidBy'] as String?;
+          final participants = (data['participants'] as List?)?.cast<String>() ?? [];
+          final isSettlement = data['isSettlement'] == true;
+
+          if (participants.isEmpty || paidBy == null) continue;
+          final splitAmount = amount / participants.length;
+
+          if (!isSettlement) {
+            // Only regular expenses add to personal total spent
+            if (participants.contains(user.uid)) {
+              totalSpent += splitAmount;
             }
           }
 
-          return {
-            'spent': totalSpent,
-            'owe': youOwe,
-            'owed': owedToYou,
-          };
+          // Net balance contribution for this expense
+          if (paidBy == user.uid) {
+            groupNetBalance += amount;
+          }
+          if (participants.contains(user.uid)) {
+            groupNetBalance -= splitAmount;
+          }
+        }
+
+        // Aggregate net group balance into global statistics
+        if (groupNetBalance > 0.01) {
+          owedToYou += groupNetBalance;
+        } else if (groupNetBalance < -0.01) {
+          youOwe += groupNetBalance.abs();
+        }
+      });
+
+      // 2. Split Bills (Direct splits)
+      final userEmail = user.email;
+      if (userEmail != null) {
+        for (var doc in latestSplitBills!) {
+          final data = doc.data() as Map<String, dynamic>?;
+          if (data == null) continue;
+
+          final createdBy = data['createdBy'] as String?;
+          final totalAmount = (data['totalAmount'] as num?)?.toDouble() ?? 0.0;
+          final participants = (data['participants'] as List?)?.cast<String>() ?? [];
+          final paidStatus = (data['paidStatus'] as Map?)?.cast<String, bool>() ?? {};
+          final splitType = data['splitType'] as String? ?? 'equal';
+          final amounts = (data['amounts'] as Map?)?.cast<String, num>() ?? {};
+
+          // Personal spent calculation
+          if (participants.contains(userEmail)) {
+            double myShare = 0;
+            if (splitType.contains('unequal')) {
+              myShare = (amounts[userEmail] ?? 0).toDouble();
+            } else {
+              myShare = participants.isNotEmpty ? totalAmount / participants.length : 0;
+            }
+            totalSpent += myShare;
+          }
+
+          // Outstanding debts and credits calculation
+          if (createdBy == userEmail) {
+            // Current user created the bill; others owe them if unpaid
+            for (var participant in participants) {
+              if (participant != userEmail) {
+                final isPaid = paidStatus[participant] ?? false;
+                if (!isPaid) {
+                  double amountOwed = 0;
+                  if (splitType.contains('unequal')) {
+                    amountOwed = (amounts[participant] ?? 0).toDouble();
+                  } else {
+                    amountOwed = participants.isNotEmpty ? totalAmount / participants.length : 0;
+                  }
+                  owedToYou += amountOwed;
+                }
+              }
+            }
+          } else {
+            // Current user is a participant who owes the creator if unpaid
+            final isPaid = paidStatus[userEmail] ?? false;
+            if (!isPaid) {
+              double amountOwed = 0;
+              if (splitType.contains('unequal')) {
+                amountOwed = (amounts[userEmail] ?? 0).toDouble();
+              } else {
+                amountOwed = participants.isNotEmpty ? totalAmount / participants.length : 0;
+              }
+              youOwe += amountOwed;
+            }
+          }
+        }
+      }
+
+      if (!controller.isClosed) {
+        controller.add({
+          'spent': totalSpent,
+          'owe': youOwe,
+          'owed': owedToYou,
         });
+      }
+    }
+
+    controller = StreamController<Map<String, double>>.broadcast(
+      onListen: () {
+        // Subscribe to groups collection
+        groupsSub = _firestore
+            .collection('groups')
+            .where('members', arrayContains: user.uid)
+            .snapshots()
+            .listen((snapshot) {
+          isGroupsLoaded = true;
+          final currentGroupIds = snapshot.docs.map((doc) => doc.id).toSet();
+
+          // Cancel subscriptions for groups left
+          final removedGroupIds = expensesSubs.keys.toSet().difference(currentGroupIds);
+          for (var groupId in removedGroupIds) {
+            expensesSubs[groupId]?.cancel();
+            expensesSubs.remove(groupId);
+            groupExpensesDocs.remove(groupId);
+          }
+
+          // Subscribe to expenses subcollection for new groups
+          for (var doc in snapshot.docs) {
+            final groupId = doc.id;
+            if (!expensesSubs.containsKey(groupId)) {
+              expensesSubs[groupId] = doc.reference
+                  .collection('expenses')
+                  .snapshots()
+                  .listen((expensesSnapshot) {
+                groupExpensesDocs[groupId] = expensesSnapshot.docs;
+                updateStats();
+              });
+            }
+          }
+
+          updateStats();
+        });
+
+        // Subscribe to split bills collection
+        final userEmail = user.email;
+        if (userEmail != null) {
+          splitBillsSub = _firestore
+              .collection('split_bills')
+              .where('participants', arrayContains: userEmail)
+              .snapshots()
+              .listen((snapshot) {
+            latestSplitBills = snapshot.docs;
+            updateStats();
+          });
+        } else {
+          latestSplitBills = [];
+          updateStats();
+        }
+      },
+      onCancel: () {
+        groupsSub?.cancel();
+        splitBillsSub?.cancel();
+        for (var sub in expensesSubs.values) {
+          sub.cancel();
+        }
+        expensesSubs.clear();
+      },
+    );
+
+    return controller.stream;
   }
 }
+
