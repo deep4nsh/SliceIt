@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'split_item_model.dart';
 
 class SplitBill {
   final String id;
@@ -11,6 +12,10 @@ class SplitBill {
   final Map<String, double> amounts;
   final DateTime createdAt;
   final String? receiptUrl;
+  final List<SplitItem>? items;
+  final double? taxAmount;
+  final double? tipAmount;
+  final bool isItemized;
 
   SplitBill({
     required this.id,
@@ -23,6 +28,10 @@ class SplitBill {
     required this.amounts,
     required this.createdAt,
     this.receiptUrl,
+    this.items,
+    this.taxAmount,
+    this.tipAmount,
+    this.isItemized = false,
   });
 
   factory SplitBill.fromMap(Map<String, dynamic> map, String documentId) {
@@ -45,6 +54,9 @@ class SplitBill {
       parsedPaidStatus[key.toString()] = value == true;
     });
 
+    final rawItems = (map['items'] as List?) ?? [];
+    final parsedItems = rawItems.map((itemMap) => SplitItem.fromMap(itemMap as Map<String, dynamic>)).toList();
+
     return SplitBill(
       id: documentId,
       title: map['title'] as String? ?? 'Unknown',
@@ -56,6 +68,10 @@ class SplitBill {
       amounts: parsedAmounts,
       createdAt: parsedDate,
       receiptUrl: map['receiptUrl'] as String?,
+      items: parsedItems.isNotEmpty ? parsedItems : null,
+      taxAmount: (map['taxAmount'] as num?)?.toDouble(),
+      tipAmount: (map['tipAmount'] as num?)?.toDouble(),
+      isItemized: map['isItemized'] == true,
     );
   }
 
@@ -70,6 +86,10 @@ class SplitBill {
       'amounts': amounts,
       'createdAt': Timestamp.fromDate(createdAt),
       if (receiptUrl != null) 'receiptUrl': receiptUrl,
+      if (items != null) 'items': items!.map((item) => item.toMap()).toList(),
+      if (taxAmount != null) 'taxAmount': taxAmount,
+      if (tipAmount != null) 'tipAmount': tipAmount,
+      'isItemized': isItemized,
     };
   }
 
@@ -84,6 +104,10 @@ class SplitBill {
     Map<String, double>? amounts,
     DateTime? createdAt,
     String? receiptUrl,
+    List<SplitItem>? items,
+    double? taxAmount,
+    double? tipAmount,
+    bool? isItemized,
   }) {
     return SplitBill(
       id: id ?? this.id,
@@ -96,6 +120,10 @@ class SplitBill {
       amounts: amounts ?? this.amounts,
       createdAt: createdAt ?? this.createdAt,
       receiptUrl: receiptUrl ?? this.receiptUrl,
+      items: items ?? this.items,
+      taxAmount: taxAmount ?? this.taxAmount,
+      tipAmount: tipAmount ?? this.tipAmount,
+      isItemized: isItemized ?? this.isItemized,
     );
   }
 }

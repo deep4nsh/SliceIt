@@ -1,4 +1,5 @@
 import '../models/line_model.dart';
+import '../models/split_item_model.dart';
 import 'dart:math' as math;
 
 class BillParserService {
@@ -155,6 +156,138 @@ class BillParserService {
     
     // Return the value with the highest score
     return candidates.first.value;
+  }
+
+  /// Parses individual line items from OCR lines using layout heuristics.
+  /// Identifies rows containing an item name and price, filtering out summary rows.
+  List<SplitItem> parseLineItems(List<Line> lines) {
+    final items = <SplitItem>[];
+    if (lines.isEmpty) return items;
+
+    final currencyRegex = RegExp(r'[€£¥₹$]?\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)');
+    final disqualifiers = [
+      'total', 'subtotal', 'tax', 'gst', 'vat', 'cgst', 'sgst',
+      'change', 'tendered', 'saved', 'savings', 'card', 'cash', 'upi', 'visa',
+      'mastercard', 'due', 'payable', 'balance', 'payment', 'net', 'grand',
+      'welcome', 'thank', 'date', 'time', 'store', 'shop', 'bill', 'invoice'
+    ];
+
+    // Helper to extract double value cleanly using OCR cleanup heuristics
+    double? extractSinglePrice(String text) {
+      final matches = currencyRegex.allMatches(text);
+      double? bestValue;
+      for (final match in matches) {
+        String clean = match.group(1)!.replaceAll(',', '.');
+        if (clean.indexOf('.') != clean.lastIndexOf('.')) {
+          List<String> parts = clean.split('.');
+          if (parts.length > 2) {
+            String main = parts.take(parts.length - 1).join('');
+            String fraction = parts.last;
+            clean = '$main.$fraction';
+          }
+        }
+        final val = double.tryParse(clean);
+        // Usually line items have prices greater than 0
+        if (val != null && val > 0) {
+          bestValue = val;
+        }
+      }
+      return bestValue;
+    }
+
+    int idCounter = 1;
+
+    // First, let's track lines that are purely/mostly numeric to avoid treating them as separate item names if they get paired.
+    final usedLineIndices = <int>{};
+
+    for (int i = 0; i < lines.length; i++) {
+      if (usedLineIndices.contains(i)) continue;
+      final line = lines[i];
+      final lowerText = line.text.toLowerCase();
+
+      // Skip lines that have disqualifying keywords
+      if (disqualifiers.any((kw) => lowerText.contains(kw))) {
+        continue;
+      }
+
+      // Check if price is on the same line
+      final price = extractSinglePrice(line.text);
+      if (price != null) {
+        // Strip out the price string to get clean item name
+        // E.g. "Pizza 450.00" -> "Pizza"
+        String cleanName = line.text;
+        final matches = currencyRegex.allMatches(line.text);
+        if (matches.isNotEmpty) {
+          // Remove the last match or all matches
+          for (final m in matches) {
+            cleanName = cleanName.replaceAll(m.group(0)!, '');
+          }
+        }
+        // Also remove trailing/leading currency symbols and trim
+        cleanName = cleanName.replaceAll(RegExp(r'[€£¥₹$]'), '').trim();
+        // Remove trailing non-alphanumeric chars if any
+        cleanName = cleanName.replaceAll(RegExp(r'^[^a-zA-Z0-9]+|[^a-zA-Z0-9)]+$'), '').trim();
+
+        if (cleanName.isNotEmpty && cleanName.length > 1 && RegExp(r'[a-zA-Z]').hasMatch(cleanName)) {
+          items.add(SplitItem(
+            id: 'item_${idCounter++}',
+            name: cleanName,
+            price: price,
+            assignedParticipants: [],
+          ));
+          usedLineIndices.add(i);
+          continue;
+        }
+      }
+
+      // If price wasn't on the same line, look for horizontally aligned line to the right
+      // Receipt format: Item Name on left, Price on right
+      // Only consider if the current line has letters (is a valid item name)
+      String cleanName = line.text.replaceAll(RegExp(r'[€£¥₹$]'), '').trim();
+      if (cleanName.isNotEmpty && cleanName.length > 1 && RegExp(r'[a-zA-Z]').hasMatch(cleanName)) {
+        final centerY = line.boundingBox.top + line.boundingBox.height / 2;
+        
+        // Find candidate line to the right
+        int? bestRightIndex;
+        double? bestRightPrice;
+        double minDistance = double.infinity;
+
+        for (int j = 0; j < lines.length; j++) {
+          if (i == j || usedLineIndices.contains(j)) continue;
+          final rightLine = lines[j];
+          final rightCenterY = rightLine.boundingBox.top + rightLine.boundingBox.height / 2;
+
+          // Check if vertically aligned within a tolerance (e.g. 15 pixels)
+          if ((centerY - rightCenterY).abs() < 15.0) {
+            // Check if it's to the right
+            if (rightLine.boundingBox.left > line.boundingBox.left) {
+              final rightPrice = extractSinglePrice(rightLine.text);
+              if (rightPrice != null) {
+                final dist = rightLine.boundingBox.left - line.boundingBox.left;
+                if (dist < minDistance) {
+                  minDistance = dist;
+                  bestRightPrice = rightPrice;
+                  bestRightIndex = j;
+                }
+              }
+            }
+          }
+        }
+
+        if (bestRightPrice != null && bestRightIndex != null) {
+          items.add(SplitItem(
+            id: 'item_${idCounter++}',
+            name: cleanName,
+            price: bestRightPrice,
+            assignedParticipants: [],
+          ));
+          usedLineIndices.add(i);
+          usedLineIndices.add(bestRightIndex);
+        }
+      }
+    }
+
+    return items;
   }
 }
 
