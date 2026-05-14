@@ -35,7 +35,7 @@ class ModernCard extends StatelessWidget {
     
     // Automatic fallback to responsive surface tokens
     final cardColor = color ?? (isDark ? AppColors.darkSurface1 : AppColors.lightSurface1);
-    final cardRadius = radius ?? AppSpacing.radiusLg;
+    final cardRadius = radius ?? AppSpacing.radiusCard;
 
     return Container(
       width: width,
@@ -46,15 +46,16 @@ class ModernCard extends StatelessWidget {
         gradient: gradient,
         borderRadius: BorderRadius.circular(cardRadius),
         border: Border.all(
-          color: isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder,
-          width: 1,
+          color: (isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder)
+              .withValues(alpha: 0.5),
+          width: 0.8,
         ),
         boxShadow: [
           BoxShadow(
             color: (isDark ? Colors.black : AppColors.textDarkPrimary)
-                .withValues(alpha: isDark ? 0.2 : 0.04),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
+                .withValues(alpha: isDark ? 0.12 : 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
             spreadRadius: 0,
           ),
         ],
@@ -65,7 +66,7 @@ class ModernCard extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(cardRadius),
           child: Padding(
-            padding: padding ?? const EdgeInsets.all(AppSpacing.screenPadding),
+            padding: padding ?? const EdgeInsets.all(AppSpacing.cardPadding),
             child: child,
           ),
         ),

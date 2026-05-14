@@ -1,12 +1,17 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:provider/provider.dart';
+import '../utils/colors.dart';
+import '../utils/app_spacing.dart';
+import '../utils/text_styles.dart';
+import '../widgets/modern_card.dart';
+import '../widgets/mesh_background.dart';
+import '../widgets/custom_button.dart';
 import '../services/auth_service.dart';
 import '../services/theme_provider.dart';
 import 'login_screen.dart';
-import '../utils/colors.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -58,7 +63,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text("Set Monthly Budget"),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusLg)),
+        title: Text("Set Monthly Budget", style: AppTextStyles.h3),
         content: TextField(
           controller: budgetController,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -70,9 +76,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel"),
+            child: Text("Cancel", style: AppTextStyles.bodyM.copyWith(color: AppColors.textSecondary)),
           ),
-          ElevatedButton(
+          CustomButton(
+            text: "Save",
+            width: 100,
+            height: 44,
             onPressed: () async {
               final newBudget = double.tryParse(budgetController.text);
               if (newBudget != null && newBudget > 0) {
@@ -89,7 +98,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 );
               }
             },
-            child: const Text("Save"),
           ),
         ],
       ),
@@ -109,7 +117,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: const Text("Set UPI ID"),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusLg)),
+          title: Text("Set UPI ID", style: AppTextStyles.h3),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -188,9 +197,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel"),
+              child: Text("Cancel", style: AppTextStyles.bodyM.copyWith(color: AppColors.textSecondary)),
             ),
-            ElevatedButton(
+            CustomButton(
+              text: "Save",
+              width: 100,
+              height: 44,
               onPressed: verifiedName == null
                   ? null
                   : () async {
@@ -205,7 +217,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       _loadUserData(); // Reload data
                       if (context.mounted) Navigator.pop(context);
                     },
-              child: const Text("Save"),
             ),
           ],
         ),
@@ -219,172 +230,172 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final themeProvider = Provider.of<ThemeProvider>(context);
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text("Profile", style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: AppColors.primaryNavy,
+        title: Text("Profile", style: AppTextStyles.h2.copyWith(color: Colors.white)),
+        backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.primaryGold, width: 2),
-              ),
-              child: CircleAvatar(
-                radius: 50,
-                backgroundImage: user?.photoURL != null
-                    ? NetworkImage(user!.photoURL!)
-                    : null,
-                child: user?.photoURL == null
-                    ? const Icon(Icons.person, size: 50, color: AppColors.textSecondary)
-                    : null,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              userData?['name'] ?? user?.displayName ?? "User",
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              userData?['email'] ?? user?.email ?? "No Email",
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 30),
-            _buildProfileCard(
-              context,
-              child: Column(
-                children: [
-                  _buildInfoRow("User ID", user?.uid ?? "N/A"),
-                  const Divider(),
-                  _buildInfoRow(
-                    "Joined On",
-                    userData?['createdAt'] != null
-                        ? (userData!['createdAt'] as Timestamp)
-                        .toDate()
-                        .toString()
-                        .substring(0, 10)
-                        : "Unknown",
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            _buildProfileCard(
-              context,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text("Monthly Budget", style: Theme.of(context).textTheme.titleLarge),
-                  const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          "₹ ${userData?['monthlyBudget']?.toStringAsFixed(2) ?? 'Not Set'}",
-                          style: Theme.of(context).textTheme.headlineMedium,
-                          overflow: TextOverflow.ellipsis,
+      body: MeshBackground(
+        child: isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.screenPadding,
+                  120, // Space for AppBar
+                  AppSpacing.screenPadding,
+                  AppSpacing.screenPadding,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const SizedBox(height: 20),
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: AppColors.primaryGold, width: 2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primaryGold.withValues(alpha: 0.3),
+                            blurRadius: 15,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                      child: CircleAvatar(
+                        radius: 50,
+                        backgroundImage: user?.photoURL != null
+                            ? NetworkImage(user!.photoURL!)
+                            : null,
+                        child: user?.photoURL == null
+                            ? const Icon(Icons.person, size: 50, color: AppColors.textSecondary)
+                            : null,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      userData?['name'] ?? user?.displayName ?? "User",
+                      style: AppTextStyles.h2.copyWith(color: Colors.white),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      userData?['email'] ?? user?.email ?? "No Email",
+                      style: AppTextStyles.bodyM.copyWith(color: Colors.white70),
+                    ),
+                    const SizedBox(height: 30),
+                    ModernCard(
+                      child: Column(
+                        children: [
+                          _buildInfoRow("User ID", user?.uid ?? "N/A"),
+                          const Divider(height: 32, color: Colors.white12),
+                          _buildInfoRow(
+                            "Joined On",
+                            userData?['createdAt'] != null
+                                ? (userData!['createdAt'] as Timestamp)
+                                    .toDate()
+                                    .toString()
+                                    .substring(0, 10)
+                                : "Unknown",
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    ModernCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text("Monthly Budget", style: AppTextStyles.h3),
+                          const SizedBox(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  "₹ ${userData?['monthlyBudget']?.toStringAsFixed(2) ?? 'Not Set'}",
+                                  style: AppTextStyles.h1.copyWith(color: AppColors.primaryGold),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.edit, color: AppColors.primaryGold),
+                                onPressed: _showEditBudgetDialog,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    ModernCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text("UPI ID", style: AppTextStyles.h3),
+                          const SizedBox(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  userData?['upiId'] ?? 'Not Set',
+                                  style: AppTextStyles.h2.copyWith(color: AppColors.secondaryAccent),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.edit, color: AppColors.secondaryAccent),
+                                onPressed: _showEditUpiDialog,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    ModernCard(
+                      child: SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text("Dark Mode", style: AppTextStyles.bodyL),
+                        secondary: Icon(
+                          themeProvider.isDarkMode ? Icons.dark_mode : Icons.light_mode,
+                          color: AppColors.primaryGold,
                         ),
+                        value: themeProvider.isDarkMode,
+                        onChanged: (value) {
+                          themeProvider.toggleTheme(value);
+                          _firestore
+                              .collection('users')
+                              .doc(user!.uid)
+                              .set({'theme': value ? 'dark' : 'light'}, SetOptions(merge: true));
+                        },
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.edit),
-                        onPressed: _showEditBudgetDialog,
-                      ),
-                    ],
-                  ),
-                ],
+                    ),
+                    const SizedBox(height: 40),
+                    CustomButton(
+                      variant: ButtonVariant.secondary,
+                      backgroundColor: Colors.red.withValues(alpha: 0.1),
+                      textColor: Colors.redAccent,
+                      onPressed: () async {
+                        await AuthService().signOut();
+                        if (context.mounted) {
+                          Navigator.pushAndRemoveUntil(
+                            context,
+                            MaterialPageRoute(builder: (_) => const LoginScreen()),
+                            (route) => false,
+                          );
+                        }
+                      },
+                      icon: Icons.logout,
+                      text: "Logout",
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 20),
-            _buildProfileCard(
-              context,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text("UPI ID", style: Theme.of(context).textTheme.titleLarge),
-                  const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          userData?['upiId'] ?? 'Not Set',
-                          style: Theme.of(context).textTheme.headlineMedium,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.edit),
-                        onPressed: _showEditUpiDialog,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            _buildProfileCard(
-              context,
-              child: SwitchListTile(
-                title: const Text("Dark Mode"),
-                value: themeProvider.isDarkMode,
-                onChanged: (value) {
-                  themeProvider.toggleTheme(value);
-                  _firestore
-                      .collection('users')
-                      .doc(user!.uid)
-                      .set({'theme': value ? 'dark' : 'light'}, SetOptions(merge: true));
-                },
-              ),
-            ),
-            const SizedBox(height: 40),
-            ElevatedButton.icon(
-              onPressed: () async {
-                await AuthService().signOut();
-                if (context.mounted) {
-                  Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(builder: (_) => const LoginScreen()),
-                        (route) => false,
-                  );
-                }
-              },
-              icon: const Icon(Icons.logout),
-              label: const Text("Logout"),
-            ),
-            const SizedBox(height: 20),
-          ],
-        ),
       ),
-    );
-  }
-
-  Widget _buildProfileCard(BuildContext context, {required Widget child}) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: child,
     );
   }
 
@@ -392,12 +403,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: Theme.of(context).textTheme.bodyMedium),
+        Text(label, style: AppTextStyles.bodyM.copyWith(color: Colors.white60)),
         Flexible(
           child: Text(
             value,
             overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.bodyLarge,
+            style: AppTextStyles.bodyL.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
           ),
         ),
       ],

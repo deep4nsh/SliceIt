@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_database/firebase_database.dart';
 import '../utils/colors.dart';
 import '../utils/text_styles.dart';
+import '../utils/app_spacing.dart';
 import '../widgets/custom_button.dart';
 import 'main_shell.dart';
 
@@ -101,13 +102,13 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(AppSpacing.md),
                   decoration: BoxDecoration(
                     color: AppColors.secondaryTeal.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
@@ -118,19 +119,19 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                     color: AppColors.secondaryTeal,
                   ),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: AppSpacing.lg),
                 Text(
                   "Enter OTP Code",
                   style: AppTextStyles.heading1,
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpacing.sm),
                 Text(
                   "Code sent via SMS to ${widget.phoneNumber}",
                   style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 40),
+                const SizedBox(height: AppSpacing.xxl),
                 TextField(
                   controller: _otpController,
                   keyboardType: TextInputType.number,
@@ -145,16 +146,16 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                       letterSpacing: 8,
                     ),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
                       borderSide: const BorderSide(color: AppColors.secondaryTeal),
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
                       borderSide: const BorderSide(color: AppColors.primaryOrange, width: 2),
                     ),
                   ),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: AppSpacing.lg),
                 CustomButton(
                   text: "Verify & Continue",
                   onPressed: _verifyOtpAndFinish,

@@ -10,6 +10,7 @@ import '../utils/app_spacing.dart';
 import '../widgets/modern_card.dart';
 import '../widgets/animated_list_item.dart';
 import '../widgets/mesh_background.dart';
+import '../widgets/custom_button.dart';
 
 class SubscriptionsScreen extends StatefulWidget {
   const SubscriptionsScreen({super.key});
@@ -56,7 +57,7 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
           return AlertDialog(
             backgroundColor: isDark ? AppColors.darkSurface1 : AppColors.lightSurface1,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+              borderRadius: BorderRadius.circular(AppSpacing.radiusCard),
               side: BorderSide(
                 color: isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder,
               ),
@@ -274,19 +275,16 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
                 onPressed: () => Navigator.pop(dialogContext),
                 child: Text(
                   'Cancel',
-                  style: AppTextStyles.button.copyWith(
+                  style: AppTextStyles.bodyM.copyWith(
                     color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
                   ),
                 ),
               ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryAccent,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-                  ),
-                ),
+              const SizedBox(width: 8),
+              CustomButton(
+                text: "Add",
+                width: 100,
+                height: 44,
                 onPressed: () async {
                   final title = titleController.text.trim();
                   final amount = double.tryParse(amountController.text) ?? 0.0;
@@ -316,7 +314,6 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
                     );
                   }
                 },
-                child: Text('Add', style: AppTextStyles.button.copyWith(fontWeight: FontWeight.bold)),
               ),
             ],
           );
@@ -354,7 +351,7 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
       builder: (dialogContext) => AlertDialog(
         backgroundColor: isDark ? AppColors.darkSurface1 : AppColors.lightSurface1,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusCard),
           side: BorderSide(
             color: isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder,
           ),
@@ -377,21 +374,18 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
             onPressed: () => Navigator.pop(dialogContext, false),
             child: Text(
               'Cancel',
-              style: AppTextStyles.button.copyWith(
+              style: AppTextStyles.bodyM.copyWith(
                 color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
               ),
             ),
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-              ),
-            ),
+          const SizedBox(width: 8),
+          CustomButton(
+            text: "Delete",
+            width: 100,
+            height: 44,
+            backgroundColor: AppColors.error,
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text('Delete', style: AppTextStyles.button.copyWith(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -738,20 +732,15 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
                                           onPressed: () => _deleteSubscription(sub.id),
                                         ),
                                         const SizedBox(width: 12),
-                                        ElevatedButton.icon(
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: AppColors.success.withValues(alpha: 0.15),
-                                            foregroundColor: AppColors.success,
-                                            elevation: 0,
-                                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                            minimumSize: Size.zero,
-                                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-                                            ),
-                                          ),
-                                          icon: const Icon(Icons.check_circle_outline_rounded, size: 16),
-                                          label: Text('Renew Cycle', style: AppTextStyles.label.copyWith(fontSize: 12, color: AppColors.success)),
+                                        CustomButton(
+                                          text: "Renew Cycle",
+                                          width: 130,
+                                          height: 36,
+                                          icon: Icons.check_circle_outline_rounded,
+                                          backgroundColor: AppColors.success.withValues(alpha: 0.15),
+                                          textColor: AppColors.success,
+                                          variant: ButtonVariant.secondary,
+                                          borderRadius: AppSpacing.radiusMd,
                                           onPressed: () => _renewSubscription(sub),
                                         ),
                                       ],

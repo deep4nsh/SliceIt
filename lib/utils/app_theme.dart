@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'colors.dart';
 import 'text_styles.dart';
+import 'app_spacing.dart';
 
 /// Centralized Theme Factory generating immutable ThemeData instances for the app.
 class AppTheme {
@@ -34,8 +35,11 @@ class AppTheme {
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20), // Standardizing to legacy max or spacing token
-          side: const BorderSide(color: AppColors.darkSurfaceBorder, width: 1),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusCard),
+          side: BorderSide(
+            color: AppColors.darkSurfaceBorder.withValues(alpha: 0.5),
+            width: 0.8,
+          ),
         ),
       ),
       dividerTheme: const DividerThemeData(
@@ -76,8 +80,11 @@ class AppTheme {
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: AppColors.lightSurfaceBorder, width: 1),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusCard),
+          side: BorderSide(
+            color: AppColors.lightSurfaceBorder.withValues(alpha: 0.5),
+            width: 0.8,
+          ),
         ),
       ),
       dividerTheme: const DividerThemeData(

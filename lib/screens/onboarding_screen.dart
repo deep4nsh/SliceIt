@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../utils/colors.dart';
 import '../utils/text_styles.dart';
+import '../utils/app_spacing.dart';
+import '../widgets/custom_button.dart';
 import 'login_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
@@ -83,18 +85,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryNavy,
-                  minimumSize: const Size(double.infinity, 56),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
+              child: CustomButton(
                 onPressed: _nextPage,
-                child: Text(
-                  _currentIndex == 2 ? "Get Started" : "Next",
-                  style: AppTextStyles.button,
-                ),
+                text: _currentIndex == 2 ? "Get Started" : "Next",
+                backgroundColor: AppColors.primaryNavy,
               ),
             )
           ],

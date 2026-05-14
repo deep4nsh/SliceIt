@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_database/firebase_database.dart';
 import '../utils/colors.dart';
 import '../utils/text_styles.dart';
+import '../utils/app_spacing.dart';
 import '../widgets/custom_button.dart';
 import 'otp_verification_screen.dart';
 import 'main_shell.dart';
@@ -187,11 +188,11 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
                     labelText: "Phone Number",
                     hintText: "+1 234 567 8900",
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
                       borderSide: const BorderSide(color: AppColors.secondaryTeal),
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
                       borderSide: const BorderSide(color: AppColors.primaryOrange, width: 2),
                     ),
                     prefixIcon: const Icon(Icons.phone, color: AppColors.secondaryTeal),

@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../utils/colors.dart';
 import '../utils/text_styles.dart';
+import '../utils/app_spacing.dart';
 import '../services/auth_service.dart';
+import '../widgets/custom_button.dart';
+import '../widgets/mesh_background.dart';
 import 'signup_screen.dart';
 import 'main_shell.dart';
 
@@ -19,31 +22,59 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.surfaceWhite,
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text("Welcome Back!", style: AppTextStyles.heading1),
-            const SizedBox(height: 12),
-            Text("Log in to continue using SliceIt", style: AppTextStyles.body),
-            const SizedBox(height: 40),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-            // Google Sign-In Button
-            _isLoading
-                ? CircularProgressIndicator(color: AppColors.primaryNavy)
-                : ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryNavy,
-                      minimumSize: const Size(double.infinity, 56),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
+    return MeshBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Logo or Icon placeholder
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: (isDark ? AppColors.secondaryAccent : AppColors.primaryAccent).withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.account_balance_wallet_rounded,
+                    size: 64,
+                    color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
+                  ),
+                ),
+                const SizedBox(height: 40),
+                Text(
+                  "Welcome Back!",
+                  style: AppTextStyles.h1.copyWith(
+                    color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  "Log in to continue using SliceIt",
+                  style: AppTextStyles.bodyL.copyWith(
+                    color: (isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary)
+                        .withValues(alpha: 0.7),
+                  ),
+                ),
+                const SizedBox(height: 60),
+
+                // Google Sign-In Button
+                if (_isLoading)
+                  const CircularProgressIndicator()
+                else
+                  CustomButton(
+                    text: "Sign in with Google",
+                    icon: FontAwesomeIcons.google,
+                    variant: ButtonVariant.primary,
                     onPressed: () async {
                       setState(() => _isLoading = true);
-                      
+
                       try {
                         final userCred = await authService.signInWithGoogle();
                         if (userCred != null && context.mounted) {
@@ -53,13 +84,19 @@ class _LoginScreenState extends State<LoginScreen> {
                           );
                         } else if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("Google Sign-In cancelled or failed")),
+                            SnackBar(
+                              content: Text("Google Sign-In cancelled or failed", style: AppTextStyles.bodyM),
+                              backgroundColor: AppColors.warning,
+                            ),
                           );
                         }
                       } catch (e) {
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("Google Sign-In failed. Please try again.")),
+                            SnackBar(
+                              content: Text("Google Sign-In failed. Please try again.", style: AppTextStyles.bodyM),
+                              backgroundColor: AppColors.error,
+                            ),
                           );
                         }
                       } finally {
@@ -68,25 +105,37 @@ class _LoginScreenState extends State<LoginScreen> {
                         }
                       }
                     },
-                    icon: const FaIcon(FontAwesomeIcons.google, color: Colors.white),
-                    label: Text("Sign in with Google", style: AppTextStyles.button),
                   ),
-            const SizedBox(height: 20),
+                const SizedBox(height: 24),
 
-            TextButton(
-              onPressed: () {
-                Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const SignupScreen()));
-              },
-              child: const Text("Don't have an account? Sign up",
-                  style: TextStyle(
-                      color: AppColors.primaryNavy,
-                      fontFamily: 'Poppins',
-                      fontWeight: FontWeight.w500)),
+                TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const SignupScreen()));
+                  },
+                  child: RichText(
+                    text: TextSpan(
+                      style: AppTextStyles.bodyM.copyWith(
+                        color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
+                      ),
+                      children: [
+                        const TextSpan(text: "Don't have an account? "),
+                        TextSpan(
+                          text: "Sign up",
+                          style: TextStyle(
+                            color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
