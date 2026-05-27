@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 import '../services/debt_simplifier.dart';
+import '../services/pdf_export_service.dart';
 import '../utils/colors.dart';
 import '../utils/text_styles.dart';
 import '../utils/app_spacing.dart';
@@ -99,6 +100,53 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
             ),
             actions: [
               IconButton(
+                icon: Icon(Icons.download_rounded, color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary),
+                tooltip: 'Export as PDF',
+                onPressed: () async {
+                  try {
+                    final groupDoc = await _firestore.collection('groups').doc(widget.groupId).get();
+                    final groupName = groupDoc.data()?['name'] ?? 'Group';
+
+                    final expensesSnapshot = await _firestore
+                        .collection('groups')
+                        .doc(widget.groupId)
+                        .collection('expenses')
+                        .get();
+
+                    final expenses = expensesSnapshot.docs
+                        .map((doc) => {
+                              'title': doc.data()['title'] as String? ?? 'Unknown',
+                              'amount': (doc.data()['amount'] as num?)?.toDouble() ?? 0.0,
+                              'paidBy': doc.data()['paidBy'] as String? ?? 'Unknown',
+                              'date': doc.data()['createdAt'] as dynamic,
+                            })
+                        .toList();
+
+                    final members = groupDoc.data()?['members'] as List? ?? [];
+                    final balances = <String, double>{};
+                    for (final member in members) {
+                      balances[member] = 0.0;
+                    }
+
+                    await PdfExportService.exportGroupStatement(
+                      groupName: groupName,
+                      expenses: expenses,
+                      balances: balances,
+                    );
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Error exporting PDF: $e', style: AppTextStyles.bodyM),
+                          backgroundColor: AppColors.error,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  }
+                },
+              ),
+              IconButton(
                 icon: Icon(Icons.share_rounded, color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary),
                 tooltip: 'Share invite link via WhatsApp',
                 onPressed: () async {
@@ -161,6 +209,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
             ],
           ),
           floatingActionButton: FloatingActionButton.extended(
+            heroTag: 'group_add_expense_fab',
             elevation: 4,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusLg)),
             onPressed: () => _showExpenseDialog(),

@@ -19,7 +19,7 @@ import '../widgets/custom_button.dart';
 import '../widgets/modern_card.dart';
 import '../widgets/mesh_background.dart';
 
-enum SplitType { equal, unequal, itemized }
+enum SplitType { equal, unequal, percentage, itemized }
 
 /// A state-of-the-art bill creation interface adhering to the dark-first minimalist
 /// design system. Features real-time reactive split calculations, stunning custom
@@ -237,7 +237,23 @@ class _CreateSplitBillScreenState extends State<CreateSplitBillScreen> {
       return;
     }
 
-    if (_splitType == SplitType.unequal || _splitType == SplitType.itemized) {
+    if (_splitType == SplitType.percentage) {
+      double totalPercent = 0;
+      for (final p in includedParticipants) {
+        totalPercent += (p.percentage ?? 0);
+      }
+      if ((totalPercent - 100).abs() > 0.1) {
+        _showSnackBar(
+          'Percentages must sum to 100% (current: ${totalPercent.toStringAsFixed(1)}%)',
+        );
+        return;
+      }
+      // Calculate amounts from percentages
+      final total = double.tryParse(_amountController.text) ?? 0.0;
+      for (final p in includedParticipants) {
+        p.amount = (total * (p.percentage ?? 0)) / 100;
+      }
+    } else if (_splitType == SplitType.unequal || _splitType == SplitType.itemized) {
       double total = 0;
       for (final p in includedParticipants) {
         total += p.amount;
@@ -277,8 +293,11 @@ class _CreateSplitBillScreenState extends State<CreateSplitBillScreen> {
         'participants': participantsEmails,
         'paidStatus': paidStatus,
         'splitType': _splitType.toString(),
-        'amounts': (_splitType == SplitType.unequal || _splitType == SplitType.itemized) 
-            ? {for (var p in includedParticipants) p.email.trim(): p.amount} 
+        'amounts': (_splitType == SplitType.unequal || _splitType == SplitType.percentage || _splitType == SplitType.itemized)
+            ? {for (var p in includedParticipants) p.email.trim(): p.amount}
+            : {},
+        'percentages': (_splitType == SplitType.percentage)
+            ? {for (var p in includedParticipants) p.email.trim(): (p.percentage ?? 0)}
             : {},
         'createdAt': FieldValue.serverTimestamp(),
         'receiptUrl': receiptUrl,
@@ -879,34 +898,74 @@ class _CreateSplitBillScreenState extends State<CreateSplitBillScreen> {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        _buildTabButton(
-                          title: "Equal",
-                          icon: Icons.pie_chart_outline_rounded,
-                          isSelected: _splitType == SplitType.equal,
-                          onTap: () => setState(() => _splitType = SplitType.equal),
-                          isDark: isDark,
-                        ),
-                        const SizedBox(width: 8),
-                        _buildTabButton(
-                          title: "Unequal",
-                          icon: Icons.splitscreen_rounded,
-                          isSelected: _splitType == SplitType.unequal,
-                          onTap: () => setState(() => _splitType = SplitType.unequal),
-                          isDark: isDark,
-                        ),
-                        const SizedBox(width: 8),
-                        _buildTabButton(
-                          title: "Itemized",
-                          icon: Icons.receipt_long_rounded,
-                          isSelected: _splitType == SplitType.itemized,
-                          onTap: () => setState(() => _splitType = SplitType.itemized),
-                          isDark: isDark,
-                        ),
-                      ],
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _buildTabButton(
+                            title: "Equal",
+                            icon: Icons.pie_chart_outline_rounded,
+                            isSelected: _splitType == SplitType.equal,
+                            onTap: () => setState(() => _splitType = SplitType.equal),
+                            isDark: isDark,
+                          ),
+                          const SizedBox(width: 8),
+                          _buildTabButton(
+                            title: "Unequal",
+                            icon: Icons.splitscreen_rounded,
+                            isSelected: _splitType == SplitType.unequal,
+                            onTap: () => setState(() => _splitType = SplitType.unequal),
+                            isDark: isDark,
+                          ),
+                          const SizedBox(width: 8),
+                          _buildTabButton(
+                            title: "Percentage",
+                            icon: Icons.percent_rounded,
+                            isSelected: _splitType == SplitType.percentage,
+                            onTap: () => setState(() => _splitType = SplitType.percentage),
+                            isDark: isDark,
+                          ),
+                          const SizedBox(width: 8),
+                          _buildTabButton(
+                            title: "Itemized",
+                            icon: Icons.receipt_long_rounded,
+                            isSelected: _splitType == SplitType.itemized,
+                            onTap: () => setState(() => _splitType = SplitType.itemized),
+                            isDark: isDark,
+                          ),
+                        ],
+                      ),
                     ).animate().fade(duration: 350.ms).slideY(begin: 0.05, end: 0),
                     const SizedBox(height: 20),
+
+                    if (_splitType == SplitType.percentage) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: (isDark ? AppColors.secondaryAccent : AppColors.primaryAccent).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                          border: Border.all(
+                            color: (isDark ? AppColors.secondaryAccent : AppColors.primaryAccent).withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Builder(
+                          builder: (_) {
+                            final includedParticipants = _participants.where((p) => p.isIncluded).toList();
+                            final totalPercent = includedParticipants.fold<double>(0, (sum, p) => sum + (p.percentage ?? 0));
+                            final isValid = (totalPercent - 100).abs() < 0.1;
+                            return Text(
+                              'Total: ${totalPercent.toStringAsFixed(1)}% ${isValid ? '✓' : '(must be 100%)'}',
+                              style: AppTextStyles.label.copyWith(
+                                color: isValid
+                                    ? (isDark ? AppColors.secondaryAccent : AppColors.primaryAccent)
+                                    : AppColors.error,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
 
                     if (_splitType == SplitType.itemized) ...[
                       _buildItemizedSection(isDark).animate().fade(duration: 400.ms),
@@ -1061,6 +1120,40 @@ class _CreateSplitBillScreenState extends State<CreateSplitBillScreen> {
                                       participant.isIncluded ? "₹$equalShareFormatted" : "₹0.00",
                                       style: AppTextStyles.label.copyWith(
                                         color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
+                                      ),
+                                    ),
+                                  )
+                                else if (_splitType == SplitType.percentage)
+                                  SizedBox(
+                                    width: 95,
+                                    child: TextFormField(
+                                      key: ValueKey('${participant.email}_${participant.percentage}'),
+                                      initialValue: (participant.percentage ?? 0).toStringAsFixed(1),
+                                      onChanged: (val) {
+                                        setState(() {
+                                          participant.percentage = double.tryParse(val) ?? 0.0;
+                                        });
+                                      },
+                                      textAlign: TextAlign.right,
+                                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                      style: AppTextStyles.label.copyWith(
+                                        color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+                                        fontSize: 13,
+                                      ),
+                                      decoration: InputDecoration(
+                                        suffixText: "%",
+                                        suffixStyle: AppTextStyles.label.copyWith(
+                                          color: (isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary)
+                                              .withValues(alpha: 0.5),
+                                        ),
+                                        isDense: true,
+                                        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                        filled: true,
+                                        fillColor: isDark ? AppColors.darkSurface2 : AppColors.lightSurface2,
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                                          borderSide: BorderSide.none,
+                                        ),
                                       ),
                                     ),
                                   )

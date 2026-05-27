@@ -757,6 +757,7 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
           },
         ),
         floatingActionButton: FloatingActionButton.extended(
+          heroTag: 'add_subscription_fab',
           onPressed: _addSubscription,
           backgroundColor: AppColors.primaryAccent,
           foregroundColor: Colors.white,

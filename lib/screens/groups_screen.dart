@@ -482,6 +482,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
           },
         ),
         floatingActionButton: FloatingActionButton.extended(
+          heroTag: 'create_group_fab',
           elevation: 4,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusLg)),
           onPressed: _createGroup,

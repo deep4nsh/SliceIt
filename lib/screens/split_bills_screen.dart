@@ -564,6 +564,7 @@ class _SplitBillsScreenState extends State<SplitBillsScreen> {
           },
         ),
         floatingActionButton: FloatingActionButton.extended(
+          heroTag: 'split_bill_fab',
           elevation: 4,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusLg)),
           onPressed: () => _createNewBill(context),

@@ -25,6 +25,7 @@ dependencies:
   google_sign_in: ^6.2.1
   firebase_database: ^11.0.2
   firebase_dynamic_links: ^6.0.2
+  firebase_messaging: ^15.1.0
   intl: ^0.18.1
   cloud_functions: ^5.1.0
 
@@ -41,6 +42,14 @@ dependencies:
   url_launcher: ^6.3.2
   flutter_animate: ^4.5.2
   shared_preferences: ^2.5.5
+
+  # Contacts & Permissions
+  contacts_service: ^0.6.3
+  permission_handler: ^11.4.4
+
+  # PDF Export
+  pdf: ^3.10.4
+  printing: ^5.11.0
 
 dev_dependencies:
   flutter_test:

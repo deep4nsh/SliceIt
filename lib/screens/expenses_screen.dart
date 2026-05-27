@@ -562,6 +562,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           ],
         ),
         floatingActionButton: FloatingActionButton.extended(
+          heroTag: 'add_expense_fab',
           icon: const Icon(Icons.add_rounded, color: Colors.white),
           label: Text(
             "Add Expense",

@@ -225,3 +225,105 @@ exports.paymentWebhook = functions.https.onRequest(async (req, res) => {
     res.status(500).send('Internal Server Error');
   }
 });
+
+// ==================================================================
+// NOTIFICATION SERVICE
+// ==================================================================
+
+/**
+ * Trigger: When a new expense is added to a group
+ * Action: Send push notifications to all group members
+ */
+exports.notifyExpenseAdded = functions.firestore
+  .document('groups/{groupId}/expenses/{expenseId}')
+  .onCreate(async (snap, context) => {
+    const expense = snap.data();
+    const groupId = context.params.groupId;
+    const expenseId = context.params.expenseId;
+
+    try {
+      // Fetch group data
+      const groupDoc = await admin.firestore()
+        .collection('groups')
+        .doc(groupId)
+        .get();
+
+      if (!groupDoc.exists) {
+        console.log('Group not found:', groupId);
+        return;
+      }
+
+      const groupData = groupDoc.data();
+      const groupName = groupData.name || 'a group';
+      const members = groupData.members || [];
+
+      // Fetch creator's name
+      const creatorDoc = await admin.firestore()
+        .collection('users')
+        .doc(expense.paidBy)
+        .get();
+
+      const creatorName = creatorDoc.exists
+        ? (creatorDoc.data().name || 'Someone')
+        : 'Someone';
+
+      // Get FCM tokens for all members except the creator
+      const tokens = [];
+      for (const memberId of members) {
+        if (memberId !== expense.paidBy) {
+          const userDoc = await admin.firestore()
+            .collection('users')
+            .doc(memberId)
+            .get();
+
+          if (userDoc.exists && userDoc.data().fcmToken) {
+            tokens.push(userDoc.data().fcmToken);
+          }
+        }
+      }
+
+      if (tokens.length === 0) {
+        console.log('No FCM tokens found for group members');
+        return;
+      }
+
+      // Prepare notification payload
+      const message = {
+        notification: {
+          title: `New expense in ${groupName}`,
+          body: `${creatorName} added ₹${expense.amount.toFixed(2)} - ${expense.title}`,
+        },
+        data: {
+          groupId: groupId,
+          expenseId: expenseId,
+          click_action: 'FLUTTER_NOTIFICATION_CLICK',
+        },
+      };
+
+      // Send multicast message
+      const response = await admin.messaging().sendMulticast({
+        tokens: tokens,
+        notification: message.notification,
+        data: message.data,
+        android: {
+          priority: 'high',
+        },
+        apns: {
+          headers: {
+            'apns-priority': '10',
+          },
+        },
+      });
+
+      console.log(`Sent ${response.successCount} notifications for expense ${expenseId}`);
+
+      if (response.failureCount > 0) {
+        console.log(`Failed to send ${response.failureCount} notifications`);
+      }
+
+      return { success: true, sent: response.successCount };
+    } catch (error) {
+      console.error('Error sending notifications:', error);
+      throw error;
+    }
+  });
