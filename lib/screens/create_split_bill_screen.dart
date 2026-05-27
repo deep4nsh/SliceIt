@@ -12,6 +12,7 @@ import '../models/line_model.dart';
 import '../models/split_item_model.dart';
 import '../services/friend_service.dart';
 import '../services/bill_parser_service.dart';
+import '../services/offline_service.dart';
 import '../utils/colors.dart';
 import '../utils/text_styles.dart';
 import '../utils/app_spacing.dart';
@@ -279,14 +280,19 @@ class _CreateSplitBillScreenState extends State<CreateSplitBillScreen> {
 
       String? receiptUrl;
       if (widget.receiptImage != null) {
-        final storageRef = FirebaseStorage.instance
-            .ref()
-            .child('receipts/${_auth.currentUser!.uid}/${DateTime.now().millisecondsSinceEpoch}.jpg');
-        await storageRef.putFile(widget.receiptImage!);
-        receiptUrl = await storageRef.getDownloadURL();
+        try {
+          final storageRef = FirebaseStorage.instance
+              .ref()
+              .child('receipts/${_auth.currentUser!.uid}/${DateTime.now().millisecondsSinceEpoch}.jpg');
+          await storageRef.putFile(widget.receiptImage!);
+          receiptUrl = await storageRef.getDownloadURL();
+        } catch (e) {
+          debugPrint('Warning: Could not upload receipt image: $e');
+          // Continue without receipt URL - will retry when online
+        }
       }
 
-      await _firestore.collection('split_bills').add({
+      final billData = {
         'title': _titleController.text,
         'totalAmount': double.parse(_amountController.text),
         'createdBy': currentUserEmail,
@@ -300,7 +306,7 @@ class _CreateSplitBillScreenState extends State<CreateSplitBillScreen> {
             ? {for (var p in includedParticipants) p.email.trim(): (p.percentage ?? 0)}
             : {},
         'createdAt': FieldValue.serverTimestamp(),
-        'receiptUrl': receiptUrl,
+        if (receiptUrl != null) 'receiptUrl': receiptUrl,
         if (_splitType == SplitType.itemized && _parsedItems.isNotEmpty)
           'items': _parsedItems.map((i) => i.toMap()).toList(),
         if (_splitType == SplitType.itemized && _taxAmount != null)
@@ -308,11 +314,23 @@ class _CreateSplitBillScreenState extends State<CreateSplitBillScreen> {
         if (_splitType == SplitType.itemized && _tipAmount != null)
           'tipAmount': _tipAmount,
         'isItemized': _splitType == SplitType.itemized,
-      });
+      };
 
-      if (!mounted) return;
-      Navigator.of(context).popUntil((route) => route.isFirst);
-      _showSnackBar('Split bill created successfully!', isError: false);
+      try {
+        await _firestore.collection('split_bills').add(billData);
+        if (!mounted) return;
+        Navigator.of(context).popUntil((route) => route.isFirst);
+        _showSnackBar('Split bill created successfully!', isError: false);
+      } catch (e) {
+        // Save offline if sync fails
+        debugPrint('Could not sync to Firestore: $e, saving offline...');
+        billData['_timestamp'] = DateTime.now().millisecondsSinceEpoch.toString();
+        await OfflineService.savePendingSplitBill(billData);
+
+        if (!mounted) return;
+        Navigator.of(context).popUntil((route) => route.isFirst);
+        _showSnackBar('Saved offline. Will sync when online.', isError: false);
+      }
     } catch (e) {
       if (!mounted) return;
       _showSnackBar('Failed to create split: $e');

@@ -7,6 +7,8 @@ import 'package:flutter_animate/flutter_animate.dart';
 
 import '../services/debt_simplifier.dart';
 import '../services/pdf_export_service.dart';
+import '../services/group_analytics_service.dart';
+import 'settlement_history_screen.dart';
 import '../utils/colors.dart';
 import '../utils/text_styles.dart';
 import '../utils/app_spacing.dart';
@@ -78,7 +80,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
 
     return MeshBackground(
       child: DefaultTabController(
-        length: 2,
+        length: 3,
         child: Scaffold(
           backgroundColor: Colors.transparent,
           appBar: AppBar(
@@ -99,6 +101,18 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
               },
             ),
             actions: [
+              IconButton(
+                icon: Icon(Icons.history_rounded, color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary),
+                tooltip: 'Settlement History',
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => SettlementHistoryScreen(groupId: widget.groupId),
+                    ),
+                  );
+                },
+              ),
               IconButton(
                 icon: Icon(Icons.download_rounded, color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary),
                 tooltip: 'Export as PDF',
@@ -199,6 +213,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
               tabs: const [
                 Tab(text: "Expenses"),
                 Tab(text: "Balances"),
+                Tab(text: "Analytics"),
               ],
             ),
           ),
@@ -206,6 +221,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
             children: [
               _buildExpensesTab(isDark),
               _buildBalancesTab(isDark),
+              _buildAnalyticsTab(isDark),
             ],
           ),
           floatingActionButton: FloatingActionButton.extended(
@@ -576,6 +592,241 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                   ],
                 ),
               ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildAnalyticsTab(bool isDark) {
+    return StreamBuilder<DocumentSnapshot>(
+      stream: _getGroupStream(),
+      builder: (context, groupSnapshot) {
+        if (groupSnapshot.hasError) {
+          return Center(
+            child: Text("Error loading group", style: AppTextStyles.bodyL.copyWith(color: AppColors.error)),
+          );
+        }
+        if (groupSnapshot.connectionState == ConnectionState.waiting) {
+          return Center(
+            child: CircularProgressIndicator(color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent),
+          );
+        }
+
+        final groupData = groupSnapshot.data!.data() as Map<String, dynamic>?;
+        final members = (groupData?['members'] as List?)?.cast<String>() ?? [];
+
+        return StreamBuilder<QuerySnapshot>(
+          stream: _getGroupExpensesStream(),
+          builder: (context, expenseSnapshot) {
+            if (expenseSnapshot.hasError) {
+              return Center(
+                child: Text("Error loading expenses", style: AppTextStyles.bodyL.copyWith(color: AppColors.error)),
+              );
+            }
+            if (expenseSnapshot.connectionState == ConnectionState.waiting) {
+              return Center(
+                child: CircularProgressIndicator(color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent),
+              );
+            }
+
+            final expenses = expenseSnapshot.data!.docs
+                .map((doc) => {
+                      ...doc.data() as Map<String, dynamic>,
+                      'id': doc.id,
+                    })
+                .toList();
+
+            final analytics = GroupAnalyticsService.calculateGroupAnalytics(expenses, members);
+
+            return ListView(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding, vertical: 16),
+              children: [
+                // Summary Cards
+                ModernCard(
+                  color: isDark ? AppColors.darkSurface1 : AppColors.lightSurface1,
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Overview",
+                        style: AppTextStyles.h3.copyWith(
+                          color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Total Spent",
+                                style: AppTextStyles.label.copyWith(
+                                  color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                "₹${analytics.totalSpent.toStringAsFixed(2)}",
+                                style: AppTextStyles.h3.copyWith(
+                                  color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Expenses",
+                                style: AppTextStyles.label.copyWith(
+                                  color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                "${analytics.expenseCount}",
+                                style: AppTextStyles.h3.copyWith(
+                                  color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Average Bill",
+                                style: AppTextStyles.label.copyWith(
+                                  color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                "₹${GroupAnalyticsService.getAverageBillAmount(expenses).toStringAsFixed(2)}",
+                                style: AppTextStyles.h3.copyWith(
+                                  color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ).animate().fade(duration: 300.ms),
+                const SizedBox(height: 16),
+
+                // Spending by Person
+                ModernCard(
+                  color: isDark ? AppColors.darkSurface1 : AppColors.lightSurface1,
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Spending Breakdown",
+                        style: AppTextStyles.h3.copyWith(
+                          color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      ...analytics.spendingByPerson.entries.map((entry) {
+                        final percentage = analytics.percentageByPerson[entry.key] ?? 0.0;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      entry.key,
+                                      style: AppTextStyles.bodyM.copyWith(
+                                        color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    "₹${entry.value.toStringAsFixed(2)} (${percentage.toStringAsFixed(1)}%)",
+                                    style: AppTextStyles.label.copyWith(
+                                      color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                                child: LinearProgressIndicator(
+                                  value: analytics.totalSpent > 0 ? entry.value / analytics.totalSpent : 0,
+                                  minHeight: 6,
+                                  backgroundColor: (isDark ? AppColors.secondaryAccent : AppColors.primaryAccent)
+                                      .withValues(alpha: 0.15),
+                                  valueColor: AlwaysStoppedAnimation(
+                                    isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ],
+                  ),
+                ).animate().fade(duration: 300.ms, delay: 100.ms),
+                const SizedBox(height: 16),
+
+                // Top Expense
+                ModernCard(
+                  color: isDark ? AppColors.darkSurface1 : AppColors.lightSurface1,
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Top Expense",
+                        style: AppTextStyles.h3.copyWith(
+                          color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      if (expenses.isNotEmpty)
+                        Text(
+                          GroupAnalyticsService.getTopExpenseTitle(expenses),
+                          style: AppTextStyles.bodyL.copyWith(
+                            color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+                          ),
+                        )
+                      else
+                        Text(
+                          "No expenses yet",
+                          style: AppTextStyles.bodyM.copyWith(
+                            color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
+                          ),
+                        ),
+                    ],
+                  ),
+                ).animate().fade(duration: 300.ms, delay: 200.ms),
+                const SizedBox(height: 100),
+              ],
             );
           },
         );

@@ -10,6 +10,8 @@ import 'package:sliceit/screens/split_history_screen.dart';
 import 'package:sliceit/screens/subscriptions_screen.dart';
 import 'package:sliceit/services/theme_provider.dart';
 import 'package:sliceit/services/notification_service.dart';
+import 'package:sliceit/services/offline_service.dart';
+import 'package:sliceit/services/connectivity_service.dart';
 import 'package:sliceit/screens/analytics_screen.dart';
 import 'package:sliceit/screens/expenses_screen.dart';
 import 'package:sliceit/screens/profile_screen.dart';
@@ -26,7 +28,14 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // Initialize offline support
+  await OfflineService.initialize();
+  await ConnectivityService().initialize();
+
+  // Initialize notifications
   await NotificationService().initializeNotifications();
+
   runApp(const MyApp());
 }
 
