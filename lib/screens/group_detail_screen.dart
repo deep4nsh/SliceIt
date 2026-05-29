@@ -210,19 +210,30 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                         .collection('expenses')
                         .get();
 
-                    final expenses = expensesSnapshot.docs
-                        .map((doc) => {
-                              'title': doc.data()['title'] as String? ?? 'Unknown',
-                              'amount': (doc.data()['amount'] as num?)?.toDouble() ?? 0.0,
-                              'paidBy': doc.data()['paidBy'] as String? ?? 'Unknown',
-                              'date': doc.data()['createdAt'] as dynamic,
-                            })
-                        .toList();
-
                     final members = groupDoc.data()?['members'] as List? ?? [];
+                    final resolvedNames = <String, String>{};
+                    for (final member in members) {
+                      final name = await _getCachedName(member.toString());
+                      resolvedNames[member.toString()] = name;
+                    }
+
                     final balances = <String, double>{};
                     for (final member in members) {
-                      balances[member] = 0.0;
+                      final name = resolvedNames[member.toString()] ?? member.toString();
+                      balances[name] = 0.0;
+                    }
+
+                    final expenses = <Map<String, dynamic>>[];
+                    for (var doc in expensesSnapshot.docs) {
+                      final data = doc.data() as Map<String, dynamic>?;
+                      final paidByUid = data?['paidBy'] as String? ?? 'Unknown';
+                      final paidByName = resolvedNames[paidByUid] ?? await _getCachedName(paidByUid);
+                      expenses.add({
+                        'title': data?['title'] as String? ?? 'Unknown',
+                        'amount': (data?['amount'] as num?)?.toDouble() ?? 0.0,
+                        'paidBy': paidByName,
+                        'date': data?['createdAt'] as dynamic,
+                      });
                     }
 
                     await PdfExportService.exportGroupStatement(
@@ -849,14 +860,18 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Expanded(
-                                    child: Text(
-                                      entry.key,
-                                      style: AppTextStyles.bodyM.copyWith(
-                                        color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
-                                        fontWeight: FontWeight.bold,
+                                    child: UserNameDisplay(
+                                      uid: entry.key,
+                                      cacheFn: _getCachedName,
+                                      builder: (name) => Text(
+                                        name,
+                                        style: AppTextStyles.bodyM.copyWith(
+                                          color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
                                   const SizedBox(width: 8),
@@ -1309,7 +1324,7 @@ class _SettleButtonState extends State<_SettleButton> {
       final data = widget.expenseDoc.data() as Map<String, dynamic>;
       final paidByUid = data['paidBy'];
       final amount = (data['amount'] as num).toDouble();
-      final participants = (data['participants'] as List).cast<String>();
+      final participants = (data['participants'] as List?)?.cast<String>() ?? [];
 
       if (!participants.contains(widget.currentUserUid)) {
         if (mounted) {

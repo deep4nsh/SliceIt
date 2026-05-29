@@ -6,11 +6,11 @@ class DebtSimplifier {
 
     // 1. Calculate Net Balances
     for (var expense in expenses) {
-      final double amount = (expense['amount'] as num).toDouble();
-      final String paidBy = expense['paidBy'];
-      final List<String> participants = (expense['participants'] as List).cast<String>();
+      final double amount = (expense['amount'] as num?)?.toDouble() ?? 0.0;
+      final String paidBy = expense['paidBy'] as String? ?? '';
+      final List<String> participants = (expense['participants'] as List?)?.cast<String>() ?? [];
 
-      if (participants.isEmpty) continue;
+      if (paidBy.isEmpty || participants.isEmpty || amount <= 0) continue;
 
       // Creator paid the full amount, so they get +amount "credit" initially
       // But actually, it's easier to think: 

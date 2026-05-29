@@ -279,8 +279,8 @@ class _SplitBillsScreenState extends State<SplitBillsScreen> {
                           final data = doc.data() as Map<String, dynamic>;
                           final createdBy = data['createdBy'] as String?;
                           final totalAmount = (data['totalAmount'] as num).toDouble();
-                          final participants = (data['participants'] as List).cast<String>();
-                          final paidStatus = (data['paidStatus'] as Map).cast<String, bool>();
+                          final participants = (data['participants'] as List?)?.cast<String>() ?? [];
+                          final paidStatus = (data['paidStatus'] as Map?)?.cast<String, bool>() ?? {};
                           final splitType = data['splitType'] as String? ?? 'equal';
                           final amounts = (data['amounts'] as Map?)?.cast<String, num>() ?? {};
 
