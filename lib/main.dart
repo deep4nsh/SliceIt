@@ -18,6 +18,10 @@ import 'package:sliceit/screens/expenses_screen.dart';
 import 'package:sliceit/screens/profile_screen.dart';
 import 'package:sliceit/screens/split_bills_screen.dart';
 import 'package:sliceit/screens/groups_screen.dart';
+import 'package:sliceit/screens/group_detail_screen.dart';
+import 'package:sliceit/utils/colors.dart';
+import 'package:sliceit/utils/text_styles.dart';
+import 'package:sliceit/utils/app_spacing.dart';
 import 'firebase_options.dart';
 import 'utils/app_theme.dart';
 import 'screens/splash_screen.dart';
@@ -153,33 +157,199 @@ class _MyAppState extends State<MyApp> {
         debugPrint('DeepLink: detected group link, groupId=$groupId (host=${uri.host}, path=${uri.path})');
         showDialog(
           context: ctx,
-          builder: (dialogContext) => AlertDialog(
-            title: const Text('Join Group?'),
-            content: const Text('Are you sure you want to join this group?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () async {
-                  debugPrint('DeepLink: joining groupId=$groupId');
-                  await _joinGroup(groupId);
-                  if (dialogContext.mounted) {
-                    if (Navigator.of(dialogContext).canPop()) {
-                      Navigator.of(dialogContext).pop();
-                    }
-                  }
-                  if (ctx.mounted) {
-                    ScaffoldMessenger.of(ctx).showSnackBar(
-                      const SnackBar(content: Text('Group joined successfully!')),
-                    );
-                  }
-                },
-                child: const Text('Join'),
-              ),
-            ],
-          ),
+          barrierDismissible: false,
+          builder: (dialogContext) {
+            final isDark = Theme.of(ctx).brightness == Brightness.dark;
+            return FutureBuilder<DocumentSnapshot>(
+              future: FirebaseFirestore.instance.collection('groups').doc(groupId).get(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return AlertDialog(
+                    backgroundColor: isDark ? AppColors.darkSurface2 : AppColors.lightSurface1,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+                      side: BorderSide(
+                        color: isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder,
+                        width: 1,
+                      ),
+                    ),
+                    content: SizedBox(
+                      height: 80,
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
+                        ),
+                      ),
+                    ),
+                  );
+                }
+
+                if (snapshot.hasError || !snapshot.hasData || !snapshot.data!.exists) {
+                  return AlertDialog(
+                    backgroundColor: isDark ? AppColors.darkSurface2 : AppColors.lightSurface1,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+                      side: BorderSide(
+                        color: isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder,
+                        width: 1,
+                      ),
+                    ),
+                    title: Text(
+                      'Group Not Found',
+                      style: AppTextStyles.h2.copyWith(
+                        color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+                        fontSize: 20,
+                      ),
+                    ),
+                    content: Text(
+                      'This group link is invalid or the group has been deleted.',
+                      style: AppTextStyles.bodyM.copyWith(
+                        color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
+                      ),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                        child: Text(
+                          'Dismiss',
+                          style: AppTextStyles.button.copyWith(
+                            color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                }
+
+                final groupData = snapshot.data!.data() as Map<String, dynamic>?;
+                final groupName = groupData?['name'] ?? 'Unnamed Group';
+
+                // Check if user is already a member
+                final members = groupData?['members'] as List? ?? [];
+                final isAlreadyMember = members.contains(FirebaseAuth.instance.currentUser?.uid);
+
+                if (isAlreadyMember) {
+                  return AlertDialog(
+                    backgroundColor: isDark ? AppColors.darkSurface2 : AppColors.lightSurface1,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+                      side: BorderSide(
+                        color: isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder,
+                        width: 1,
+                      ),
+                    ),
+                    title: Text(
+                      'Already a Member',
+                      style: AppTextStyles.h2.copyWith(
+                        color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+                        fontSize: 20,
+                      ),
+                    ),
+                    content: Text(
+                      'You are already a member of "$groupName".',
+                      style: AppTextStyles.bodyM.copyWith(
+                        color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
+                      ),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                        child: Text(
+                          'Close',
+                          style: AppTextStyles.button.copyWith(
+                            color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
+                          ),
+                        ),
+                      ),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
+                          foregroundColor: isDark ? AppColors.textDarkPrimary : Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusMd)),
+                          elevation: 0,
+                        ),
+                        onPressed: () {
+                          Navigator.of(dialogContext).pop();
+                          navigatorKey.currentState?.push(
+                            MaterialPageRoute(
+                              builder: (_) => GroupDetailScreen(groupId: groupId),
+                            ),
+                          );
+                        },
+                        child: const Text('View Group', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  );
+                }
+
+                return AlertDialog(
+                  backgroundColor: isDark ? AppColors.darkSurface2 : AppColors.lightSurface1,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+                    side: BorderSide(
+                      color: isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder,
+                      width: 1,
+                    ),
+                  ),
+                  title: Text(
+                    'Join Group?',
+                    style: AppTextStyles.h2.copyWith(
+                      color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+                      fontSize: 20,
+                    ),
+                  ),
+                  content: Text(
+                    'Are you sure you want to join the group "$groupName"?',
+                    style: AppTextStyles.bodyM.copyWith(
+                      color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(dialogContext).pop(),
+                      child: Text(
+                        'Cancel',
+                        style: AppTextStyles.button.copyWith(
+                          color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
+                        ),
+                      ),
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
+                        foregroundColor: isDark ? AppColors.textDarkPrimary : Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusMd)),
+                        elevation: 0,
+                      ),
+                      onPressed: () async {
+                        debugPrint('DeepLink: joining groupId=$groupId');
+                        await _joinGroup(groupId);
+                        if (dialogContext.mounted) {
+                          Navigator.of(dialogContext).pop();
+                        }
+                        if (ctx.mounted) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            SnackBar(
+                              content: Text('Joined "$groupName" successfully!'),
+                              backgroundColor: AppColors.success,
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                        // Navigate directly to the newly joined group details screen
+                        navigatorKey.currentState?.push(
+                          MaterialPageRoute(
+                            builder: (_) => GroupDetailScreen(groupId: groupId),
+                          ),
+                        );
+                      },
+                      child: const Text('Join', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                );
+              },
+            );
+          },
         );
       } else {
         debugPrint('DeepLink: group link missing id parameter');

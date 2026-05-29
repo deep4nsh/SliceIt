@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -243,7 +245,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
               ),
               IconButton(
                 icon: Icon(Icons.share_rounded, color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary),
-                tooltip: 'Share invite link via WhatsApp',
+                tooltip: 'Copy and Share Invite Link',
                 onPressed: () async {
                   final groupDoc = await _firestore.collection('groups').doc(widget.groupId).get();
                   final groupName = groupDoc.data()?['name'] ?? 'SliceIt Group';
@@ -252,34 +254,30 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                   final inviterUid = currentUser?.uid ?? '';
                   final httpLink = DeepLinkConfig.groupHttp(widget.groupId, inviterUid);
 
-                  final text = "Hey! Join my group '$groupName' on SliceIt to split bills easily.\n\nTap here to join automatically:\n$httpLink";
-                  final url = Uri.parse("https://wa.me/?text=${Uri.encodeComponent(text)}");
+                  // Copy to Clipboard
+                  await Clipboard.setData(ClipboardData(text: httpLink));
 
-                  try {
-                    if (await canLaunchUrl(url)) {
-                      await launchUrl(url, mode: LaunchMode.externalApplication);
-                    } else {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Could not launch WhatsApp', style: AppTextStyles.bodyM),
-                            backgroundColor: AppColors.error,
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
-                      }
-                    }
-                  } catch (e) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Error: $e', style: AppTextStyles.bodyM),
-                          backgroundColor: AppColors.error,
-                          behavior: SnackBarBehavior.floating,
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Row(
+                          children: [
+                            const Icon(Icons.check_circle_outline_rounded, color: Colors.white, size: 20),
+                            const SizedBox(width: 8),
+                            Text('Invite link copied to clipboard!', style: AppTextStyles.bodyM.copyWith(color: Colors.white)),
+                          ],
                         ),
-                      );
-                    }
+                        backgroundColor: AppColors.success,
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusMd)),
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
                   }
+
+                  // Trigger Native Share Sheet
+                  final text = "Hey! Join my group '$groupName' on SliceIt to split bills easily.\n\nTap here to join automatically:\n$httpLink";
+                  await Share.share(text, subject: "Join my SliceIt group '$groupName'");
                 },
               ),
             ],
