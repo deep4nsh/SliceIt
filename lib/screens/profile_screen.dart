@@ -2,7 +2,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../utils/colors.dart';
@@ -14,6 +13,7 @@ import '../widgets/custom_button.dart';
 import '../services/auth_service.dart';
 import '../services/theme_provider.dart';
 import '../services/notification_preferences.dart';
+import '../services/cloudinary_service.dart';
 import 'login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -140,13 +140,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       setState(() => _isUploadingImage = true);
 
-      final storageRef = FirebaseStorage.instance
-          .ref()
-          .child('profile_images/${user.uid}.jpg');
-      
       final uploadFile = File(pickedFile.path);
-      await storageRef.putFile(uploadFile);
-      final downloadUrl = await storageRef.getDownloadURL();
+      final cloudinary = CloudinaryService();
+
+      final downloadUrl = await cloudinary.uploadSettlementProof(
+        uploadFile,
+        onProgress: (progress) {
+          debugPrint('Profile picture upload: ${(progress * 100).toStringAsFixed(0)}%');
+        },
+      );
+
+      if (downloadUrl == null) {
+        throw Exception('Failed to upload profile picture to Cloudinary');
+      }
 
       await user.updatePhotoURL(downloadUrl);
       await _firestore.collection('users').doc(user.uid).set({
