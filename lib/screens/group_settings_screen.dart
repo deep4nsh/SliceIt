@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -8,7 +7,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 import '../services/friend_service.dart';
 import '../services/cloudinary_service.dart';
@@ -131,27 +129,6 @@ class _GroupSettingsScreenState extends State<GroupSettingsScreen> {
     }
 
     try {
-      if (!kIsWeb) {
-        if (Platform.isAndroid) {
-          final status = await Permission.storage.status;
-          if (status.isDenied) {
-            final result = await Permission.storage.request();
-            if (!result.isGranted) {
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Storage permission is required to upload photos.', style: AppTextStyles.bodyM),
-                    backgroundColor: AppColors.error,
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              }
-              return;
-            }
-          }
-        }
-      }
-
       final XFile? pickedFile = await picker.pickImage(
         source: source,
         maxWidth: 512,

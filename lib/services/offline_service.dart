@@ -1,7 +1,6 @@
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
 
 class OfflineService {
@@ -162,7 +161,6 @@ class OfflineService {
 
 class SyncManager {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  static final FirebaseStorage _storage = FirebaseStorage.instance;
 
   static Future<void> syncAllPendingData() async {
     debugPrint('🔄 Starting sync of pending data...');

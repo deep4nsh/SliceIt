@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
@@ -12,6 +11,7 @@ import '../models/line_model.dart';
 import '../models/split_item_model.dart';
 import '../services/friend_service.dart';
 import '../services/bill_parser_service.dart';
+import '../services/cloudinary_service.dart';
 import '../services/offline_service.dart';
 import '../utils/colors.dart';
 import '../utils/text_styles.dart';
@@ -270,22 +270,30 @@ class _CreateSplitBillScreenState extends State<CreateSplitBillScreen> {
     }
 
     setState(() => _isSaving = true);
+    debugPrint('🔵 Starting bill creation...');
 
     try {
       final currentUserEmail = _auth.currentUser?.email;
+      debugPrint('📧 Current user email: $currentUserEmail');
       if (currentUserEmail == null) throw Exception("User session expired or not logged in.");
 
       final participantsEmails = includedParticipants.map((p) => p.email.trim()).toSet().toList();
+      debugPrint('👥 Participants: $participantsEmails');
       final paidStatus = {for (var p in participantsEmails) p: false};
 
       String? receiptUrl;
       if (widget.receiptImage != null) {
         try {
-          final storageRef = FirebaseStorage.instance
-              .ref()
-              .child('receipts/${_auth.currentUser!.uid}/${DateTime.now().millisecondsSinceEpoch}.jpg');
-          await storageRef.putFile(widget.receiptImage!);
-          receiptUrl = await storageRef.getDownloadURL();
+          final cloudinary = CloudinaryService();
+          receiptUrl = await cloudinary.uploadSettlementProof(
+            widget.receiptImage!,
+            onProgress: (progress) {
+              debugPrint('Receipt upload: ${(progress * 100).toStringAsFixed(0)}%');
+            },
+          );
+          if (receiptUrl == null) {
+            debugPrint('Warning: Could not upload receipt image to Cloudinary');
+          }
         } catch (e) {
           debugPrint('Warning: Could not upload receipt image: $e');
           // Continue without receipt URL - will retry when online
@@ -317,27 +325,31 @@ class _CreateSplitBillScreenState extends State<CreateSplitBillScreen> {
       };
 
       try {
+        debugPrint('💾 Saving bill to Firestore...');
         await _firestore.collection('split_bills').add(billData);
+        debugPrint('✅ Bill saved successfully!');
         if (!mounted) return;
-        Navigator.of(context).popUntil((route) => route.isFirst);
+        if (mounted) setState(() => _isSaving = false);
         _showSnackBar('Split bill created successfully!', isError: false);
+        await Future.delayed(const Duration(milliseconds: 1000));
+        if (mounted) Navigator.of(context).pop();
       } catch (e) {
         // Save offline if sync fails
-        debugPrint('Could not sync to Firestore: $e, saving offline...');
+        debugPrint('❌ Could not sync to Firestore: $e, saving offline...');
         billData['_timestamp'] = DateTime.now().millisecondsSinceEpoch.toString();
         await OfflineService.savePendingSplitBill(billData);
 
         if (!mounted) return;
-        Navigator.of(context).popUntil((route) => route.isFirst);
+        if (mounted) setState(() => _isSaving = false);
         _showSnackBar('Saved offline. Will sync when online.', isError: false);
+        await Future.delayed(const Duration(milliseconds: 1000));
+        if (mounted) Navigator.of(context).pop();
       }
     } catch (e) {
+      debugPrint('🔴 Exception in bill creation: $e');
       if (!mounted) return;
+      if (mounted) setState(() => _isSaving = false);
       _showSnackBar('Failed to create split: $e');
-    } finally {
-      if (mounted) {
-        setState(() => _isSaving = false);
-      }
     }
   }
 
@@ -729,13 +741,14 @@ class _CreateSplitBillScreenState extends State<CreateSplitBillScreen> {
     final inactiveBg = isDark ? AppColors.darkSurface2 : AppColors.lightSurface2;
     final inactiveText = (isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary).withValues(alpha: 0.8);
 
-    return Expanded(
+    return SizedBox(
+      width: 100,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
         child: AnimatedContainer(
           duration: 200.ms,
-          padding: const EdgeInsets.symmetric(vertical: 12),
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
           decoration: BoxDecoration(
             color: isSelected ? activeColor.withValues(alpha: isDark ? 0.15 : 0.08) : inactiveBg,
             borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
@@ -756,6 +769,7 @@ class _CreateSplitBillScreenState extends State<CreateSplitBillScreen> {
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                   letterSpacing: 0.2,
                 ),
+                textAlign: TextAlign.center,
               ),
             ],
           ),
