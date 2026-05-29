@@ -58,6 +58,41 @@ class ContactSyncService {
     }
   }
 
+  static Future<List<Map<String, String>>> getContactsWithPhones() async {
+    try {
+      final contacts = await getPhoneContacts();
+      final contactList = <Map<String, String>>[];
+
+      for (var contact in contacts) {
+        final name = contact.displayName ?? '';
+
+        if (contact.phones.isNotEmpty) {
+          for (var phone in contact.phones) {
+            final phoneValue = phone.number;
+            if (phoneValue.isNotEmpty) {
+              contactList.add({
+                'name': name.isEmpty ? 'Unknown' : name,
+                'phone': phoneValue,
+              });
+            }
+          }
+        } else if (contact.emails.isNotEmpty) {
+          for (var email in contact.emails) {
+            contactList.add({
+              'name': name.isEmpty ? 'Unknown' : name,
+              'email': email.address,
+            });
+          }
+        }
+      }
+
+      return contactList;
+    } catch (e) {
+      debugPrint('Error extracting contacts with phones: $e');
+      rethrow;
+    }
+  }
+
   static Future<bool> hasContactPermission() async {
     final status = await Permission.contacts.status;
     return status.isGranted;

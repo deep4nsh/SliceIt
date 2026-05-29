@@ -51,4 +51,33 @@ class FriendService {
         .map((snapshot) =>
             snapshot.docs.map((doc) => Friend.fromMap(doc.data())).toList());
   }
+
+  // Search for multiple users by emails
+  Future<List<Friend>> searchUsersByEmails(List<String> emails) async {
+    if (emails.isEmpty) return [];
+
+    final currentUserEmail = _auth.currentUser?.email;
+    final uniqueEmails = emails.toSet().toList();
+
+    final results = <Friend>[];
+
+    // Batch by 10 (Firestore whereIn limit)
+    for (int i = 0; i < uniqueEmails.length; i += 10) {
+      final batch = uniqueEmails.skip(i).take(10).toList();
+
+      final querySnapshot = await _firestore
+          .collection('users')
+          .where('email', whereIn: batch)
+          .get();
+
+      for (var doc in querySnapshot.docs) {
+        final friend = Friend.fromMap(doc.data());
+        if (friend.email != currentUserEmail) {
+          results.add(friend);
+        }
+      }
+    }
+
+    return results;
+  }
 }

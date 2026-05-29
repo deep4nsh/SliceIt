@@ -12,4 +12,10 @@ class DeepLinkConfig {
 
   static String groupScheme(String groupId, String inviterUid) =>
       '${customScheme}group?id=$groupId&inviter=$inviterUid';
+
+  static String friendInviteHttp(String inviterUid) =>
+      '$httpBase/friend-invite?inviter=$inviterUid';
+
+  static String friendInviteScheme(String inviterUid) =>
+      '${customScheme}friend-invite?inviter=$inviterUid';
 }

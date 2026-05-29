@@ -21,6 +21,8 @@ import 'package:sliceit/screens/split_bills_screen.dart';
 import 'package:sliceit/screens/groups_screen.dart';
 import 'package:sliceit/screens/group_detail_screen.dart';
 import 'package:sliceit/screens/notifications_screen.dart';
+import 'package:sliceit/models/friend_model.dart';
+import 'package:sliceit/services/friend_service.dart';
 import 'package:sliceit/utils/colors.dart';
 import 'package:sliceit/utils/text_styles.dart';
 import 'package:sliceit/utils/app_spacing.dart';
@@ -366,6 +368,208 @@ class _MyAppState extends State<MyApp> {
         );
       } else {
         debugPrint('DeepLink: group link missing id parameter');
+      }
+    }
+
+    final isFriendInviteLink =
+        uri.pathSegments.contains('friend-invite') || uri.host == 'friend-invite';
+    if (isFriendInviteLink) {
+      final inviterUid = uri.queryParameters['inviter'];
+      if (inviterUid != null) {
+        debugPrint('DeepLink: detected friend invite link, inviterUid=$inviterUid');
+        showDialog(
+          context: ctx,
+          barrierDismissible: false,
+          builder: (dialogContext) {
+            final isDark = Theme.of(ctx).brightness == Brightness.dark;
+            return FutureBuilder<DocumentSnapshot>(
+              future: FirebaseFirestore.instance.collection('users').doc(inviterUid).get(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return AlertDialog(
+                    backgroundColor: isDark ? AppColors.darkSurface2 : AppColors.lightSurface1,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+                      side: BorderSide(
+                        color: isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder,
+                        width: 1,
+                      ),
+                    ),
+                    content: SizedBox(
+                      height: 80,
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
+                        ),
+                      ),
+                    ),
+                  );
+                }
+
+                if (snapshot.hasError || !snapshot.hasData || !snapshot.data!.exists) {
+                  return AlertDialog(
+                    backgroundColor: isDark ? AppColors.darkSurface2 : AppColors.lightSurface1,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+                      side: BorderSide(
+                        color: isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder,
+                        width: 1,
+                      ),
+                    ),
+                    title: Text(
+                      'User Not Found',
+                      style: AppTextStyles.h2.copyWith(
+                        color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+                        fontSize: 20,
+                      ),
+                    ),
+                    content: Text(
+                      'This user link is invalid or the user no longer exists.',
+                      style: AppTextStyles.bodyM.copyWith(
+                        color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
+                      ),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(),
+                        child: Text(
+                          'Dismiss',
+                          style: AppTextStyles.button.copyWith(
+                            color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                }
+
+                final userData = snapshot.data!.data() as Map<String, dynamic>?;
+                final inviterName = userData?['name'] ?? 'A user';
+                final inviterEmail = userData?['email'] ?? '';
+
+                // Check if already friends
+                final friendsRef = FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(FirebaseAuth.instance.currentUser?.uid)
+                    .collection('friends');
+
+                return FutureBuilder<DocumentSnapshot>(
+                  future: friendsRef.doc(inviterUid).get(),
+                  builder: (context, friendSnapshot) {
+                    final isAlreadyFriend =
+                        friendSnapshot.hasData && friendSnapshot.data!.exists;
+
+                    if (isAlreadyFriend) {
+                      return AlertDialog(
+                        backgroundColor: isDark ? AppColors.darkSurface2 : AppColors.lightSurface1,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+                          side: BorderSide(
+                            color: isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder,
+                            width: 1,
+                          ),
+                        ),
+                        title: Text(
+                          'Already Friends',
+                          style: AppTextStyles.h2.copyWith(
+                            color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+                            fontSize: 20,
+                          ),
+                        ),
+                        content: Text(
+                          'You are already friends with $inviterName.',
+                          style: AppTextStyles.bodyM.copyWith(
+                            color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
+                          ),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(dialogContext).pop(),
+                            child: Text(
+                              'Close',
+                              style: AppTextStyles.button.copyWith(
+                                color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    }
+
+                    return AlertDialog(
+                      backgroundColor: isDark ? AppColors.darkSurface2 : AppColors.lightSurface1,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+                        side: BorderSide(
+                          color: isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder,
+                          width: 1,
+                        ),
+                      ),
+                      title: Text(
+                        'Add Friend?',
+                        style: AppTextStyles.h2.copyWith(
+                          color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+                          fontSize: 20,
+                        ),
+                      ),
+                      content: Text(
+                        'Add $inviterName as a friend?',
+                        style: AppTextStyles.bodyM.copyWith(
+                          color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
+                        ),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(dialogContext).pop(),
+                          child: Text(
+                            'Cancel',
+                            style: AppTextStyles.button.copyWith(
+                              color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
+                            ),
+                          ),
+                        ),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
+                            foregroundColor: isDark ? AppColors.textDarkPrimary : Colors.white,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(AppSpacing.radiusMd)),
+                            elevation: 0,
+                          ),
+                          onPressed: () async {
+                            debugPrint('DeepLink: adding friend $inviterUid');
+                            final friend = Friend(
+                              uid: inviterUid,
+                              email: inviterEmail,
+                              name: inviterName,
+                              photoUrl: userData?['photoUrl'],
+                            );
+                            await FriendService().addFriend(friend);
+                            if (dialogContext.mounted) {
+                              Navigator.of(dialogContext).pop();
+                            }
+                            if (ctx.mounted) {
+                              ScaffoldMessenger.of(ctx).showSnackBar(
+                                SnackBar(
+                                  content: Text('$inviterName added to friends!'),
+                                  backgroundColor: AppColors.success,
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            }
+                          },
+                          child: const Text('Add Friend', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    );
+                  },
+                );
+              },
+            );
+          },
+        );
+      } else {
+        debugPrint('DeepLink: friend invite link missing inviter parameter');
       }
     }
   }
