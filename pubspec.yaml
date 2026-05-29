@@ -49,7 +49,6 @@ dependencies:
   permission_handler: ^12.0.1
 
   # Cloud Storage
-  cloudinary_flutter: ^1.1.0
   http: ^1.1.0
 
   # PDF Export with Professional Templates

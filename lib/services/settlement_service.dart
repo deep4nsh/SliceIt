@@ -64,7 +64,7 @@ class SettlementService {
       if (userId == null) throw Exception('User not logged in');
 
       // Upload to Cloudinary
-      final url = await _cloudinary.uploadSettlementProofDirect(
+      final url = await _cloudinary.uploadSettlementProof(
         proofImage,
         onProgress: onProgress,
       );
