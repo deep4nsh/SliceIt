@@ -1,151 +1,168 @@
     # SliceIt 🍕
 
-**SliceIt** is a modern, intuitive expense-splitting application designed to make sharing costs with friends and family seamless and stress-free. Whether you're on a trip, sharing an apartment, or just dining out, SliceIt ensures everyone pays their fair share without the awkward math.
-
-## ✨ Key Attractions
-
-### 🚀 **Smart Debt Simplification**
-Say goodbye to circular payments! SliceIt uses an advanced **greedy algorithm** to minimize the number of transactions required to settle up. It intelligently calculates who owes whom, reducing the total number of transfers needed within a group.
-
-### 👥 **Effortless Group Management**
-*   **Create Groups**: Easily organize expenses by trips, housemates, or events.
-*   **Deep Linking**: Invite friends instantly via shareable links. No more manual adding!
-*   **Real-time Updates**: Keep everyone in the loop with instant sync powered by Firebase.
-
-### 💸 **Flexible Expense Tracking**
-*   **Split Your Way**: Divide bills equally, unequally, or by exact amounts.
-*   **Detailed History**: Keep a transparent record of all expenses and payments.
-*   **Visual Analytics**: Understand your spending habits with beautiful charts and insights.
-
-### 🎨 **Premium User Experience**
-*   **Modern Design**: A sleek, "industry-grade" UI with smooth animations and a polished look.
-*   **Dark Mode**: Fully supported dark theme for comfortable viewing at night.
-*   **Secure & Private**: Built on Firebase Authentication to keep your data safe.
+**SliceIt** is a modern, premium expense-splitting application designed to make sharing costs with friends and family seamless, offline-resilient, and stress-free. Built with a beautiful dark-first aesthetic, rich micro-animations, and powered by Firebase, SliceIt ensures everyone pays their fair share without the awkward math.
 
 ---
 
-## 📸 Screenshots
+## ✨ Features & Attractions
 
-| Home Screen | Group Details | Split Bill | Analytics |
-|:---:|:---:|:---:|:---:|
-| <img src="assets/images/SliceIt.png" width="200" /> | <img src="assets/images/SliceIt.png" width="200" /> | <img src="assets/images/SliceIt.png" width="200" /> | <img src="assets/images/SliceIt.png" width="200" /> |
+### 🚀 Smart Debt Simplification & Settlement Tracking
+Say goodbye to complex circular payments.
+* **Greedy Algorithm**: SliceIt uses a highly efficient greedy algorithm in [debt_simplifier.dart](file:///Users/deepansh/StudioProjects/SliceIt/lib/services/debt_simplifier.dart) to minimize transactions within any group.
+* **Settlement Recording**: Track who paid whom with [settlement_service.dart](file:///Users/deepansh/StudioProjects/SliceIt/lib/services/settlement_service.dart) and browse previous settlements in the [settlement_history_screen.dart](file:///Users/deepansh/StudioProjects/SliceIt/lib/screens/settlement_history_screen.dart).
+* **UPI Payment Support**: Quick payments initiated with UPI VPAs using [upi_payment_service.dart](file:///Users/deepansh/StudioProjects/SliceIt/lib/services/upi_payment_service.dart).
 
-*(Note: Replace placeholder images with actual screenshots)*
+### 🔔 Automatic & On-Demand Notification System
+Keep group members up-to-date with push notifications triggered via Firebase Cloud Functions in [functions/index.js](file:///Users/deepansh/StudioProjects/SliceIt/functions/index.js).
+* **Automatic Triggers**: Receive instant updates when a new expense is added, when you are added to a group, or when a payment is marked successful.
+* **Manual Settlement Reminders**: Trigger reminders on-demand in the Balances tab of [group_detail_screen.dart](file:///Users/deepansh/StudioProjects/SliceIt/lib/screens/group_detail_screen.dart) to instantly alert members who owe money.
+* **Granular Client Preferences**: Toggle pushing notifications on/off globally or per-category (Expense Updates, Group Invites, Settlement Reminders, Payment Reminders) directly in [profile_screen.dart](file:///Users/deepansh/StudioProjects/SliceIt/lib/screens/profile_screen.dart) with local caching in [notification_preferences.dart](file:///Users/deepansh/StudioProjects/SliceIt/lib/services/notification_preferences.dart).
 
----
+### 📶 Offline Mode & Synchronized Caching
+No network? No problem. SliceIt keeps running smoothly with offline-first capabilities.
+* **Hive Data Caching**: Read and write local database models via [offline_service.dart](file:///Users/deepansh/StudioProjects/SliceIt/lib/services/offline_service.dart).
+* **Connectivity Awareness**: Utilizes [connectivity_service.dart](file:///Users/deepansh/StudioProjects/SliceIt/lib/services/connectivity_service.dart) to detect changes in network status.
+* **Sync Queue**: Automatically queues offline mutations and pushes them to Firebase Firestore once connection is restored.
 
-## 🚀 Getting Started
+### 👥 Native Group Invitations & Deep Linking
+* **Native Share Sheet**: Send invite links instantly to contacts using a native OS sharing panel via [invite_service.dart](file:///Users/deepansh/StudioProjects/SliceIt/lib/services/invite_service.dart).
+* **App Links & Deep Linking**: Seamlessly parse incoming invitation links using [deep_link_config.dart](file:///Users/deepansh/StudioProjects/SliceIt/lib/utils/deep_link_config.dart).
+* **Join Verification Dialogs**: Validate details automatically in a user-friendly UI before adding users to groups.
 
-### Prerequisites
-*   Flutter SDK (3.9.2 or later)
-*   Dart SDK
-*   Firebase Project (for Auth, Firestore, Functions)
+### 📊 Group Analytics & Charts
+* **Rich Visualizations**: Custom charts (Pie, Bar, Line) rendered with `fl_chart` in [analytics_screen.dart](file:///Users/deepansh/StudioProjects/SliceIt/lib/screens/analytics_screen.dart).
+* **Spend Segmentation**: Track categories (Food, Travel, Rent, Utilities) and individual member share analytics via [group_analytics_service.dart](file:///Users/deepansh/StudioProjects/SliceIt/lib/services/group_analytics_service.dart).
 
-### Installation
+### 📄 Professional PDF Exports
+* **Custom Reports**: Generate high-fidelity PDFs containing group details, expense reports, and settlement logs via [pdf_export_service.dart](file:///Users/deepansh/StudioProjects/SliceIt/lib/services/pdf_export_service.dart).
+* **Printing Integration**: Directly preview, share, or print generated PDFs in-app.
 
-1.  **Clone the repository:**
-    ```bash
-    git clone https://github.com/yourusername/sliceit.git
-    cd sliceit
-    ```
+### 🧾 Receipt Parsing & Itemized Splits
+* **Receipt OCR**: Automatically scan and extract text from receipts using Google ML Kit Text Recognition with [bill_parser_service.dart](file:///Users/deepansh/StudioProjects/SliceIt/lib/services/bill_parser_service.dart).
+* **Itemized Splits**: Assign individual items to specific group members for highly precise bill splits.
 
-2.  **Install dependencies:**
-    ```bash
-    flutter pub get
-    ```
-
-3.  **Configure Firebase:**
-    *   Create a project in the [Firebase Console](https://console.firebase.google.com/).
-    *   Enable **Authentication** (Email/Password, Google).
-    *   Enable **Firestore Database**.
-    *   Download `google-services.json` (Android) and `GoogleService-Info.plist` (iOS) and place them in their respective directories (`android/app` and `ios/Runner`).
-    *   *(Optional)* Use `flutterfire configure` to automatically set up Firebase.
-
-4.  **Run the app:**
-    ```bash
-    flutter run
-    ```
+### 🔁 Subscription Management
+* **Recurring Bills**: Track subscription metrics and split recurring expenses automatically on custom intervals in [subscriptions_screen.dart](file:///Users/deepansh/StudioProjects/SliceIt/lib/screens/subscriptions_screen.dart).
 
 ---
 
-## � Usage
-
-### 1. Creating a Group
-*   Navigate to the **Groups** tab.
-*   Tap the **"Create Group"** button.
-*   Enter a group name and confirm.
-*   Once created, tap the **Invite** icon to share a deep link with friends via email or other apps.
-
-### 2. Splitting a Bill
-*   Tap the **"+"** button or navigate to **Split Bill**.
-*   **Scan Receipt**: The app attempts to parse the total amount from a receipt text (if available).
-*   **Enter Details**: Manually enter the Title and Total Amount.
-*   **Select Participants**: Choose friends from your contacts or add them by email.
-*   **Split Type**:
-    *   **Equal**: Automatically divides the total among selected participants.
-    *   **Unequal**: Manually specify how much each person owes (must sum to total).
-*   Tap **"Create Split"** to save.
-
-### 3. Managing Expenses
-*   Go to the **Expenses** tab to view your personal expense history.
-*   **Filter**: Use the date range picker to view expenses for a specific period.
-*   **Search**: Find expenses by title or category.
-*   **Add/Edit**: Quickly add personal expenses or edit existing ones.
-
-### 4. Settle Up (Debt Simplification)
-*   Inside a group, the app automatically calculates the most efficient way to settle debts.
-*   View the **"Balances"** section to see who owes whom.
-*   Follow the suggested payments to clear debts with the fewest transactions.
+## 🎨 Design System & Aesthetics
+SliceIt stands out with a tailored, modern design system:
+* **Dark-First Theme**: Curated dark palette with vibrant olive green accents configured in [app_theme.dart](file:///Users/deepansh/StudioProjects/SliceIt/lib/utils/app_theme.dart).
+* **Fluid Backgrounds**: Stunning visuals using the customized [mesh_background.dart](file:///Users/deepansh/StudioProjects/SliceIt/lib/widgets/mesh_background.dart).
+* **Sleek Cards**: Premium glassmorphism feel using the [modern_card.dart](file:///Users/deepansh/StudioProjects/SliceIt/lib/widgets/modern_card.dart) widget.
+* **Component Standardization**: Responsive layout tokens in [app_spacing.dart](file:///Users/deepansh/StudioProjects/SliceIt/lib/utils/app_spacing.dart) and high-quality animated buttons using [custom_button.dart](file:///Users/deepansh/StudioProjects/SliceIt/lib/widgets/custom_button.dart).
 
 ---
 
 ## 📂 Project Structure
 
 ```
-lib/
-├── main.dart                  # App entry point & theme setup
-├── firebase_options.dart      # Firebase configuration
-├── models/                    # Data models (Participant, Expense, etc.)
-├── screens/                   # UI Screens
-│   ├── home_screen.dart       # Dashboard
-│   ├── groups_screen.dart     # Group management
-│   ├── expenses_screen.dart   # Personal expense tracking
-│   ├── create_split_bill.dart # Bill splitting logic
-│   └── ...
-├── services/                  # Business logic & Services
-│   ├── debt_simplifier.dart   # Greedy algorithm for debt simplification
-│   ├── invite_service.dart    # Handling group invites
-│   └── ...
-├── utils/                     # Constants, Colors, Styles
-└── widgets/                   # Reusable UI components
+SliceIt/
+├── functions/                     # Backend Firebase Cloud Functions (Node.js)
+│   └── index.js                   # Cloud triggers & Callable notification functions
+├── assets/                        # Design assets, custom fonts & icons
+├── lib/
+│   ├── main.dart                  # App initialization, Providers & routes
+│   ├── firebase_options.dart      # Autogenerated configuration
+│   ├── models/                    # Data models
+│   │   ├── expense_model.dart     # Expense data structure
+│   │   ├── group_model.dart       # Group schema mapping
+│   │   ├── subscription_model.dart# Recurring bill settings
+│   │   └── settlement_model.dart  # Completed settlements
+│   ├── screens/                   # UI Modules
+│   │   ├── home_screen.dart       # Main Dashboard
+│   │   ├── group_detail_screen.dart# balances, PDF, reminders & list tabs
+│   │   ├── profile_screen.dart     # User profile and notification toggles
+│   │   ├── subscriptions_screen.dart# Recurring bill tracker
+│   │   └── analytics_screen.dart   # Interactive FL Charts
+│   ├── services/                  # Business logic and external API integrations
+│   │   ├── offline_service.dart   # Hive CRUD caching & synchronization queue
+│   │   ├── notification_service.dart# FCM listeners & local notifications
+│   │   ├── pdf_export_service.dart# PDF document layout generation
+│   │   └── debt_simplifier.dart   # Math/algorithm logic for splitting
+│   ├── utils/                     # Color tokens, styles, spacers, configurations
+│   └── widgets/                   # Centralized reusable widgets
 ```
 
 ---
 
-## �🛠️ Tech Stack
+## ⚙️ Tech Stack & Dependencies
 
-*   **Frontend**: Flutter (Dart)
-*   **Backend**: Firebase (Auth, Firestore, Functions)
-*   **State Management**: Provider
-*   **Deep Linking**: Firebase Dynamic Links / App Links
-*   **ML Integration**: Google ML Kit (for receipt scanning/smart features)
+* **Core Platform**: [Flutter SDK](https://flutter.dev) (v3.9.2+) & [Dart](https://dart.dev)
+* **Backend Platform**: [Firebase Suite](https://firebase.google.com) (Auth, Firestore, Cloud Functions, Messaging)
+* **Database & Caching**: [Hive](https://pub.dev/packages/hive) (Offline Store), [shared_preferences](https://pub.dev/packages/shared_preferences) (User Preferences)
+* **Design & Animations**: [flutter_animate](https://pub.dev/packages/flutter_animate), [fl_chart](https://pub.dev/packages/fl_chart)
+* **OCR Text Extraction**: [google_mlkit_text_recognition](https://pub.dev/packages/google_mlkit_text_recognition)
+* **Device Utility**: [share_plus](https://pub.dev/packages/share_plus), [app_links](https://pub.dev/packages/app_links), [connectivity_plus](https://pub.dev/packages/connectivity_plus), [flutter_contacts](https://pub.dev/packages/flutter_contacts)
+* **Document Generation**: [pdf](https://pub.dev/packages/pdf), [printing](https://pub.dev/packages/printing)
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+* [Flutter SDK](https://docs.flutter.dev/get-started/install) installed.
+* [Firebase CLI](https://firebase.google.com/docs/cli) installed and configured.
+* A registered Firebase project.
+
+### Local Setup
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/yourusername/sliceit.git
+   cd sliceit
+   ```
+2. **Install Flutter packages:**
+   ```bash
+   flutter pub get
+   ```
+3. **Configure Firebase:**
+   Generate platform-specific Firebase configuration using FlutterFire CLI:
+   ```bash
+   flutterfire configure --project=sliceit-124
+   ```
+   Alternatively, place the downloaded `google-services.json` (Android) and `GoogleService-Info.plist` (iOS) in their respective platform folders.
+4. **Launch the application:**
+   ```bash
+   flutter run
+   ```
+
+### ⚡ Backend Deploy (Cloud Functions)
+To activate push notifications, triggers, and manual settlement reminders, deploy the Node.js functions:
+1. Navigate to the functions directory:
+   ```bash
+   cd functions
+   ```
+2. Deploy code to your Firebase backend:
+   ```bash
+   firebase deploy --only functions
+   ```
+3. Follow function execution logs:
+   ```bash
+   firebase functions:log --follow
+   ```
 
 ---
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please follow these steps:
-1.  Fork the project.
-2.  Create your feature branch (`git checkout -b feature/AmazingFeature`).
-3.  Commit your changes (`git commit -m 'Add some AmazingFeature'`).
-4.  Push to the branch (`git push origin feature/AmazingFeature`).
-5.  Open a Pull Request.
+Contributions are welcome! Please follow these guidelines:
+1. Fork this repository.
+2. Create a specific branch (`git checkout -b feature/amazing-feature`).
+3. Commit your changes with descriptive messages (`git commit -m 'feat: Add some amazing feature'`).
+4. Push your branch (`git push origin feature/amazing-feature`).
+5. Open a Pull Request.
 
 ---
 
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+*SliceIt - Splitting bills has never been this smooth.*
+ject is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 

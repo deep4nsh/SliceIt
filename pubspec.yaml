@@ -34,7 +34,7 @@ dependencies:
 
   # Image and ML
   image_picker: ^1.0.7
-  google_ml_kit: ^0.16.0
+  google_mlkit_text_recognition: ^0.15.1
 
   # Sharing & Links
   share_plus: ^9.0.0

@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_ml_kit/google_ml_kit.dart';
+import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 
 import '../models/participant_model.dart';
 import '../models/friend_model.dart';
@@ -105,7 +105,7 @@ class _CreateSplitBillScreenState extends State<CreateSplitBillScreen> {
     if (widget.receiptImage == null) return;
     setState(() => _isParsing = true);
     try {
-      final textRecognizer = GoogleMlKit.vision.textRecognizer();
+      final textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
       final inputImage = InputImage.fromFile(widget.receiptImage!);
       final recognizedText = await textRecognizer.processImage(inputImage);
       
