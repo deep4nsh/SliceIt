@@ -467,11 +467,17 @@ class PdfExportService {
   }
 
   static pw.Widget _buildStatusCell(String text, PdfColor color, pw.Font font) {
+    // Blend the color with white (90% white, 10% color) to get a light background shade without needing transparency support.
+    final bgRed = color.red * 0.1 + 0.9;
+    final bgGreen = color.green * 0.1 + 0.9;
+    final bgBlue = color.blue * 0.1 + 0.9;
+    final bgColor = PdfColor(bgRed, bgGreen, bgBlue);
+
     return pw.Padding(
       padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 10),
       child: pw.Container(
         decoration: pw.BoxDecoration(
-          color: color.withAlpha(0.1),
+          color: bgColor,
           borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
         ),
         padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 4),

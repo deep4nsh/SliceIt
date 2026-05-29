@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
-import '../services/upi_payment_service.dart';
+
 import '../utils/colors.dart';
 import '../utils/text_styles.dart';
 import '../utils/app_spacing.dart';
@@ -75,89 +75,7 @@ class _SplitBillDetailScreenState extends State<SplitBillDetailScreen> {
     }
   }
 
-  Future<void> _settleUpWithUpi({
-    required double amount,
-    required String description,
-    required String createdByEmail,
-    required String payerEmail,
-  }) async {
-    // 1. Find the creator's user document to get their UPI ID
-    final querySnapshot = await _firestore
-        .collection('users')
-        .where('email', isEqualTo: createdByEmail)
-        .limit(1)
-        .get();
 
-    if (querySnapshot.docs.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Could not find the bill creator.', style: AppTextStyles.bodyM),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-      return;
-    }
-
-    final creatorData = querySnapshot.docs.first.data();
-    final upiId = creatorData['upiId'] as String?;
-
-    if (upiId == null || upiId.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('The bill creator has not set their UPI ID.', style: AppTextStyles.bodyM),
-            backgroundColor: AppColors.warning,
-          ),
-        );
-      }
-      return;
-    }
-
-    // 2. Try paying via UPI (Android returns actual status via platform channel)
-    final upi = UpiPaymentService();
-    final status = await upi.pay(
-      upiId: upiId,
-      amount: amount,
-      payeeName: 'SliceIt Lender',
-      note: description,
-    );
-
-    // 3. Handle result
-    if (!mounted) return;
-    if (status == 'success') {
-      await _markAsPaid(payerEmail, true);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Payment successful. Marked as paid.', style: AppTextStyles.bodyM),
-          backgroundColor: AppColors.success,
-        ),
-      );
-    } else if (status == 'submitted') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Payment submitted. It may take a moment to reflect.', style: AppTextStyles.bodyM),
-          backgroundColor: AppColors.primaryAccent,
-        ),
-      );
-    } else if (status == 'failure' || status == 'cancelled') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Payment not completed.', style: AppTextStyles.bodyM),
-          backgroundColor: AppColors.error,
-        ),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Could not confirm payment status.', style: AppTextStyles.bodyM),
-          backgroundColor: AppColors.warning,
-        ),
-      );
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -291,17 +209,7 @@ class _SplitBillDetailScreenState extends State<SplitBillDetailScreen> {
             final splitType = data['splitType'] as String? ?? 'equal';
             final amounts = (data['amounts'] as Map?)?.cast<String, num>() ?? {};
 
-            final currentUserIsParticipant = participants.contains(currentUserEmail);
-            final currentUserHasPaid = paidStatus[currentUserEmail] ?? false;
 
-            double amountOwedByCurrentUser = 0;
-            if (currentUserIsParticipant) {
-              if (splitType.contains('unequal')) {
-                amountOwedByCurrentUser = (amounts[currentUserEmail] ?? 0).toDouble();
-              } else {
-                amountOwedByCurrentUser = participants.isNotEmpty ? totalAmount / participants.length : 0;
-              }
-            }
 
             final receiptUrl = data['receiptUrl'] as String?;
 
@@ -501,64 +409,6 @@ class _SplitBillDetailScreenState extends State<SplitBillDetailScreen> {
                     ).animate().fade(delay: Duration(milliseconds: 250 + (index * 50))).slideX(begin: 0.05);
                   }),
 
-                  // Current user settlement trigger if unpaid
-                  if (currentUserIsParticipant && !currentUserHasPaid && createdBy != currentUserEmail)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 24.0),
-                      child: StreamBuilder<QuerySnapshot>(
-                        stream: _firestore
-                            .collection('users')
-                            .where('email', isEqualTo: createdBy)
-                            .limit(1)
-                            .snapshots(),
-                        builder: (context, userSnapshot) {
-                          if (!userSnapshot.hasData || userSnapshot.data!.docs.isEmpty) {
-                            return const SizedBox.shrink();
-                          }
-
-                          final creatorData = userSnapshot.data!.docs.first.data() as Map<String, dynamic>;
-                          final upiId = creatorData['upiId'] as String?;
-                          final hasUpi = upiId != null && upiId.isNotEmpty;
-
-                          if (!hasUpi) {
-                            return Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: AppColors.warning.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-                                border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(Icons.info_outline_rounded, color: AppColors.warning),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Text(
-                                      "Waiting for bill creator to add UPI ID for instant settlement.",
-                                      style: AppTextStyles.bodyM.copyWith(
-                                        color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ).animate().fade();
-                          }
-
-                          return CustomButton(
-                            text: "Settle with UPI",
-                            icon: Icons.payments_rounded,
-                            variant: ButtonVariant.primary,
-                            onPressed: () => _settleUpWithUpi(
-                              amount: amountOwedByCurrentUser,
-                              description: title,
-                              createdByEmail: createdBy!,
-                              payerEmail: currentUserEmail!,
-                            ),
-                          ).animate().fade().scaleXY(begin: 0.95, end: 1.0);
-                        },
-                      ),
-                    ),
                 ],
               ),
             );

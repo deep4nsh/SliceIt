@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_functions/cloud_functions.dart';
 import 'package:provider/provider.dart';
 import '../utils/colors.dart';
 import '../utils/app_spacing.dart';
@@ -63,179 +62,65 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     await showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusLg)),
-        title: Text("Set Monthly Budget", style: AppTextStyles.h3),
-        content: TextField(
-          controller: budgetController,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(
-            labelText: "Amount",
-            prefixText: "₹ ",
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text("Cancel", style: AppTextStyles.bodyM.copyWith(color: AppColors.textSecondary)),
-          ),
-          CustomButton(
-            text: "Save",
-            width: 100,
-            height: 44,
-            onPressed: () async {
-              final newBudget = double.tryParse(budgetController.text);
-              if (newBudget != null && newBudget > 0) {
-                await _firestore
-                    .collection('users')
-                    .doc(user.uid)
-                    .set({'monthlyBudget': newBudget}, SetOptions(merge: true));
-
-                _loadUserData(); // Reload data
-                if (mounted) Navigator.pop(context);
-              } else if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Please enter a valid amount.")),
-                );
-              }
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _showEditUpiDialog() async {
-    final upiController = TextEditingController(text: userData?['upiId']);
-    final user = _auth.currentUser;
-    if (user == null) return;
-
-    String? verifiedName;
-    bool isVerifying = false;
-    String? errorMessage;
-
-    await showDialog(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
+      builder: (dialogContext) {
+        final dialogIsDark = Theme.of(dialogContext).brightness == Brightness.dark;
+        return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusLg)),
-          title: Text("Set UPI ID", style: AppTextStyles.h3),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextField(
-                controller: upiController,
-                decoration: InputDecoration(
-                  labelText: "UPI ID (e.g. name@bank)",
-                  errorText: errorMessage,
-                  suffixIcon: isVerifying
-                      ? const Padding(
-                          padding: EdgeInsets.all(12.0),
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : IconButton(
-                          icon: const Icon(Icons.check_circle_outline),
-                          onPressed: () async {
-                            final vpa = upiController.text.trim();
-                            if (vpa.isEmpty) return;
-
-                            setState(() {
-                              isVerifying = true;
-                              errorMessage = null;
-                              verifiedName = null;
-                            });
-
-                            try {
-                              final result = await FirebaseFunctions.instance
-                                  .httpsCallable('verifyVpa')
-                                  .call({'vpa': vpa});
-                              
-                              final data = result.data as Map<dynamic, dynamic>;
-                              if (data['valid'] == true) {
-                                setState(() {
-                                  verifiedName = data['name'];
-                                });
-                              }
-                            } catch (e) {
-                              setState(() {
-                                errorMessage = "Invalid VPA or verification failed";
-                              });
-                            } finally {
-                              setState(() {
-                                isVerifying = false;
-                              });
-                            }
-                          },
-                        ),
-                ),
-              ),
-              if (verifiedName != null) ...[
-                const SizedBox(height: 10),
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.verified, color: Colors.green, size: 16),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          "Verified: $verifiedName",
-                          style: const TextStyle(
-                              color: Colors.green, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ]
-            ],
+          title: Text("Set Monthly Budget", style: AppTextStyles.h3),
+          content: TextField(
+            controller: budgetController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              labelText: "Amount",
+              prefixText: "₹ ",
+            ),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text("Cancel", style: AppTextStyles.bodyM.copyWith(color: AppColors.textSecondary)),
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text("Cancel", style: AppTextStyles.bodyM.copyWith(color: dialogIsDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary)),
             ),
             CustomButton(
               text: "Save",
               width: 100,
               height: 44,
-              onPressed: verifiedName == null
-                  ? null
-                  : () async {
-                      final upi = upiController.text.trim();
-                      await _firestore.collection('users').doc(user.uid).set({
-                        'upiId': upi,
-                        'vpaVerifiedName': verifiedName,
-                        'vpaStatus': 'VERIFIED',
-                        'updatedAt': FieldValue.serverTimestamp(),
-                      }, SetOptions(merge: true));
+              onPressed: () async {
+                final newBudget = double.tryParse(budgetController.text);
+                if (newBudget != null && newBudget > 0) {
+                  await _firestore
+                      .collection('users')
+                      .doc(user.uid)
+                      .set({'monthlyBudget': newBudget}, SetOptions(merge: true));
 
-                      _loadUserData(); // Reload data
-                      if (context.mounted) Navigator.pop(context);
-                    },
+                  _loadUserData(); // Reload data
+                  if (mounted) Navigator.pop(context);
+                } else if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Please enter a valid amount.")),
+                  );
+                }
+              },
             ),
           ],
-        ),
-      ),
+        );
+      },
     );
   }
+
+
 
   @override
   Widget build(BuildContext context) {
     final user = _auth.currentUser;
     final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDark = themeProvider.isDarkMode;
 
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: Text("Profile", style: AppTextStyles.h2.copyWith(color: Colors.white)),
+        title: Text("Profile", style: AppTextStyles.h2.copyWith(color: isDark ? Colors.white : AppColors.textDarkPrimary)),
         backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
+        foregroundColor: isDark ? Colors.white : AppColors.textDarkPrimary,
         elevation: 0,
       ),
       body: MeshBackground(
@@ -271,26 +156,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ? NetworkImage(user!.photoURL!)
                             : null,
                         child: user?.photoURL == null
-                            ? const Icon(Icons.person, size: 50, color: AppColors.textSecondary)
+                            ? Icon(Icons.person, size: 50, color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary)
                             : null,
                       ),
                     ),
                     const SizedBox(height: 12),
                     Text(
                       userData?['name'] ?? user?.displayName ?? "User",
-                      style: AppTextStyles.h2.copyWith(color: Colors.white),
+                      style: AppTextStyles.h2.copyWith(color: isDark ? Colors.white : AppColors.textDarkPrimary),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       userData?['email'] ?? user?.email ?? "No Email",
-                      style: AppTextStyles.bodyM.copyWith(color: Colors.white70),
+                      style: AppTextStyles.bodyM.copyWith(color: isDark ? Colors.white70 : AppColors.textDarkSecondary),
                     ),
                     const SizedBox(height: 30),
                     ModernCard(
                       child: Column(
                         children: [
                           _buildInfoRow("User ID", user?.uid ?? "N/A"),
-                          const Divider(height: 32, color: Colors.white12),
+                          Divider(height: 32, color: isDark ? Colors.white12 : AppColors.lightSurfaceBorder),
                           _buildInfoRow(
                             "Joined On",
                             userData?['createdAt'] != null
@@ -329,32 +214,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    ModernCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text("UPI ID", style: AppTextStyles.h3),
-                          const SizedBox(height: 16),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  userData?['upiId'] ?? 'Not Set',
-                                  style: AppTextStyles.h2.copyWith(color: AppColors.secondaryAccent),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.edit, color: AppColors.secondaryAccent),
-                                onPressed: _showEditUpiDialog,
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
+
                     const SizedBox(height: 8),
                     Consumer<NotificationPreferences>(
                       builder: (context, notificationPrefs, _) => Column(
@@ -374,7 +234,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   icon: Icons.notifications,
                                 ),
                                 if (notificationPrefs.pushNotificationsEnabled) ...[
-                                  const Divider(height: 20, color: Colors.white12),
+                                  Divider(height: 20, color: isDark ? Colors.white12 : AppColors.lightSurfaceBorder),
                                   _buildNotificationToggle(
                                     title: "Settlement Reminders",
                                     subtitle: "Get reminded about pending payments",
@@ -467,15 +327,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildInfoRow(String label, String value) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: AppTextStyles.bodyM.copyWith(color: Colors.white60)),
+        Text(label, style: AppTextStyles.bodyM.copyWith(color: isDark ? Colors.white60 : AppColors.textDarkSecondary)),
         Flexible(
           child: Text(
             value,
             overflow: TextOverflow.ellipsis,
-            style: AppTextStyles.bodyL.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
+            style: AppTextStyles.bodyL.copyWith(color: isDark ? Colors.white : AppColors.textDarkPrimary, fontWeight: FontWeight.w600),
           ),
         ),
       ],
@@ -490,6 +351,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required IconData icon,
     bool indented = false,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Row(
       children: [
         if (indented) const SizedBox(width: 20),
@@ -509,7 +371,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: 4),
               Text(
                 subtitle,
-                style: AppTextStyles.bodyM.copyWith(color: Colors.white60),
+                style: AppTextStyles.bodyM.copyWith(color: isDark ? Colors.white60 : AppColors.textDarkSecondary),
               ),
             ],
           ),

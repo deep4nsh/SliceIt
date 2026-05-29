@@ -50,7 +50,6 @@ class AuthService {
         'name': user.displayName ?? '',
         'email': user.email ?? '',
         'photoUrl': user.photoURL ?? '',
-        'upiId': '',
         'createdAt': FieldValue.serverTimestamp(),
         'lastSignIn': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
@@ -61,7 +60,6 @@ class AuthService {
         'name': user.displayName ?? '',
         'email': user.email ?? '',
         'photoUrl': user.photoURL ?? '',
-        'upiId': '',
         'createdAt': ServerValue.timestamp,
         'lastSignIn': ServerValue.timestamp,
       });

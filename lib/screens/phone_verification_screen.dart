@@ -122,8 +122,11 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final secondaryTextColor = isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary;
+
     return Scaffold(
-      backgroundColor: AppColors.surfaceWhite,
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -135,10 +138,10 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
                 MaterialPageRoute(builder: (_) => const MainShell()),
               );
             },
-            child: const Text(
+            child: Text(
               "Skip",
               style: TextStyle(
-                color: AppColors.textSecondary,
+                color: secondaryTextColor,
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
               ),
@@ -176,7 +179,7 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
                 const SizedBox(height: 12),
                 Text(
                   "Add your phone number to easily split bills with contacts and recover your account.",
-                  style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
+                  style: AppTextStyles.body.copyWith(color: secondaryTextColor),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 40),
@@ -213,10 +216,10 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
                       MaterialPageRoute(builder: (_) => const MainShell()),
                     );
                   },
-                  child: const Text(
+                  child: Text(
                     "Skip for now",
                     style: TextStyle(
-                      color: AppColors.textSecondary,
+                      color: secondaryTextColor,
                       fontWeight: FontWeight.w600,
                       fontSize: 16,
                     ),

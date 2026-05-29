@@ -72,21 +72,18 @@ class AppTextStyles {
     fontFamily: _fontFamily,
     fontWeight: FontWeight.bold,
     fontSize: 28,
-    color: AppColors.textPrimary,
   );
 
   static const TextStyle heading2 = TextStyle(
     fontFamily: _fontFamily,
     fontWeight: FontWeight.w600,
     fontSize: 20,
-    color: AppColors.textPrimary,
   );
 
   static const TextStyle body = TextStyle(
     fontFamily: _fontFamily,
     fontWeight: FontWeight.w400,
     fontSize: 16,
-    color: AppColors.textPrimary,
   );
 
   static const TextStyle button = TextStyle(

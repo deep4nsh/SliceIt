@@ -89,13 +89,16 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final secondaryTextColor = isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary;
+
     return Scaffold(
-      backgroundColor: AppColors.surfaceWhite,
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: isDark ? Colors.white : AppColors.textDarkPrimary),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -128,7 +131,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                 const SizedBox(height: AppSpacing.sm),
                 Text(
                   "Code sent via SMS to ${widget.phoneNumber}",
-                  style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
+                  style: AppTextStyles.body.copyWith(color: secondaryTextColor),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: AppSpacing.xxl),
@@ -137,12 +140,15 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                   keyboardType: TextInputType.number,
                   maxLength: 6,
                   textAlign: TextAlign.center,
-                  style: AppTextStyles.heading2.copyWith(letterSpacing: 8),
+                  style: AppTextStyles.heading2.copyWith(
+                    letterSpacing: 8,
+                    color: isDark ? Colors.white : AppColors.textDarkPrimary,
+                  ),
                   decoration: InputDecoration(
                     counterText: "",
                     hintText: "••••••",
                     hintStyle: AppTextStyles.heading2.copyWith(
-                      color: AppColors.textSecondary.withValues(alpha: 0.3),
+                      color: secondaryTextColor.withValues(alpha: 0.3),
                       letterSpacing: 8,
                     ),
                     border: OutlineInputBorder(
