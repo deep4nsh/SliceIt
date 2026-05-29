@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../models/friend_model.dart';
 import '../services/friend_service.dart';
@@ -34,6 +35,74 @@ class _SplitBillsScreenState extends State<SplitBillsScreen> {
   final picker = ImagePicker();
 
   Future<void> _processImage(ImageSource source) async {
+    if (Platform.isAndroid) {
+      if (source == ImageSource.camera) {
+        final status = await Permission.camera.status;
+        if (status.isDenied) {
+          final result = await Permission.camera.request();
+          if (!result.isGranted) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Camera permission is required to take photos.', style: AppTextStyles.bodyM),
+                  backgroundColor: AppColors.error,
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            }
+            return;
+          }
+        }
+      } else if (source == ImageSource.gallery) {
+        int sdkInt = 0;
+        try {
+          final sdkString = Platform.operatingSystemVersion;
+          if (sdkString.contains('SDK')) {
+            final match = RegExp(r'SDK\s+(\d+)').firstMatch(sdkString);
+            if (match != null) {
+              sdkInt = int.parse(match.group(1)!);
+            }
+          }
+        } catch (_) {}
+
+        if (sdkInt >= 33) {
+          final status = await Permission.photos.status;
+          if (status.isDenied) {
+            final result = await Permission.photos.request();
+            if (!result.isGranted) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Gallery permission is required to upload photos.', style: AppTextStyles.bodyM),
+                    backgroundColor: AppColors.error,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+              return;
+            }
+          }
+        } else {
+          final status = await Permission.storage.status;
+          if (status.isDenied) {
+            final result = await Permission.storage.request();
+            if (!result.isGranted) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Storage permission is required to upload photos.', style: AppTextStyles.bodyM),
+                    backgroundColor: AppColors.error,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+              return;
+            }
+          }
+        }
+      }
+    }
+
     final pickedFile = await picker.pickImage(source: source);
     if (pickedFile == null) return;
 

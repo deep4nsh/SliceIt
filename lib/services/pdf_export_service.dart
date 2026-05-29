@@ -5,251 +5,15 @@ import 'package:intl/intl.dart';
 
 class PdfExportService {
   static final _dateFormat = DateFormat('dd MMM yyyy');
-  static final _timeFormat = DateFormat('HH:mm');
   static final _currencyFormat = NumberFormat.currency(symbol: '₹', decimalDigits: 2);
 
-  static Future<void> exportGroupInvoice({
-    required String groupName,
-    required List<Map<String, dynamic>> expenses,
-    required Map<String, double> balances,
-  }) async {
-    final totalAmount = expenses.fold<double>(0, (sum, exp) => sum + ((exp['amount'] as num?)?.toDouble() ?? 0));
-
-    final pdf = pw.Document();
-
-    pdf.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(30),
-        header: (context) => pw.Column(
-          children: [
-            pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Text(
-                      '🍕 SliceIt',
-                      style: pw.TextStyle(fontSize: 28, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('0x3C78D8')),
-                    ),
-                    pw.Text(
-                      'Group Expense Report',
-                      style: pw.TextStyle(fontSize: 12, color: PdfColors.grey700),
-                    ),
-                  ],
-                ),
-                pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.end,
-                  children: [
-                    pw.Text(
-                      'Report Date',
-                      style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
-                    ),
-                    pw.Text(
-                      _dateFormat.format(DateTime.now()),
-                      style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            pw.SizedBox(height: 12),
-            pw.Divider(),
-            pw.SizedBox(height: 12),
-          ],
-        ),
-        build: (context) => [
-          // Group Header
-          pw.Container(
-            padding: const pw.EdgeInsets.all(16),
-            decoration: pw.BoxDecoration(
-              color: PdfColor.fromHex('0xF3F3F3'),
-              border: pw.Border.all(color: PdfColors.grey300),
-              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
-            ),
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Text(
-                  'GROUP: $groupName',
-                  style: pw.TextStyle(
-                    fontSize: 16,
-                    fontWeight: pw.FontWeight.bold,
-                    color: PdfColor.fromHex('0x1F2937'),
-                  ),
-                ),
-                pw.SizedBox(height: 8),
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text('Members: ${balances.length}', style: const pw.TextStyle(fontSize: 11)),
-                    pw.Text('Total Expenses: ${expenses.length}', style: const pw.TextStyle(fontSize: 11)),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          pw.SizedBox(height: 20),
-
-          // Summary Cards
-          pw.Row(
-            children: [
-              pw.Expanded(
-                child: _buildSummaryCard(
-                  'TOTAL SPENT',
-                  _currencyFormat.format(totalAmount),
-                  PdfColor.fromHex('0x3C78D8'),
-                ),
-              ),
-              pw.SizedBox(width: 10),
-              pw.Expanded(
-                child: _buildSummaryCard(
-                  'AVG PER EXPENSE',
-                  _currencyFormat.format(expenses.isEmpty ? 0 : totalAmount / expenses.length),
-                  PdfColor.fromHex('0x34A853'),
-                ),
-              ),
-              pw.SizedBox(width: 10),
-              pw.Expanded(
-                child: _buildSummaryCard(
-                  'MEMBERS',
-                  '${balances.length}',
-                  PdfColor.fromHex('0xEA4335'),
-                ),
-              ),
-            ],
-          ),
-          pw.SizedBox(height: 24),
-
-          // Detailed Expenses Table
-          pw.Text(
-            'EXPENSE BREAKDOWN',
-            style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
-          ),
-          pw.SizedBox(height: 10),
-          pw.TableHelper.fromTextArray(
-            headers: ['#', 'Title', 'Amount', 'Paid By', 'Date'],
-            data: [
-              for (int i = 0; i < expenses.length; i++)
-                [
-                  '${i + 1}',
-                  (expenses[i]['title'] as String?)?.substring(0, 20) ?? 'Unknown',
-                  _currencyFormat.format((expenses[i]['amount'] as num?)?.toDouble() ?? 0),
-                  ((expenses[i]['paidBy'] as String?) ?? 'Unknown').split('@').first,
-                  _formatDate(expenses[i]['date']),
-                ],
-            ],
-            headerStyle: pw.TextStyle(
-              fontSize: 10,
-              fontWeight: pw.FontWeight.bold,
-              color: PdfColors.white,
-            ),
-            headerDecoration: pw.BoxDecoration(
-              color: PdfColor.fromHex('0x1F2937'),
-            ),
-            rowDecoration: pw.BoxDecoration(
-              border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey200, width: 0.5)),
-            ),
-            cellAlignment: pw.Alignment.centerLeft,
-            cellPadding: const pw.EdgeInsets.all(8),
-            cellHeight: 24,
-            columnWidths: {
-              0: const pw.FixedColumnWidth(30),
-              1: const pw.FlexColumnWidth(2),
-              2: const pw.FlexColumnWidth(1.2),
-              3: const pw.FlexColumnWidth(1.5),
-              4: const pw.FlexColumnWidth(1.3),
-            },
-          ),
-          pw.SizedBox(height: 20),
-
-          // Member Settlement Summary
-          pw.Text(
-            'MEMBER SUMMARY',
-            style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
-          ),
-          pw.SizedBox(height: 10),
-          pw.TableHelper.fromTextArray(
-            headers: ['Member', 'Balance', 'Status'],
-            data: [
-              for (var entry in balances.entries) ...[
-                [
-                  entry.key.split('@').first,
-                  _currencyFormat.format(entry.value),
-                  entry.value > 0 ? 'Owed Money' : (entry.value < 0 ? 'Owes Money' : 'Settled'),
-                ],
-              ],
-            ],
-            headerStyle: pw.TextStyle(
-              fontSize: 10,
-              fontWeight: pw.FontWeight.bold,
-              color: PdfColors.white,
-            ),
-            headerDecoration: pw.BoxDecoration(
-              color: PdfColor.fromHex('0x1F2937'),
-            ),
-            rowDecoration: pw.BoxDecoration(
-              border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey200, width: 0.5)),
-            ),
-            cellAlignment: pw.Alignment.centerLeft,
-            cellPadding: const pw.EdgeInsets.all(8),
-          ),
-          pw.SizedBox(height: 30),
-
-          // Footer
-          pw.Divider(),
-          pw.Text(
-            'Generated by SliceIt • Split bills effortlessly',
-            style: pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
-            textAlign: pw.TextAlign.center,
-          ),
-        ],
-        footer: (context) => pw.SizedBox.shrink(),
-      ),
-    );
-
-    await Printing.sharePdf(
-      bytes: await pdf.save(),
-      filename: 'sliceit_${groupName.toLowerCase().replaceAll(' ', '_')}_invoice_${DateTime.now().millisecondsSinceEpoch}.pdf',
-    );
-  }
-
-  static Future<void> exportGroupStatement({
-    required String groupName,
-    required List<Map<String, dynamic>> expenses,
-    required Map<String, double> balances,
-  }) async {
-    return exportGroupInvoice(
-      groupName: groupName,
-      expenses: expenses,
-      balances: balances,
-    );
-  }
-
-  static pw.Widget _buildSummaryCard(String label, String value, PdfColor color) {
-    return pw.Container(
-      padding: const pw.EdgeInsets.all(12),
-      decoration: pw.BoxDecoration(
-        border: pw.Border.all(color: color, width: 2),
-        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
-      ),
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.center,
-        children: [
-          pw.Text(
-            label,
-            style: pw.TextStyle(fontSize: 9, color: PdfColors.grey700, fontWeight: pw.FontWeight.bold),
-          ),
-          pw.SizedBox(height: 6),
-          pw.Text(
-            value,
-            style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold, color: color),
-            textAlign: pw.TextAlign.center,
-          ),
-        ],
-      ),
-    );
+  static String _escapeHtml(String text) {
+    return text
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
   }
 
   static String _formatDate(dynamic dateValue) {
@@ -267,167 +31,579 @@ class PdfExportService {
     }
   }
 
+  static Future<void> exportGroupInvoice({
+    required String groupName,
+    required List<Map<String, dynamic>> expenses,
+    required Map<String, double> balances,
+    bool share = true,
+  }) async {
+    final totalAmount = expenses.fold<double>(0, (sum, exp) => sum + ((exp['amount'] as num?)?.toDouble() ?? 0));
+    final escapedGroupName = _escapeHtml(groupName);
+
+    // Build expenses table rows
+    final buffer = StringBuffer();
+    for (int i = 0; i < expenses.length; i++) {
+      final exp = expenses[i];
+      final title = _escapeHtml((exp['title'] as String?) ?? 'Unknown');
+      final amount = (exp['amount'] as num?)?.toDouble() ?? 0;
+      final paidBy = _escapeHtml(((exp['paidBy'] as String?) ?? 'Unknown').split('@').first);
+      final date = _formatDate(exp['date']);
+
+      buffer.write('''
+        <tr>
+          <td>${i + 1}</td>
+          <td>$title</td>
+          <td>${_currencyFormat.format(amount)}</td>
+          <td>$paidBy</td>
+          <td>$date</td>
+        </tr>
+      ''');
+    }
+    final expensesRows = buffer.toString();
+
+    // Build members summary table rows
+    final membersBuffer = StringBuffer();
+    for (var entry in balances.entries) {
+      final name = _escapeHtml(entry.key.split('@').first);
+      final val = entry.value;
+      final statusText = val > 0 ? 'Owed Money' : (val < 0 ? 'Owes Money' : 'Settled');
+      final badgeClass = val > 0 ? 'owed' : (val < 0 ? 'owes' : 'settled');
+
+      membersBuffer.write('''
+        <tr>
+          <td>$name</td>
+          <td>${_currencyFormat.format(val)}</td>
+          <td><span class="badge $badgeClass">$statusText</span></td>
+        </tr>
+      ''');
+    }
+    final membersRows = membersBuffer.toString();
+
+    final htmlContent = '''
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #1f2937;
+      margin: 0;
+      padding: 30px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid #e5e7eb;
+      padding-bottom: 15px;
+      margin-bottom: 25px;
+    }
+    .logo {
+      font-size: 26px;
+      font-weight: 800;
+      color: #3C78D8;
+    }
+    .title-sub {
+      font-size: 12px;
+      color: #6b7280;
+      margin-top: 4px;
+    }
+    .date-box {
+      text-align: right;
+    }
+    .date-label {
+      font-size: 10px;
+      color: #6b7280;
+      text-transform: uppercase;
+      font-weight: bold;
+      letter-spacing: 0.5px;
+    }
+    .date-value {
+      font-size: 14px;
+      font-weight: 700;
+      color: #111827;
+      margin-top: 2px;
+    }
+    .group-card {
+      background-color: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+    .group-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #111827;
+      margin: 0 0 8px 0;
+    }
+    .group-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #4b5563;
+    }
+    .bento-grid {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 30px;
+    }
+    .bento-card {
+      flex: 1;
+      border-radius: 8px;
+      padding: 15px;
+      text-align: center;
+      background: #ffffff;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .bento-card.blue { border: 1.5px solid #3c78d8; border-top: 6px solid #3c78d8; }
+    .bento-card.green { border: 1.5px solid #34a853; border-top: 6px solid #34a853; }
+    .bento-card.red { border: 1.5px solid #ea4335; border-top: 6px solid #ea4335; }
+    .bento-label {
+      font-size: 9px;
+      font-weight: 800;
+      color: #6b7280;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      letter-spacing: 0.5px;
+    }
+    .bento-value {
+      font-size: 18px;
+      font-weight: 800;
+    }
+    .bento-card.blue .bento-value { color: #3c78d8; }
+    .bento-card.green .bento-value { color: #34a853; }
+    .bento-card.red .bento-value { color: #ea4335; }
+    
+    h2 {
+      font-size: 15px;
+      font-weight: 700;
+      margin: 25px 0 12px 0;
+      color: #111827;
+      border-left: 4px solid #3c78d8;
+      padding-left: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 25px;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+      border: 1px solid #e5e7eb;
+    }
+    th {
+      background-color: #1f2937;
+      color: #ffffff;
+      font-weight: 600;
+      text-align: left;
+      padding: 12px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    td {
+      padding: 12px;
+      border-bottom: 1px solid #e5e7eb;
+      color: #374151;
+    }
+    tr:last-child td {
+      border-bottom: none;
+    }
+    tr:nth-child(even) {
+      background-color: #fcfdfd;
+    }
+    .text-right {
+      text-align: right;
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .badge.owed {
+      background-color: #e6f4ea;
+      color: #137333;
+    }
+    .badge.owes {
+      background-color: #fce8e6;
+      color: #c5221f;
+    }
+    .badge.settled {
+      background-color: #f1f3f4;
+      color: #5f6368;
+    }
+    .footer {
+      border-top: 1px solid #e5e7eb;
+      padding-top: 15px;
+      margin-top: 40px;
+      text-align: center;
+      font-size: 10px;
+      color: #9ca3af;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <div class="logo">🍕 SliceIt</div>
+      <div class="title-sub">Group Expense Report</div>
+    </div>
+    <div class="date-box">
+      <div class="date-label">Report Date</div>
+      <div class="date-value">${_dateFormat.format(DateTime.now())}</div>
+    </div>
+  </div>
+
+  <div class="group-card">
+    <div class="group-title">GROUP: $escapedGroupName</div>
+    <div class="group-meta">
+      <span>Members: ${balances.length}</span>
+      <span>Total Expenses: ${expenses.length}</span>
+    </div>
+  </div>
+
+  <div class="bento-grid">
+    <div class="bento-card blue">
+      <div class="bento-label">Total Spent</div>
+      <div class="bento-value">${_currencyFormat.format(totalAmount)}</div>
+    </div>
+    <div class="bento-card green">
+      <div class="bento-label">Avg Per Expense</div>
+      <div class="bento-value">${_currencyFormat.format(expenses.isEmpty ? 0 : totalAmount / expenses.length)}</div>
+    </div>
+    <div class="bento-card red">
+      <div class="bento-label">Total Members</div>
+      <div class="bento-value">${balances.length}</div>
+    </div>
+  </div>
+
+  <h2>Expense Breakdown</h2>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 8%;">#</th>
+        <th style="width: 42%;">Title</th>
+        <th style="width: 18%;">Amount</th>
+        <th style="width: 18%;">Paid By</th>
+        <th style="width: 14%;">Date</th>
+      </tr>
+    </thead>
+    <tbody>
+      $expensesRows
+    </tbody>
+  </table>
+
+  <h2>Member Summary</h2>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 45%;">Member</th>
+        <th style="width: 30%;">Balance</th>
+        <th style="width: 25%;">Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      $membersRows
+    </tbody>
+  </table>
+
+  <div class="footer">
+    Generated by SliceIt • Split bills effortlessly
+  </div>
+</body>
+</html>
+    ''';
+
+    final pdfBytes = await Printing.convertHtml(
+      html: htmlContent,
+      format: PdfPageFormat.a4,
+    );
+
+    if (share) {
+      await Printing.sharePdf(
+        bytes: pdfBytes,
+        filename: 'sliceit_${groupName.toLowerCase().replaceAll(' ', '_')}_invoice_${DateTime.now().millisecondsSinceEpoch}.pdf',
+      );
+    } else {
+      await Printing.layoutPdf(
+        onLayout: (format) async => pdfBytes,
+        name: 'sliceit_${groupName.toLowerCase().replaceAll(' ', '_')}_invoice_${DateTime.now().millisecondsSinceEpoch}',
+      );
+    }
+  }
+
+  static Future<void> exportGroupStatement({
+    required String groupName,
+    required List<Map<String, dynamic>> expenses,
+    required Map<String, double> balances,
+    bool share = true,
+  }) async {
+    return exportGroupInvoice(
+      groupName: groupName,
+      expenses: expenses,
+      balances: balances,
+      share: share,
+    );
+  }
+
   static Future<void> exportPersonalStatement({
     required String userName,
     required List<Map<String, dynamic>> expenses,
     required double totalSpent,
+    bool share = true,
   }) async {
-    final pdf = pw.Document();
+    final escapedUserName = _escapeHtml(userName);
 
-    pdf.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(30),
-        header: (context) => pw.Column(
-          children: [
-            pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Text(
-                      '🍕 SliceIt',
-                      style: pw.TextStyle(fontSize: 28, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('0x3C78D8')),
-                    ),
-                    pw.Text(
-                      'Personal Expense Report',
-                      style: pw.TextStyle(fontSize: 12, color: PdfColors.grey700),
-                    ),
-                  ],
-                ),
-                pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.end,
-                  children: [
-                    pw.Text(
-                      'Report Date',
-                      style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
-                    ),
-                    pw.Text(
-                      _dateFormat.format(DateTime.now()),
-                      style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            pw.SizedBox(height: 12),
-            pw.Divider(),
-            pw.SizedBox(height: 12),
-          ],
-        ),
-        build: (context) => [
-          pw.Container(
-            padding: const pw.EdgeInsets.all(16),
-            decoration: pw.BoxDecoration(
-              color: PdfColor.fromHex('0xF3F3F3'),
-              border: pw.Border.all(color: PdfColors.grey300),
-              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
-            ),
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Text(
-                  'USER: $userName',
-                  style: pw.TextStyle(
-                    fontSize: 16,
-                    fontWeight: pw.FontWeight.bold,
-                    color: PdfColor.fromHex('0x1F2937'),
-                  ),
-                ),
-                pw.SizedBox(height: 8),
-                pw.Text(
-                  'Personal Expense Tracking Report',
-                  style: pw.TextStyle(fontSize: 11, color: PdfColors.grey700),
-                ),
-              ],
-            ),
-          ),
-          pw.SizedBox(height: 20),
+    // Build expenses table rows
+    final buffer = StringBuffer();
+    for (int i = 0; i < expenses.length; i++) {
+      final exp = expenses[i];
+      final title = _escapeHtml((exp['title'] as String?) ?? 'Unknown');
+      final amount = (exp['amount'] as num?)?.toDouble() ?? 0;
+      final category = _escapeHtml((exp['category'] as String?) ?? 'Other');
+      final date = _formatDate(exp['date']);
 
-          pw.Row(
-            children: [
-              pw.Expanded(
-                child: _buildSummaryCard(
-                  'TOTAL SPENT',
-                  _currencyFormat.format(totalSpent),
-                  PdfColor.fromHex('0x3C78D8'),
-                ),
-              ),
-              pw.SizedBox(width: 10),
-              pw.Expanded(
-                child: _buildSummaryCard(
-                  'EXPENSE COUNT',
-                  '${expenses.length}',
-                  PdfColor.fromHex('0x34A853'),
-                ),
-              ),
-              pw.SizedBox(width: 10),
-              pw.Expanded(
-                child: _buildSummaryCard(
-                  'AVG EXPENSE',
-                  _currencyFormat.format(expenses.isEmpty ? 0 : totalSpent / expenses.length),
-                  PdfColor.fromHex('0xEA4335'),
-                ),
-              ),
-            ],
-          ),
-          pw.SizedBox(height: 24),
+      buffer.write('''
+        <tr>
+          <td>${i + 1}</td>
+          <td>$title</td>
+          <td>${_currencyFormat.format(amount)}</td>
+          <td>$category</td>
+          <td>$date</td>
+        </tr>
+      ''');
+    }
+    final expensesRows = buffer.toString();
 
-          pw.Text(
-            'EXPENSE DETAILS',
-            style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
-          ),
-          pw.SizedBox(height: 10),
-          pw.TableHelper.fromTextArray(
-            headers: ['#', 'Title', 'Amount', 'Category', 'Date'],
-            data: [
-              for (int i = 0; i < expenses.length; i++)
-                [
-                  '${i + 1}',
-                  (expenses[i]['title'] as String?)?.substring(0, 20) ?? 'Unknown',
-                  _currencyFormat.format((expenses[i]['amount'] as num?)?.toDouble() ?? 0),
-                  (expenses[i]['category'] as String?) ?? 'Other',
-                  _formatDate(expenses[i]['date']),
-                ],
-            ],
-            headerStyle: pw.TextStyle(
-              fontSize: 10,
-              fontWeight: pw.FontWeight.bold,
-              color: PdfColors.white,
-            ),
-            headerDecoration: pw.BoxDecoration(
-              color: PdfColor.fromHex('0x1F2937'),
-            ),
-            rowDecoration: pw.BoxDecoration(
-              border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey200, width: 0.5)),
-            ),
-            cellAlignment: pw.Alignment.centerLeft,
-            cellPadding: const pw.EdgeInsets.all(8),
-            cellHeight: 24,
-            columnWidths: {
-              0: const pw.FixedColumnWidth(30),
-              1: const pw.FlexColumnWidth(2),
-              2: const pw.FlexColumnWidth(1.2),
-              3: const pw.FlexColumnWidth(1.2),
-              4: const pw.FlexColumnWidth(1.3),
-            },
-          ),
-          pw.SizedBox(height: 30),
-          pw.Divider(),
-          pw.Text(
-            'Generated by SliceIt • Split bills effortlessly',
-            style: pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
-            textAlign: pw.TextAlign.center,
-          ),
-        ],
-        footer: (context) => pw.SizedBox.shrink(),
-      ),
+    final htmlContent = '''
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #1f2937;
+      margin: 0;
+      padding: 30px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid #e5e7eb;
+      padding-bottom: 15px;
+      margin-bottom: 25px;
+    }
+    .logo {
+      font-size: 26px;
+      font-weight: 800;
+      color: #3C78D8;
+    }
+    .title-sub {
+      font-size: 12px;
+      color: #6b7280;
+      margin-top: 4px;
+    }
+    .date-box {
+      text-align: right;
+    }
+    .date-label {
+      font-size: 10px;
+      color: #6b7280;
+      text-transform: uppercase;
+      font-weight: bold;
+      letter-spacing: 0.5px;
+    }
+    .date-value {
+      font-size: 14px;
+      font-weight: 700;
+      color: #111827;
+      margin-top: 2px;
+    }
+    .user-card {
+      background-color: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+    .user-name {
+      font-size: 18px;
+      font-weight: 700;
+      color: #111827;
+      margin: 0 0 8px 0;
+    }
+    .user-meta {
+      font-size: 12px;
+      color: #4b5563;
+    }
+    .bento-grid {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 30px;
+    }
+    .bento-card {
+      flex: 1;
+      border-radius: 8px;
+      padding: 15px;
+      text-align: center;
+      background: #ffffff;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .bento-card.blue { border: 1.5px solid #3c78d8; border-top: 6px solid #3c78d8; }
+    .bento-card.green { border: 1.5px solid #34a853; border-top: 6px solid #34a853; }
+    .bento-card.red { border: 1.5px solid #ea4335; border-top: 6px solid #ea4335; }
+    .bento-label {
+      font-size: 9px;
+      font-weight: 800;
+      color: #6b7280;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      letter-spacing: 0.5px;
+    }
+    .bento-value {
+      font-size: 18px;
+      font-weight: 800;
+    }
+    .bento-card.blue .bento-value { color: #3c78d8; }
+    .bento-card.green .bento-value { color: #34a853; }
+    .bento-card.red .bento-value { color: #ea4335; }
+    
+    h2 {
+      font-size: 15px;
+      font-weight: 700;
+      margin: 25px 0 12px 0;
+      color: #111827;
+      border-left: 4px solid #3c78d8;
+      padding-left: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 25px;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+      border: 1px solid #e5e7eb;
+    }
+    th {
+      background-color: #1f2937;
+      color: #ffffff;
+      font-weight: 600;
+      text-align: left;
+      padding: 12px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    td {
+      padding: 12px;
+      border-bottom: 1px solid #e5e7eb;
+      color: #374151;
+    }
+    tr:last-child td {
+      border-bottom: none;
+    }
+    tr:nth-child(even) {
+      background-color: #fcfdfd;
+    }
+    .footer {
+      border-top: 1px solid #e5e7eb;
+      padding-top: 15px;
+      margin-top: 40px;
+      text-align: center;
+      font-size: 10px;
+      color: #9ca3af;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <div class="logo">🍕 SliceIt</div>
+      <div class="title-sub">Personal Expense Report</div>
+    </div>
+    <div class="date-box">
+      <div class="date-label">Report Date</div>
+      <div class="date-value">${_dateFormat.format(DateTime.now())}</div>
+    </div>
+  </div>
+
+  <div class="user-card">
+    <div class="user-name">USER: $escapedUserName</div>
+    <div class="user-meta">
+      <span>Personal Expense Tracking Report</span>
+    </div>
+  </div>
+
+  <div class="bento-grid">
+    <div class="bento-card blue">
+      <div class="bento-label">Total Spent</div>
+      <div class="bento-value">${_currencyFormat.format(totalSpent)}</div>
+    </div>
+    <div class="bento-card green">
+      <div class="bento-label">Expense Count</div>
+      <div class="bento-value">${expenses.length}</div>
+    </div>
+    <div class="bento-card red">
+      <div class="bento-label">Avg Expense</div>
+      <div class="bento-value">${_currencyFormat.format(expenses.isEmpty ? 0 : totalSpent / expenses.length)}</div>
+    </div>
+  </div>
+
+  <h2>Expense Details</h2>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 8%;">#</th>
+        <th style="width: 42%;">Title</th>
+        <th style="width: 18%;">Amount</th>
+        <th style="width: 18%;">Category</th>
+        <th style="width: 14%;">Date</th>
+      </tr>
+    </thead>
+    <tbody>
+      $expensesRows
+    </tbody>
+  </table>
+
+  <div class="footer">
+    Generated by SliceIt • Split bills effortlessly
+  </div>
+</body>
+</html>
+    ''';
+
+    final pdfBytes = await Printing.convertHtml(
+      html: htmlContent,
+      format: PdfPageFormat.a4,
     );
 
-    await Printing.sharePdf(
-      bytes: await pdf.save(),
-      filename: 'sliceit_${userName.toLowerCase().replaceAll(' ', '_')}_statement_${DateTime.now().millisecondsSinceEpoch}.pdf',
-    );
+    if (share) {
+      await Printing.sharePdf(
+        bytes: pdfBytes,
+        filename: 'sliceit_${userName.toLowerCase().replaceAll(' ', '_')}_statement_${DateTime.now().millisecondsSinceEpoch}.pdf',
+      );
+    } else {
+      await Printing.layoutPdf(
+        onLayout: (format) async => pdfBytes,
+        name: 'sliceit_${userName.toLowerCase().replaceAll(' ', '_')}_statement_${DateTime.now().millisecondsSinceEpoch}',
+      );
+    }
   }
 }

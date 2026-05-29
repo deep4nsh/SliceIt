@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -6,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../services/debt_simplifier.dart';
 import '../services/pdf_export_service.dart';
@@ -157,6 +159,240 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     }
   }
 
+  Future<void> _exportStatement({required bool share}) async {
+    try {
+      if (share && Platform.isAndroid) {
+        int sdkInt = 0;
+        try {
+          final sdkString = Platform.operatingSystemVersion;
+          if (sdkString.contains('SDK')) {
+            final match = RegExp(r'SDK\s+(\d+)').firstMatch(sdkString);
+            if (match != null) {
+              sdkInt = int.parse(match.group(1)!);
+            }
+          }
+        } catch (_) {}
+
+        if (sdkInt >= 33) {
+          final status = await Permission.photos.status;
+          if (status.isDenied) {
+            final result = await Permission.photos.request();
+            if (!result.isGranted) {
+              debugPrint("Photos permission denied, attempting sharing anyway.");
+            }
+          }
+        } else {
+          final status = await Permission.storage.status;
+          if (status.isDenied) {
+            final result = await Permission.storage.request();
+            if (!result.isGranted) {
+              debugPrint("Storage permission denied, attempting sharing anyway.");
+            }
+          }
+        }
+      }
+
+      final groupDoc = await _firestore.collection('groups').doc(widget.groupId).get();
+      final groupName = groupDoc.data()?['name'] ?? 'Group';
+
+      final expensesSnapshot = await _firestore
+          .collection('groups')
+          .doc(widget.groupId)
+          .collection('expenses')
+          .get();
+
+      final members = groupDoc.data()?['members'] as List? ?? [];
+      final allUids = <String>{};
+      for (final member in members) {
+        allUids.add(member.toString());
+      }
+      for (var doc in expensesSnapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>?;
+        if (data == null) continue;
+        final paidBy = data['paidBy'] as String? ?? '';
+        if (paidBy.isNotEmpty) allUids.add(paidBy);
+        final List<String> participants = (data['participants'] as List?)?.cast<String>() ?? [];
+        for (final p in participants) {
+          if (p.isNotEmpty) allUids.add(p);
+        }
+      }
+
+      final resolvedNames = <String, String>{};
+      for (final uid in allUids) {
+        final name = await _getCachedName(uid);
+        resolvedNames[uid] = name;
+      }
+
+      final balances = <String, double>{};
+      for (final member in members) {
+        balances[member.toString()] = 0.0;
+      }
+
+      for (var doc in expensesSnapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>?;
+        if (data == null) continue;
+        final double amount = (data['amount'] as num?)?.toDouble() ?? 0.0;
+        final String paidBy = data['paidBy'] as String? ?? '';
+        final List<String> participants = (data['participants'] as List?)?.cast<String>() ?? [];
+
+        if (paidBy.isEmpty || participants.isEmpty || amount <= 0) continue;
+
+        balances.update(paidBy, (value) => value + amount, ifAbsent: () => amount);
+
+        final double splitAmount = amount / participants.length;
+        for (var participant in participants) {
+          balances.update(participant, (value) => value - splitAmount, ifAbsent: () => -splitAmount);
+        }
+      }
+
+      final namedBalances = <String, double>{};
+      for (var entry in balances.entries) {
+        final name = resolvedNames[entry.key] ?? entry.key;
+        namedBalances[name] = entry.value;
+      }
+
+      final expenses = <Map<String, dynamic>>[];
+      for (var doc in expensesSnapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>?;
+        final paidByUid = data?['paidBy'] as String? ?? 'Unknown';
+        final paidByName = resolvedNames[paidByUid] ?? await _getCachedName(paidByUid);
+        expenses.add({
+          'title': data?['title'] as String? ?? 'Unknown',
+          'amount': (data?['amount'] as num?)?.toDouble() ?? 0.0,
+          'paidBy': paidByName,
+          'date': data?['createdAt'] as dynamic,
+        });
+      }
+
+      await PdfExportService.exportGroupStatement(
+        groupName: groupName,
+        expenses: expenses,
+        balances: namedBalances,
+        share: share,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error exporting PDF: $e', style: AppTextStyles.bodyM),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _showExportOptionsSheet() async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkSurface2 : AppColors.lightSurface1,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(AppSpacing.radiusLg)),
+          border: Border.all(
+            color: isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder,
+          ),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                color: (isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary)
+                    .withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Text(
+              "Export Group Invoice",
+              style: AppTextStyles.h2.copyWith(
+                color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+                fontSize: 20,
+              ),
+            ),
+            const SizedBox(height: 16),
+            _buildExportOptionTile(
+              icon: Icons.print_rounded,
+              iconColor: AppColors.secondaryAccent,
+              title: "Print / Save PDF",
+              subtitle: "Open system print preview to view, print, or download",
+              onTap: () async {
+                Navigator.pop(context);
+                await _exportStatement(share: false);
+              },
+              isDark: isDark,
+            ),
+            _buildExportOptionTile(
+              icon: Icons.share_rounded,
+              iconColor: AppColors.accentViolet,
+              title: "Share Invoice PDF",
+              subtitle: "Send invoice PDF file to other apps directly",
+              onTap: () async {
+                Navigator.pop(context);
+                await _exportStatement(share: true);
+              },
+              isDark: isDark,
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExportOptionTile({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+    required bool isDark,
+  }) {
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding, vertical: 4),
+      leading: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: iconColor.withValues(alpha: isDark ? 0.15 : 0.1),
+          shape: BoxShape.circle,
+          border: Border.all(color: iconColor.withValues(alpha: 0.3)),
+        ),
+        child: Icon(icon, color: iconColor, size: 22),
+      ),
+      title: Text(
+        title,
+        style: AppTextStyles.bodyL.copyWith(
+          color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: AppTextStyles.label.copyWith(
+          color: (isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary)
+              .withValues(alpha: 0.8),
+          fontSize: 11,
+          fontWeight: FontWeight.normal,
+          letterSpacing: 0,
+        ),
+      ),
+      trailing: Icon(
+        Icons.chevron_right_rounded,
+        color: (isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary)
+            .withValues(alpha: 0.4),
+      ),
+      onTap: onTap,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -199,60 +435,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
               IconButton(
                 icon: Icon(Icons.download_rounded, color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary),
                 tooltip: 'Export as PDF',
-                onPressed: () async {
-                  try {
-                    final groupDoc = await _firestore.collection('groups').doc(widget.groupId).get();
-                    final groupName = groupDoc.data()?['name'] ?? 'Group';
-
-                    final expensesSnapshot = await _firestore
-                        .collection('groups')
-                        .doc(widget.groupId)
-                        .collection('expenses')
-                        .get();
-
-                    final members = groupDoc.data()?['members'] as List? ?? [];
-                    final resolvedNames = <String, String>{};
-                    for (final member in members) {
-                      final name = await _getCachedName(member.toString());
-                      resolvedNames[member.toString()] = name;
-                    }
-
-                    final balances = <String, double>{};
-                    for (final member in members) {
-                      final name = resolvedNames[member.toString()] ?? member.toString();
-                      balances[name] = 0.0;
-                    }
-
-                    final expenses = <Map<String, dynamic>>[];
-                    for (var doc in expensesSnapshot.docs) {
-                      final data = doc.data() as Map<String, dynamic>?;
-                      final paidByUid = data?['paidBy'] as String? ?? 'Unknown';
-                      final paidByName = resolvedNames[paidByUid] ?? await _getCachedName(paidByUid);
-                      expenses.add({
-                        'title': data?['title'] as String? ?? 'Unknown',
-                        'amount': (data?['amount'] as num?)?.toDouble() ?? 0.0,
-                        'paidBy': paidByName,
-                        'date': data?['createdAt'] as dynamic,
-                      });
-                    }
-
-                    await PdfExportService.exportGroupStatement(
-                      groupName: groupName,
-                      expenses: expenses,
-                      balances: balances,
-                    );
-                  } catch (e) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Error exporting PDF: $e', style: AppTextStyles.bodyM),
-                          backgroundColor: AppColors.error,
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                    }
-                  }
-                },
+                onPressed: _showExportOptionsSheet,
               ),
               IconButton(
                 icon: Icon(Icons.share_rounded, color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary),
