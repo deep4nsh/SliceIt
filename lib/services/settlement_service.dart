@@ -70,7 +70,7 @@ class SettlementService {
       );
 
       if (url == null) {
-        throw Exception('Failed to upload proof to Cloudinary');
+        throw Exception('Failed to upload.');
       }
 
       // Update settlement with proof URL

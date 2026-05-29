@@ -1,15 +1,17 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../services/friend_service.dart';
+import '../services/cloudinary_service.dart';
 import '../models/friend_model.dart';
 import '../utils/colors.dart';
 import '../utils/text_styles.dart';
@@ -129,6 +131,27 @@ class _GroupSettingsScreenState extends State<GroupSettingsScreen> {
     }
 
     try {
+      if (!kIsWeb) {
+        if (Platform.isAndroid) {
+          final status = await Permission.storage.status;
+          if (status.isDenied) {
+            final result = await Permission.storage.request();
+            if (!result.isGranted) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Storage permission is required to upload photos.', style: AppTextStyles.bodyM),
+                    backgroundColor: AppColors.error,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+              return;
+            }
+          }
+        }
+      }
+
       final XFile? pickedFile = await picker.pickImage(
         source: source,
         maxWidth: 512,
@@ -140,13 +163,18 @@ class _GroupSettingsScreenState extends State<GroupSettingsScreen> {
 
       setState(() => _isProcessing = true);
 
-      final storageRef = FirebaseStorage.instance
-          .ref()
-          .child('group_images/${widget.groupId}.jpg');
-      
       final uploadFile = File(pickedFile.path);
-      await storageRef.putFile(uploadFile);
-      final downloadUrl = await storageRef.getDownloadURL();
+      final cloudinary = CloudinaryService();
+      final downloadUrl = await cloudinary.uploadSettlementProof(
+        uploadFile,
+        onProgress: (progress) {
+          debugPrint('Group picture upload: ${(progress * 100).toStringAsFixed(0)}%');
+        },
+      );
+
+      if (downloadUrl == null) {
+        throw Exception('Failed to upload group picture to Cloudinary');
+      }
 
       await _firestore.collection('groups').doc(widget.groupId).set({
         'photoUrl': downloadUrl,
