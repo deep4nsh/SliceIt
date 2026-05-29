@@ -24,98 +24,89 @@ class HomeScreen extends StatelessWidget {
       child: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
-          // Premium Glass SliverAppBar
-          SliverAppBar(
-            expandedHeight: 110.0,
-            floating: true,
-            pinned: true,
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            flexibleSpace: FlexibleSpaceBar(
-              titlePadding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding, vertical: 12),
-              title: Row(
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: (isDark ? AppColors.secondaryAccent : AppColors.primaryAccent).withValues(alpha: 0.5),
-                        width: 1.5,
-                      ),
-                    ),
-                    child: CircleAvatar(
-                      radius: 18,
-                      backgroundColor: isDark ? AppColors.darkSurface2 : AppColors.lightSurface2,
-                      backgroundImage: user?.photoURL != null
-                          ? NetworkImage(user!.photoURL!)
-                          : const AssetImage('assets/images/user.png') as ImageProvider,
-                      onBackgroundImageError: (_, __) {},
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Welcome back,",
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      Text(
-                        user?.displayName?.split(' ').first ?? "User",
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: -0.3,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              Padding(
-                padding: const EdgeInsets.only(right: 8.0),
-                child: IconButton(
-                  icon: Icon(
-                    Icons.notifications_none_rounded,
-                    color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
-                  ),
-                  onPressed: () {},
-                ),
-              ),
-            ],
-          ),
-
           // Core Financial Bento Dashboard
           SliverToBoxAdapter(
-            child: StreamBuilder<Map<String, double>>(
-              stream: statsService.getHomeStats(),
-              initialData: const {'spent': 0.0, 'owe': 0.0, 'owed': 0.0},
-              builder: (context, snapshot) {
-                final stats = snapshot.data ?? {'spent': 0.0, 'owe': 0.0, 'owed': 0.0};
-                final totalSpent = stats['spent']!;
-                final youOwe = stats['owe']!;
-                final owedToYou = stats['owed']!;
+            child: SafeArea(
+              bottom: false,
+              child: StreamBuilder<Map<String, double>>(
+                stream: statsService.getHomeStats(),
+                initialData: const {'spent': 0.0, 'owe': 0.0, 'owed': 0.0},
+                builder: (context, snapshot) {
+                  final stats = snapshot.data ?? {'spent': 0.0, 'owe': 0.0, 'owed': 0.0};
+                  final totalSpent = stats['spent']!;
+                  final youOwe = stats['owe']!;
+                  final owedToYou = stats['owed']!;
 
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 8),
-                      // Bento Primary Banner: Total Spent
-                      ModernCard(
-                        margin: EdgeInsets.zero,
-                        gradient: LinearGradient(
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 16),
+                        // Restyled profile header row
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: (isDark ? AppColors.secondaryAccent : AppColors.primaryAccent).withValues(alpha: 0.5),
+                                      width: 1.5,
+                                    ),
+                                  ),
+                                  child: CircleAvatar(
+                                    radius: 20,
+                                    backgroundColor: isDark ? AppColors.darkSurface2 : AppColors.lightSurface2,
+                                    backgroundImage: user?.photoURL != null
+                                        ? NetworkImage(user!.photoURL!)
+                                        : const AssetImage('assets/images/user.png') as ImageProvider,
+                                    onBackgroundImageError: (_, __) {},
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      "Welcome back,",
+                                      style: TextStyle(
+                                        fontFamily: 'Poppins',
+                                        color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    Text(
+                                      user?.displayName?.split(' ').first ?? "User",
+                                      style: TextStyle(
+                                        fontFamily: 'Poppins',
+                                        color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: -0.3,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            IconButton(
+                              icon: Icon(
+                                Icons.notifications_none_rounded,
+                                color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+                              ),
+                              onPressed: () {},
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 24),
+                        // Bento Primary Banner: Total Spent
+                        ModernCard(
+                          margin: EdgeInsets.zero,
+                          gradient: LinearGradient(
                           colors: isDark
                               ? [AppColors.primaryAccent.withValues(alpha: 0.85), const Color(0xFF1E203C)]
                               : [AppColors.primaryAccent, AppColors.secondaryAccent.withValues(alpha: 0.8)],
@@ -251,6 +242,7 @@ class HomeScreen extends StatelessWidget {
               },
             ),
           ),
+        ),
 
           // Synchronized Action Matrix
           SliverPadding(

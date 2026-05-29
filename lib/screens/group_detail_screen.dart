@@ -13,6 +13,7 @@ import '../services/pdf_export_service.dart';
 import '../services/group_analytics_service.dart';
 import '../widgets/custom_button.dart';
 import 'settlement_history_screen.dart';
+import 'group_settings_screen.dart';
 import '../utils/colors.dart';
 import '../utils/text_styles.dart';
 import '../utils/app_spacing.dart';
@@ -60,7 +61,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         .snapshots();
   }
 
-  Future<void> _showExpenseDialog({DocumentSnapshot? expenseDoc}) async {
+  Future<void> _showExpenseDialog({DocumentSnapshot? expenseDoc, Color? accentColor}) async {
     final groupDoc = await _getGroupStream().first;
     final members = (groupDoc.data() as Map<String, dynamic>?)?['members']?.cast<String>() ?? [];
     final currentUser = _auth.currentUser;
@@ -73,6 +74,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           groupMemberUids: members,
           expenseDoc: expenseDoc,
           canEdit: expenseDoc == null || ((expenseDoc.data() as Map<String, dynamic>)['paidBy'] == currentUser?.uid),
+          accentColor: accentColor,
         ),
       );
     }
@@ -396,130 +398,157 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return MeshBackground(
-      child: DefaultTabController(
-        length: 3,
-        child: Scaffold(
-          backgroundColor: Colors.transparent,
-          appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            iconTheme: IconThemeData(color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary),
-            title: StreamBuilder<DocumentSnapshot>(
-              stream: _getGroupStream(),
-              builder: (context, snapshot) {
-                final groupName = (snapshot.data?.data() as Map<String, dynamic>?)?['name'] ?? 'Group Details';
-                return Text(
-                  groupName,
+    return StreamBuilder<DocumentSnapshot>(
+      stream: _getGroupStream(),
+      builder: (context, snapshot) {
+        final groupData = snapshot.data?.data() as Map<String, dynamic>? ?? {};
+        final groupName = groupData['name'] ?? 'Group Details';
+        final groupEmoji = groupData['emoji'] as String? ?? '';
+        final themeColorIndex = groupData['themeColorIndex'] as int? ?? 0;
+
+        final List<Color> groupColors = [
+          const Color(0xFF5B6F82), // Slate
+          const Color(0xFF6B9EAA), // Teal
+          const Color(0xFF8F7EAA), // Purple
+          const Color(0xFFD68A65), // Orange
+          const Color(0xFF5CA387), // Emerald
+        ];
+
+        final Color activeColor = groupColors[themeColorIndex.clamp(0, groupColors.length - 1)];
+        final String displayName = groupEmoji.isNotEmpty ? '$groupEmoji $groupName' : groupName;
+
+        return MeshBackground(
+          child: DefaultTabController(
+            length: 3,
+            child: Scaffold(
+              backgroundColor: Colors.transparent,
+              appBar: AppBar(
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                iconTheme: IconThemeData(color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary),
+                title: Text(
+                  displayName,
                   style: AppTextStyles.h2.copyWith(
                     color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
                     fontWeight: FontWeight.bold,
                   ),
-                );
-              },
-            ),
-            actions: [
-              IconButton(
-                icon: Icon(Icons.history_rounded, color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary),
-                tooltip: 'Settlement History',
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => SettlementHistoryScreen(groupId: widget.groupId),
-                    ),
-                  );
-                },
-              ),
-              IconButton(
-                icon: Icon(Icons.download_rounded, color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary),
-                tooltip: 'Export as PDF',
-                onPressed: _showExportOptionsSheet,
-              ),
-              IconButton(
-                icon: Icon(Icons.share_rounded, color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary),
-                tooltip: 'Copy and Share Invite Link',
-                onPressed: () async {
-                  final groupDoc = await _firestore.collection('groups').doc(widget.groupId).get();
-                  final groupName = groupDoc.data()?['name'] ?? 'SliceIt Group';
-
-                  final currentUser = FirebaseAuth.instance.currentUser;
-                  final inviterUid = currentUser?.uid ?? '';
-                  final httpLink = DeepLinkConfig.groupHttp(widget.groupId, inviterUid);
-
-                  // Copy to Clipboard
-                  await Clipboard.setData(ClipboardData(text: httpLink));
-
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Row(
-                          children: [
-                            const Icon(Icons.check_circle_outline_rounded, color: Colors.white, size: 20),
-                            const SizedBox(width: 8),
-                            Text('Invite link copied to clipboard!', style: AppTextStyles.bodyM.copyWith(color: Colors.white)),
-                          ],
+                ),
+                actions: [
+                  IconButton(
+                    icon: Icon(Icons.history_rounded, color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary),
+                    tooltip: 'Settlement History',
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => SettlementHistoryScreen(groupId: widget.groupId),
                         ),
-                        backgroundColor: AppColors.success,
-                        behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusMd)),
-                        duration: const Duration(seconds: 2),
-                      ),
-                    );
-                  }
+                      );
+                    },
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.download_rounded, color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary),
+                    tooltip: 'Export as PDF',
+                    onPressed: _showExportOptionsSheet,
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.share_rounded, color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary),
+                    tooltip: 'Copy and Share Invite Link',
+                    onPressed: () async {
+                      final groupDoc = await _firestore.collection('groups').doc(widget.groupId).get();
+                      final groupName = groupDoc.data()?['name'] ?? 'SliceIt Group';
 
-                  // Trigger Native Share Sheet
-                  final text = "Hey! Join my group '$groupName' on SliceIt to split bills easily.\n\nTap here to join automatically:\n$httpLink";
-                  await Share.share(text, subject: "Join my SliceIt group '$groupName'");
-                },
+                      final currentUser = FirebaseAuth.instance.currentUser;
+                      final inviterUid = currentUser?.uid ?? '';
+                      final httpLink = DeepLinkConfig.groupHttp(widget.groupId, inviterUid);
+
+                      // Copy to Clipboard
+                      await Clipboard.setData(ClipboardData(text: httpLink));
+
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Row(
+                              children: [
+                                const Icon(Icons.check_circle_outline_rounded, color: Colors.white, size: 20),
+                                const SizedBox(width: 8),
+                                Text('Invite link copied to clipboard!', style: AppTextStyles.bodyM.copyWith(color: Colors.white)),
+                              ],
+                            ),
+                            backgroundColor: AppColors.success,
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusMd)),
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      }
+
+                      // Trigger Native Share Sheet
+                      final text = "Hey! Join my group '$groupName' on SliceIt to split bills easily.\n\nTap here to join automatically:\n$httpLink";
+                      await Share.share(text, subject: "Join my SliceIt group '$groupName'");
+                    },
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.settings_rounded, color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary),
+                    tooltip: 'Group Settings',
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => GroupSettingsScreen(groupId: widget.groupId),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+                bottom: TabBar(
+                  indicatorColor: activeColor,
+                  indicatorWeight: 3,
+                  labelColor: activeColor,
+                  labelStyle: AppTextStyles.bodyL.copyWith(fontWeight: FontWeight.bold),
+                  unselectedLabelColor: (isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary).withValues(alpha: 0.7),
+                  unselectedLabelStyle: AppTextStyles.bodyL.copyWith(fontWeight: FontWeight.normal),
+                  dividerColor: (isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder).withValues(alpha: 0.5),
+                  tabs: const [
+                    Tab(text: "Expenses"),
+                    Tab(text: "Balances"),
+                    Tab(text: "Analytics"),
+                  ],
+                ),
               ),
-            ],
-            bottom: TabBar(
-              indicatorColor: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
-              indicatorWeight: 3,
-              labelColor: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
-              labelStyle: AppTextStyles.bodyL.copyWith(fontWeight: FontWeight.bold),
-              unselectedLabelColor: (isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary).withValues(alpha: 0.7),
-              unselectedLabelStyle: AppTextStyles.bodyL.copyWith(fontWeight: FontWeight.normal),
-              dividerColor: (isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder).withValues(alpha: 0.5),
-              tabs: const [
-                Tab(text: "Expenses"),
-                Tab(text: "Balances"),
-                Tab(text: "Analytics"),
-              ],
-            ),
-          ),
-          body: TabBarView(
-            children: [
-              _buildExpensesTab(isDark),
-              _buildBalancesTab(isDark),
-              _buildAnalyticsTab(isDark),
-            ],
-          ),
-          floatingActionButton: FloatingActionButton.extended(
-            heroTag: 'group_add_expense_fab',
-            elevation: 1,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusLg)),
-            onPressed: () => _showExpenseDialog(),
-            backgroundColor: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
-            label: Text(
-              "Add Expense",
-              style: AppTextStyles.button.copyWith(
-                color: isDark ? AppColors.textDarkPrimary : Colors.white,
-                fontWeight: FontWeight.bold,
+              body: TabBarView(
+                children: [
+                  _buildExpensesTab(isDark, activeColor),
+                  _buildBalancesTab(isDark, activeColor),
+                  _buildAnalyticsTab(isDark, activeColor),
+                ],
+              ),
+              floatingActionButton: FloatingActionButton.extended(
+                heroTag: 'group_add_expense_fab',
+                elevation: 1,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusLg)),
+                onPressed: () => _showExpenseDialog(accentColor: activeColor),
+                backgroundColor: activeColor,
+                label: Text(
+                  "Add Expense",
+                  style: AppTextStyles.button.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                icon: const Icon(
+                  Icons.add_rounded,
+                  color: Colors.white,
+                ),
               ),
             ),
-            icon: Icon(
-              Icons.add_rounded,
-              color: isDark ? AppColors.textDarkPrimary : Colors.white,
-            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildExpensesTab(bool isDark) {
+  Widget _buildExpensesTab(bool isDark, Color activeColor) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -543,7 +572,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                   child: SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent),
+                    child: CircularProgressIndicator(strokeWidth: 2, color: activeColor),
                   ),
                 );
               }
@@ -562,7 +591,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
                 itemCount: members.length,
                 itemBuilder: (context, index) {
-                  return MemberChip(uid: members[index], cacheFn: _getCachedName, isDark: isDark);
+                  return MemberChip(uid: members[index], cacheFn: _getCachedName, isDark: isDark, accentColor: activeColor);
                 },
               );
             },
@@ -581,7 +610,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
               }
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return Center(
-                  child: CircularProgressIndicator(color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent),
+                  child: CircularProgressIndicator(color: activeColor),
                 );
               }
               if (snapshot.data!.docs.isEmpty) {
@@ -639,7 +668,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                       margin: EdgeInsets.zero,
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                       color: isDark ? AppColors.darkSurface1 : AppColors.lightSurface1,
-                      onTap: () => _showExpenseDialog(expenseDoc: expenseDoc),
+                      onTap: () => _showExpenseDialog(expenseDoc: expenseDoc, accentColor: activeColor),
                       child: Row(
                         children: [
                           Container(
@@ -647,13 +676,13 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                             decoration: BoxDecoration(
                               color: (isSettlement
                                       ? AppColors.success
-                                      : (isDark ? AppColors.secondaryAccent : AppColors.primaryAccent))
+                                      : activeColor)
                                   .withValues(alpha: isDark ? 0.15 : 0.1),
                               borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                               border: Border.all(
                                 color: (isSettlement
                                         ? AppColors.success
-                                        : (isDark ? AppColors.secondaryAccent : AppColors.primaryAccent))
+                                        : activeColor)
                                     .withValues(alpha: 0.2),
                                 width: 1,
                               ),
@@ -662,7 +691,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                               isSettlement ? Icons.handshake_rounded : Icons.receipt_rounded,
                               color: isSettlement
                                   ? AppColors.success
-                                  : (isDark ? AppColors.secondaryAccent : AppColors.primaryAccent),
+                                  : activeColor,
                               size: 22,
                             ),
                           ),
@@ -725,7 +754,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     );
   }
 
-  Widget _buildBalancesTab(bool isDark) {
+  Widget _buildBalancesTab(bool isDark, Color activeColor) {
     return StreamBuilder<QuerySnapshot>(
       stream: _getGroupExpensesStream(),
       builder: (context, snapshot) {
@@ -733,7 +762,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           return Center(child: Text("Error loading balances", style: AppTextStyles.bodyL.copyWith(color: AppColors.error)));
         }
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(child: CircularProgressIndicator(color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent));
+          return Center(child: CircularProgressIndicator(color: activeColor));
         }
 
         final expenses = snapshot.data!.docs.map((doc) => doc.data() as Map<String, dynamic>).toList();
@@ -890,7 +919,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     );
   }
 
-  Widget _buildAnalyticsTab(bool isDark) {
+  Widget _buildAnalyticsTab(bool isDark, Color activeColor) {
     return StreamBuilder<DocumentSnapshot>(
       stream: _getGroupStream(),
       builder: (context, groupSnapshot) {
@@ -901,7 +930,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         }
         if (groupSnapshot.connectionState == ConnectionState.waiting) {
           return Center(
-            child: CircularProgressIndicator(color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent),
+            child: CircularProgressIndicator(color: activeColor),
           );
         }
 
@@ -918,7 +947,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
             }
             if (expenseSnapshot.connectionState == ConnectionState.waiting) {
               return Center(
-                child: CircularProgressIndicator(color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent),
+                child: CircularProgressIndicator(color: activeColor),
               );
             }
 
@@ -965,7 +994,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                               Text(
                                 "₹${analytics.totalSpent.toStringAsFixed(2)}",
                                 style: AppTextStyles.h3.copyWith(
-                                  color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
+                                  color: activeColor,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -984,7 +1013,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                               Text(
                                 "${analytics.expenseCount}",
                                 style: AppTextStyles.h3.copyWith(
-                                  color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
+                                  color: activeColor,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -1003,7 +1032,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                               Text(
                                 "₹${GroupAnalyticsService.getAverageBillAmount(expenses).toStringAsFixed(2)}",
                                 style: AppTextStyles.h3.copyWith(
-                                  color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
+                                  color: activeColor,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -1060,7 +1089,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                                   Text(
                                     "₹${entry.value.toStringAsFixed(2)} (${percentage.toStringAsFixed(1)}%)",
                                     style: AppTextStyles.label.copyWith(
-                                      color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
+                                      color: activeColor,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
@@ -1072,10 +1101,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                                 child: LinearProgressIndicator(
                                   value: analytics.totalSpent > 0 ? entry.value / analytics.totalSpent : 0,
                                   minHeight: 6,
-                                  backgroundColor: (isDark ? AppColors.secondaryAccent : AppColors.primaryAccent)
-                                      .withValues(alpha: 0.15),
+                                  backgroundColor: activeColor.withValues(alpha: 0.15),
                                   valueColor: AlwaysStoppedAnimation(
-                                    isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
+                                    activeColor,
                                   ),
                                 ),
                               ),
@@ -1135,12 +1163,14 @@ class _AddEditExpenseDialog extends StatefulWidget {
   final List<String> groupMemberUids;
   final DocumentSnapshot? expenseDoc;
   final bool canEdit;
+  final Color? accentColor;
 
   const _AddEditExpenseDialog({
     required this.groupId,
     required this.groupMemberUids,
     this.expenseDoc,
     this.canEdit = true,
+    this.accentColor,
   });
 
   @override
@@ -1225,6 +1255,7 @@ class _AddEditExpenseDialogState extends State<_AddEditExpenseDialog> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final activeColor = widget.accentColor ?? (isDark ? AppColors.secondaryAccent : AppColors.primaryAccent);
 
     return AlertDialog(
       backgroundColor: isDark ? AppColors.darkSurface2 : AppColors.lightSurface1,
@@ -1257,10 +1288,10 @@ class _AddEditExpenseDialogState extends State<_AddEditExpenseDialog> {
                   labelText: "Title",
                   labelStyle: AppTextStyles.bodyM.copyWith(color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary),
                   enabledBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: (isDark ? AppColors.secondaryAccent : AppColors.primaryAccent).withValues(alpha: 0.3)),
+                    borderSide: BorderSide(color: activeColor.withValues(alpha: 0.3)),
                   ),
                   focusedBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent),
+                    borderSide: BorderSide(color: activeColor),
                   ),
                 ),
                 enabled: widget.canEdit,
@@ -1273,13 +1304,13 @@ class _AddEditExpenseDialogState extends State<_AddEditExpenseDialog> {
                 decoration: InputDecoration(
                   labelText: "Amount",
                   prefixText: "₹ ",
-                  prefixStyle: AppTextStyles.bodyL.copyWith(color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent),
+                  prefixStyle: AppTextStyles.bodyL.copyWith(color: activeColor),
                   labelStyle: AppTextStyles.bodyM.copyWith(color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary),
                   enabledBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: (isDark ? AppColors.secondaryAccent : AppColors.primaryAccent).withValues(alpha: 0.3)),
+                    borderSide: BorderSide(color: activeColor.withValues(alpha: 0.3)),
                   ),
                   focusedBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent),
+                    borderSide: BorderSide(color: activeColor),
                   ),
                 ),
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -1303,7 +1334,7 @@ class _AddEditExpenseDialogState extends State<_AddEditExpenseDialog> {
                   checkboxTheme: CheckboxThemeData(
                     fillColor: WidgetStateProperty.resolveWith((states) {
                       if (states.contains(WidgetState.selected)) {
-                        return isDark ? AppColors.secondaryAccent : AppColors.primaryAccent;
+                        return activeColor;
                       }
                       return Colors.transparent;
                     }),
@@ -1374,7 +1405,7 @@ class _AddEditExpenseDialogState extends State<_AddEditExpenseDialog> {
         if (widget.canEdit)
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
+              backgroundColor: activeColor,
               foregroundColor: isDark ? AppColors.textDarkPrimary : Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusMd)),
               elevation: 0,
@@ -1421,11 +1452,14 @@ class MemberChip extends StatelessWidget {
   final String uid;
   final Future<String> Function(String uid)? cacheFn;
   final bool isDark;
+  final Color? accentColor;
 
-  const MemberChip({super.key, required this.uid, this.cacheFn, this.isDark = true});
+  const MemberChip({super.key, required this.uid, this.cacheFn, this.isDark = true, this.accentColor});
 
   @override
   Widget build(BuildContext context) {
+    final activeColor = accentColor ?? (isDark ? AppColors.secondaryAccent : AppColors.primaryAccent);
+
     return Padding(
       padding: const EdgeInsets.only(right: 8.0),
       child: FutureBuilder<Map<String, dynamic>>(
@@ -1448,13 +1482,13 @@ class MemberChip extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
             avatar: CircleAvatar(
               radius: 12,
-              backgroundColor: (isDark ? AppColors.secondaryAccent : AppColors.primaryAccent).withValues(alpha: 0.2),
+              backgroundColor: activeColor.withValues(alpha: 0.2),
               backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
               child: photoUrl == null
                   ? Text(
                       name.isNotEmpty ? name[0].toUpperCase() : '?',
                       style: AppTextStyles.label.copyWith(
-                        color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
+                        color: activeColor,
                         fontSize: 10,
                       ),
                     )

@@ -386,16 +386,34 @@ class _GroupsScreenState extends State<GroupsScreen> {
                 final doc = docs[index];
                 final data = doc.data() as Map<String, dynamic>;
                 final groupName = data['name'] ?? 'Unnamed Group';
+                final groupEmoji = data['emoji'] as String? ?? '';
+                final themeColorIndex = data['themeColorIndex'] as int? ?? (index % 5);
 
-                // Cycle dynamic ambient colors for group list avatars to elevate premium look
-                final colors = [
-                  AppColors.primaryAccent,
-                  AppColors.secondaryAccent,
-                  AppColors.accentViolet,
-                  AppColors.success,
-                  AppColors.warning,
+                final List<Map<String, dynamic>> groupThemes = [
+                  {
+                    'color': const Color(0xFF5B6F82),
+                    'gradient': [const Color(0xFF5B6F82), const Color(0xFF7A8B9E)],
+                  },
+                  {
+                    'color': const Color(0xFF6B9EAA),
+                    'gradient': [const Color(0xFF6B9EAA), const Color(0xFF8BB5BD)],
+                  },
+                  {
+                    'color': const Color(0xFF8F7EAA),
+                    'gradient': [const Color(0xFF8F7EAA), const Color(0xFFA597BE)],
+                  },
+                  {
+                    'color': const Color(0xFFD68A65),
+                    'gradient': [const Color(0xFFD68A65), const Color(0xFFE2A385)],
+                  },
+                  {
+                    'color': const Color(0xFF5CA387),
+                    'gradient': [const Color(0xFF5CA387), const Color(0xFF7CB8A0)],
+                  },
                 ];
-                final avatarColor = colors[index % colors.length];
+
+                final activeTheme = groupThemes[themeColorIndex.clamp(0, groupThemes.length - 1)];
+                final List<Color> avatarGradient = activeTheme['gradient'] as List<Color>;
 
                 return AnimatedListItem(
                   index: index,
@@ -412,18 +430,23 @@ class _GroupsScreenState extends State<GroupsScreen> {
                           width: 46,
                           height: 46,
                           decoration: BoxDecoration(
-                            color: avatarColor.withValues(alpha: isDark ? 0.15 : 0.1),
+                            gradient: LinearGradient(
+                              colors: avatarGradient,
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: avatarColor.withValues(alpha: 0.3),
+                              color: Colors.white.withValues(alpha: 0.3),
                               width: 1.5,
                             ),
                           ),
                           child: Center(
                             child: Text(
-                              groupName.isNotEmpty ? groupName[0].toUpperCase() : 'G',
+                              groupEmoji.isNotEmpty ? groupEmoji : (groupName.isNotEmpty ? groupName[0].toUpperCase() : 'G'),
                               style: AppTextStyles.h3.copyWith(
-                                color: avatarColor,
+                                color: Colors.white,
+                                fontSize: groupEmoji.isNotEmpty ? 22 : 18,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
