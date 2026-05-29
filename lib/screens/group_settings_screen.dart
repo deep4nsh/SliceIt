@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:share_plus/share_plus.dart';
-import 'dart:math' as math;
+import 'package:qr_flutter/qr_flutter.dart';
 
 import '../services/friend_service.dart';
 import '../models/friend_model.dart';
@@ -1226,9 +1226,18 @@ class _GroupSettingsScreenState extends State<GroupSettingsScreen> {
                 ),
                 child: Stack(
                   children: [
-                    CustomPaint(
-                      size: const Size(196, 196),
-                      painter: QRCodePainter(color: color),
+                    QrImageView(
+                      data: httpLink,
+                      version: QrVersions.auto,
+                      size: 196,
+                      eyeStyle: QrEyeStyle(
+                        eyeShape: QrEyeShape.square,
+                        color: color,
+                      ),
+                      dataModuleStyle: QrDataModuleStyle(
+                        dataModuleShape: QrDataModuleShape.square,
+                        color: color,
+                      ),
                     ),
                     Center(
                       child: Container(
@@ -1955,65 +1964,4 @@ class _GroupSettingsScreenState extends State<GroupSettingsScreen> {
   }
 }
 
-class QRCodePainter extends CustomPainter {
-  final Color color;
 
-  QRCodePainter({required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-
-    // Draw finder patterns (large square outlines with nested small squares)
-    void drawFinderPattern(double x, double y) {
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(Rect.fromLTWH(x, y, 48, 48), const Radius.circular(8)),
-        paint,
-      );
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(Rect.fromLTWH(x + 6, y + 6, 36, 36), const Radius.circular(6)),
-        Paint()..color = Colors.white..style = PaintingStyle.fill,
-      );
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(Rect.fromLTWH(x + 12, y + 12, 24, 24), const Radius.circular(4)),
-        paint,
-      );
-    }
-
-    drawFinderPattern(8, 8);
-    drawFinderPattern(size.width - 56, 8);
-    drawFinderPattern(8, size.height - 56);
-
-    // Draw semi-random dot grids
-    final random = math.Random(42); // Seeded for a deterministic code pattern
-    final cellSize = size.width / 18;
-
-    for (int row = 0; row < 18; row++) {
-      for (int col = 0; col < 18; col++) {
-        // Skip finder areas
-        if (row < 6 && col < 6) continue;
-        if (row < 6 && col >= 12) continue;
-        if (row >= 12 && col < 6) continue;
-
-        // Skip center logo area
-        if (row >= 7 && row <= 10 && col >= 7 && col <= 10) continue;
-
-        // Skip alignment spots/blank margins near edges
-        if (random.nextDouble() > 0.45) {
-          canvas.drawRRect(
-            RRect.fromRectAndRadius(
-              Rect.fromLTWH(col * cellSize + 2, row * cellSize + 2, cellSize - 4, cellSize - 4),
-              const Radius.circular(2),
-            ),
-            paint,
-          );
-        }
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
