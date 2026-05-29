@@ -45,24 +45,12 @@ class CloudinaryService {
         ),
       );
 
-      // Send request with progress tracking
+      // Send request
+      onProgress(0.5); // Simulate 50% progress during upload
       final streamResponse = await request.send();
+      onProgress(0.9); // 90% after response received
 
-      // Handle progress
-      int bytesReceived = 0;
-      final contentLength = streamResponse.contentLength ?? 0;
-
-      final responseStream = streamResponse.stream.listen(
-        (chunk) {
-          bytesReceived += chunk.length;
-          if (contentLength > 0) {
-            final progress = bytesReceived / contentLength;
-            onProgress(progress);
-            debugPrint('Upload progress: ${(progress * 100).toStringAsFixed(0)}%');
-          }
-        },
-      );
-
+      // Read response
       final response = await http.Response.fromStream(streamResponse);
 
       if (response.statusCode == 200) {
