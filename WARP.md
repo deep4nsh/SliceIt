@@ -83,12 +83,17 @@ The app implements a two-step authentication system:
 ### Core Structure
 - **`lib/main.dart`**: App entry point with Firebase initialization and splash screen
 - **`lib/services/auth_service.dart`**: Centralized authentication logic handling both Google and phone auth
-- **`lib/screens/`**: UI screens following the login/signup flow pattern:
+- **`lib/screens/`**: UI screens for authentication, settings, dashboards, and detailed splitting logic:
   - `login_screen.dart`: Google Sign-In for existing users
   - `signup_screen.dart`: Google Sign-In for new users
   - `phone_verification_screen.dart`: Phone number entry (post-signup)
   - `otp_verification_screen.dart`: SMS OTP verification
-  - `home_screen.dart`: Main app screen
+  - `home_screen.dart`: Main dashboard screen listing user's groups
+  - `group_detail_screen.dart`: Detailed view of a group (balances, expenses list, and reminders)
+  - `group_settings_screen.dart`: Manage group name, members, custom themes, and simplification charts
+  - `profile_screen.dart`: User profile details and push notification preference toggles
+  - `subscriptions_screen.dart`: Recurring bills and subscription splitting dashboard
+  - `analytics_screen.dart`: Beautiful data visualizations and spend category analysis
 - **`lib/utils/`**: Shared utilities for colors and text styles
 - **`lib/widgets/`**: Reusable UI components
 
@@ -99,6 +104,12 @@ SplashScreen → OnboardingScreen → LoginScreen (Google Sign-In) → HomeScree
                                SignupScreen (Google Sign-In) → PhoneVerificationScreen → OtpVerificationScreen → HomeScreen
                                                                          ↓
                                                                  "Skip for now" → HomeScreen
+
+HomeScreen (Dashboard)
+├── ProfileScreen (Granular Notification Settings)
+├── SubscriptionsScreen (Manage Recurring Bills)
+└── GroupDetailScreen (Expense Logs, PDF Statement Prints, Settlement Buttons)
+     └── GroupSettingsScreen (Edit Members, Select Custom Themes, View Debt Simplification Graphs)
 ```
 
 ### Firebase Configuration

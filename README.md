@@ -1,6 +1,31 @@
-    # SliceIt 🍕
+<p align="center">
+  <img src="assets/images/SliceIt.png" alt="SliceIt Logo" width="150">
+</p>
+
+# SliceIt 🍕
 
 **SliceIt** is a modern, premium expense-splitting application designed to make sharing costs with friends and family seamless, offline-resilient, and stress-free. Built with a beautiful dark-first aesthetic, rich micro-animations, and powered by Firebase, SliceIt ensures everyone pays their fair share without the awkward math.
+
+---
+
+## 📱 Visual Showcase
+
+Below is a gallery showcasing the premium design and features of SliceIt:
+
+| **Home Dashboard** | **Groups List** | **Group Settings** |
+| :---: | :---: | :---: |
+| ![Home Dashboard](assets/screenshots/home_dashboard.png) | ![Groups List](assets/screenshots/groups_list.png) | ![Group Settings](assets/screenshots/group_settings.png) |
+| *Dashboard with spending insights* | *Browse and create active groups* | *Manage members and themes* |
+
+| **Simplification Insights** | **Group QR Code** | **Group Analytics** |
+| :---: | :---: | :---: |
+| ![Simplification Insights](assets/screenshots/simplification_insights.png) | ![Group QR Code](assets/screenshots/group_qr_code.png) | ![Group Analytics](assets/screenshots/group_analytics.png) |
+| *Graph-based debt reduction* | *Scan to instantly join group* | *View spend segment breakdown* |
+
+| **Lockscreen Push Notification** | **Exported PDF Statement** |
+| :---: | :---: |
+| ![Push Notification](assets/screenshots/push_notification.png) | ![PDF Invoice](assets/screenshots/pdf_invoice.png) |
+| *Receive automatic & manual alerts* | *Vector-based PDF reports* |
 
 ---
 
@@ -10,7 +35,7 @@
 Say goodbye to complex circular payments.
 * **Greedy Algorithm**: SliceIt uses a highly efficient greedy algorithm in [debt_simplifier.dart](file:///Users/deepansh/StudioProjects/SliceIt/lib/services/debt_simplifier.dart) to minimize transactions within any group.
 * **Settlement Recording**: Track who paid whom with [settlement_service.dart](file:///Users/deepansh/StudioProjects/SliceIt/lib/services/settlement_service.dart) and browse previous settlements in the [settlement_history_screen.dart](file:///Users/deepansh/StudioProjects/SliceIt/lib/screens/settlement_history_screen.dart).
-* **UPI Payment Support**: Quick payments initiated with UPI VPAs using [upi_payment_service.dart](file:///Users/deepansh/StudioProjects/SliceIt/lib/services/upi_payment_service.dart).
+* **Group Settings & Customization**: Change group details, manage members, choose custom theme colors, and view real-time debt simplification graphs using [group_settings_screen.dart](file:///Users/deepansh/StudioProjects/SliceIt/lib/screens/group_settings_screen.dart).
 
 ### 🔔 Automatic & On-Demand Notification System
 Keep group members up-to-date with push notifications triggered via Firebase Cloud Functions in [functions/index.js](file:///Users/deepansh/StudioProjects/SliceIt/functions/index.js).
@@ -34,8 +59,9 @@ No network? No problem. SliceIt keeps running smoothly with offline-first capabi
 * **Spend Segmentation**: Track categories (Food, Travel, Rent, Utilities) and individual member share analytics via [group_analytics_service.dart](file:///Users/deepansh/StudioProjects/SliceIt/lib/services/group_analytics_service.dart).
 
 ### 📄 Professional PDF Exports
-* **Custom Reports**: Generate high-fidelity PDFs containing group details, expense reports, and settlement logs via [pdf_export_service.dart](file:///Users/deepansh/StudioProjects/SliceIt/lib/services/pdf_export_service.dart).
-* **Printing Integration**: Directly preview, share, or print generated PDFs in-app.
+* **Native Widget PDF Generation**: Generate high-fidelity, high-performance PDFs using native `pdf` layout widgets in [pdf_export_service.dart](file:///Users/deepansh/StudioProjects/SliceIt/lib/services/pdf_export_service.dart) for clean and professional vector-based prints.
+* **Granular Permission Handling**: Robust checking of media/storage permissions on iOS and Android before saving or exporting statements.
+* **Printing & Sharing Integration**: Direct in-app print previewing, OS-level sharing, and physical printer options.
 
 ### 🧾 Receipt Parsing & Itemized Splits
 * **Receipt OCR**: Automatically scan and extract text from receipts using Google ML Kit Text Recognition with [bill_parser_service.dart](file:///Users/deepansh/StudioProjects/SliceIt/lib/services/bill_parser_service.dart).
@@ -51,7 +77,8 @@ SliceIt stands out with a tailored, modern design system:
 * **Dark-First Theme**: Curated dark palette with vibrant olive green accents configured in [app_theme.dart](file:///Users/deepansh/StudioProjects/SliceIt/lib/utils/app_theme.dart).
 * **Fluid Backgrounds**: Stunning visuals using the customized [mesh_background.dart](file:///Users/deepansh/StudioProjects/SliceIt/lib/widgets/mesh_background.dart).
 * **Sleek Cards**: Premium glassmorphism feel using the [modern_card.dart](file:///Users/deepansh/StudioProjects/SliceIt/lib/widgets/modern_card.dart) widget.
-* **Component Standardization**: Responsive layout tokens in [app_spacing.dart](file:///Users/deepansh/StudioProjects/SliceIt/lib/utils/app_spacing.dart) and high-quality animated buttons using [custom_button.dart](file:///Users/deepansh/StudioProjects/SliceIt/lib/widgets/custom_button.dart).
+* **High-Fidelity Interactivity**: Custom buttons in [custom_button.dart](file:///Users/deepansh/StudioProjects/SliceIt/lib/widgets/custom_button.dart) built with haptic-like scale transitions and premium visual shine/shimmer effects that respond dynamically to user touch.
+* **Component Standardization**: Standardized typography tokens in [text_styles.dart](file:///Users/deepansh/StudioProjects/SliceIt/lib/utils/text_styles.dart) and responsive layout spacing tokens in [app_spacing.dart](file:///Users/deepansh/StudioProjects/SliceIt/lib/utils/app_spacing.dart).
 
 ---
 
@@ -73,6 +100,7 @@ SliceIt/
 │   ├── screens/                   # UI Modules
 │   │   ├── home_screen.dart       # Main Dashboard
 │   │   ├── group_detail_screen.dart# balances, PDF, reminders & list tabs
+│   │   ├── group_settings_screen.dart# Manage members, themes & simplification details
 │   │   ├── profile_screen.dart     # User profile and notification toggles
 │   │   ├── subscriptions_screen.dart# Recurring bill tracker
 │   │   └── analytics_screen.dart   # Interactive FL Charts
