@@ -2,7 +2,9 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:sliceit/main.dart';
+import 'notification_preferences.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -15,10 +17,22 @@ class NotificationService {
 
   final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
   RemoteMessage? _lastNotification;
+  NotificationPreferences? _preferences;
+
+  void setNotificationPreferences(NotificationPreferences preferences) {
+    _preferences = preferences;
+  }
 
   Future<void> initializeNotifications() async {
     try {
       debugPrint('🔔 Initializing Firebase Cloud Messaging...');
+
+      // Initialize preferences if not already set
+      if (_preferences == null) {
+        _preferences = NotificationPreferences();
+        // Wait for preferences to load
+        await Future.delayed(const Duration(milliseconds: 100));
+      }
 
       // Request notification permissions (iOS)
       NotificationSettings settings = await _firebaseMessaging.requestPermission(
@@ -94,6 +108,17 @@ class NotificationService {
   }
 
   void _showNotificationDialog(RemoteMessage message) {
+    if (_preferences != null && !_preferences!.pushNotificationsEnabled) {
+      debugPrint('🔔 Push notifications disabled, skipping notification');
+      return;
+    }
+
+    final notificationType = message.data['type'] as String? ?? 'general';
+    if (_preferences != null && !_preferences!.shouldShowNotification(notificationType)) {
+      debugPrint('🔔 Notification type "$notificationType" disabled, skipping');
+      return;
+    }
+
     final context = navigatorKey.currentContext;
     if (context != null && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

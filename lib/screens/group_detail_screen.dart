@@ -8,6 +8,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../services/debt_simplifier.dart';
 import '../services/pdf_export_service.dart';
 import '../services/group_analytics_service.dart';
+import '../widgets/custom_button.dart';
 import 'settlement_history_screen.dart';
 import '../utils/colors.dart';
 import '../utils/text_styles.dart';
@@ -71,6 +72,86 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           canEdit: expenseDoc == null || ((expenseDoc.data() as Map<String, dynamic>)['paidBy'] == currentUser?.uid),
         ),
       );
+    }
+  }
+
+  Future<void> _sendSettlementReminders(List<dynamic> settlements) async {
+    if (settlements.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('No settlements to remind about', style: AppTextStyles.bodyM),
+            backgroundColor: AppColors.warning,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
+
+    try {
+      // Show loading dialog
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => Dialog(
+            backgroundColor: Colors.transparent,
+            child: Center(
+              child: CircularProgressIndicator(
+                color: AppColors.primaryGold,
+              ),
+            ),
+          ),
+        );
+      }
+
+      // Get all expenses for the group
+      final expensesSnapshot = await _firestore
+          .collection('groups')
+          .doc(widget.groupId)
+          .collection('expenses')
+          .get();
+
+      final expenseIds = expensesSnapshot.docs.map((doc) => doc.id).toList();
+
+      // Call the Cloud Function
+      final result = await FirebaseFunctions.instance
+          .httpsCallable('notifySettlementReminder')
+          .call({
+        'groupId': widget.groupId,
+        'expenseIds': expenseIds,
+      });
+
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+
+        final notifiedCount = result.data['notified'] as int? ?? 0;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              notifiedCount > 0
+                  ? 'Settlement reminders sent to $notifiedCount member${notifiedCount > 1 ? 's' : ''}!'
+                  : 'No notifications sent. Make sure group members have FCM tokens registered.',
+              style: AppTextStyles.bodyM,
+            ),
+            backgroundColor: notifiedCount > 0 ? AppColors.success : AppColors.warning,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error sending reminders: $e', style: AppTextStyles.bodyM),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      debugPrint('Error sending settlement reminders: $e');
     }
   }
 
@@ -226,7 +307,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           ),
           floatingActionButton: FloatingActionButton.extended(
             heroTag: 'group_add_expense_fab',
-            elevation: 4,
+            elevation: 1,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusLg)),
             onPressed: () => _showExpenseDialog(),
             backgroundColor: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
@@ -500,100 +581,119 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           );
         }
 
-        return ListView.separated(
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.only(
-            left: AppSpacing.screenPadding,
-            right: AppSpacing.screenPadding,
-            top: 16,
-            bottom: 120,
-          ),
-          itemCount: settlements.length,
-          separatorBuilder: (context, index) => const SizedBox(height: 12),
-          itemBuilder: (context, index) {
-            final settlement = settlements[index];
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.screenPadding,
+                16,
+                AppSpacing.screenPadding,
+                16,
+              ),
+              child: CustomButton(
+                icon: Icons.notifications,
+                text: "Send Settlement Reminders",
+                onPressed: () => _sendSettlementReminders(settlements),
+              ),
+            ),
+            Expanded(
+              child: ListView.separated(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.only(
+                  left: AppSpacing.screenPadding,
+                  right: AppSpacing.screenPadding,
+                  top: 0,
+                  bottom: 120,
+                ),
+                itemCount: settlements.length,
+                separatorBuilder: (context, index) => const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  final settlement = settlements[index];
 
-            return AnimatedListItem(
-              index: index,
-              child: ModernCard(
-                margin: EdgeInsets.zero,
-                padding: const EdgeInsets.all(16),
-                color: isDark ? AppColors.darkSurface1 : AppColors.lightSurface1,
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppColors.error.withValues(alpha: 0.12),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.arrow_outward_rounded, color: AppColors.error, size: 20),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                  return AnimatedListItem(
+                    index: index,
+                    child: ModernCard(
+                      margin: EdgeInsets.zero,
+                      padding: const EdgeInsets.all(16),
+                      color: isDark ? AppColors.darkSurface1 : AppColors.lightSurface1,
+                      child: Row(
                         children: [
-                          Row(
-                            children: [
-                              Flexible(
-                                child: UserNameDisplay(
-                                  uid: settlement.fromUser,
-                                  cacheFn: _getCachedName,
-                                  builder: (name) => Text(
-                                    name,
-                                    style: AppTextStyles.bodyL.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppColors.error.withValues(alpha: 0.12),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.arrow_outward_rounded, color: AppColors.error, size: 20),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Flexible(
+                                      child: UserNameDisplay(
+                                        uid: settlement.fromUser,
+                                        cacheFn: _getCachedName,
+                                        builder: (name) => Text(
+                                          name,
+                                          style: AppTextStyles.bodyL.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                            color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
                                     ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 6.0),
-                                child: Text(
-                                  "owes",
-                                  style: AppTextStyles.bodyM.copyWith(
-                                    color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
-                                    fontStyle: FontStyle.italic,
-                                  ),
-                                ),
-                              ),
-                              Flexible(
-                                child: UserNameDisplay(
-                                  uid: settlement.toUser,
-                                  cacheFn: _getCachedName,
-                                  builder: (name) => Text(
-                                    name,
-                                    style: AppTextStyles.bodyL.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6.0),
+                                      child: Text(
+                                        "owes",
+                                        style: AppTextStyles.bodyM.copyWith(
+                                          color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
+                                          fontStyle: FontStyle.italic,
+                                        ),
+                                      ),
                                     ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
+                                    Flexible(
+                                      child: UserNameDisplay(
+                                        uid: settlement.toUser,
+                                        cacheFn: _getCachedName,
+                                        builder: (name) => Text(
+                                          name,
+                                          style: AppTextStyles.bodyL.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                            color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            "₹${settlement.amount.toStringAsFixed(2)}",
+                            style: AppTextStyles.h3.copyWith(
+                              color: AppColors.error,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Text(
-                      "₹${settlement.amount.toStringAsFixed(2)}",
-                      style: AppTextStyles.h3.copyWith(
-                        color: AppColors.error,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
+                  );
+                },
               ),
-            );
-          },
+            ),
+          ],
         );
       },
     );

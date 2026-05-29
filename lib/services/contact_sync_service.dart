@@ -1,4 +1,4 @@
-import 'package:contacts_service/contacts_service.dart';
+import 'package:flutter_contacts/flutter_contacts.dart' hide PermissionStatus;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter/material.dart';
 
@@ -20,8 +20,10 @@ class ContactSyncService {
     }
 
     try {
-      final contacts = await ContactsService.getContacts(withThumbnails: false);
-      return contacts.toList();
+      final contacts = await FlutterContacts.getAll(
+        properties: {ContactProperty.name, ContactProperty.email},
+      );
+      return contacts;
     } catch (e) {
       debugPrint('Error fetching contacts: $e');
       rethrow;
@@ -34,14 +36,14 @@ class ContactSyncService {
       final emails = <Map<String, String>>[];
 
       for (var contact in contacts) {
-        final name = contact.displayName ?? 'Unknown';
+        final name = contact.displayName ?? '';
 
-        if (contact.emails?.isNotEmpty == true) {
-          for (var email in contact.emails ?? []) {
-            final emailValue = email.value ?? '';
+        if (contact.emails.isNotEmpty) {
+          for (var email in contact.emails) {
+            final emailValue = email.address;
             if (emailValue.isNotEmpty) {
               emails.add({
-                'name': name,
+                'name': name.isEmpty ? 'Unknown' : name,
                 'email': emailValue,
               });
             }

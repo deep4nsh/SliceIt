@@ -142,8 +142,9 @@ class GroupAnalyticsService {
 
     var topExpense = expenses[0];
     for (var expense in expenses) {
-      if ((expense['amount'] as num?)?.toDouble() ?? 0 >
-          (topExpense['amount'] as num?)?.toDouble() ?? 0) {
+      final expAmount = (expense['amount'] as num?)?.toDouble() ?? 0.0;
+      final topAmount = (topExpense['amount'] as num?)?.toDouble() ?? 0.0;
+      if (expAmount > topAmount) {
         topExpense = expense;
       }
     }

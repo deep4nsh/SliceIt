@@ -2,31 +2,31 @@ import 'package:flutter/material.dart';
 
 class AppColors {
   // ==========================================
-  // PROFESSIONAL FINANCE DESIGN SYSTEM TOKENS
+  // PREMIUM MINIMALIST DESIGN SYSTEM TOKENS
   // ==========================================
-  
-  // Brand Accents
-  static const primaryAccent = Color(0xFF1E3A8A); // Deep Navy
-  static const secondaryAccent = Color(0xFF0EA5E9); // Calm Cerulean
-  static const accentViolet = Color(0xFF334155); // Slate Gray (neutralized)
+
+  // Brand Accents - Subtle & Refined
+  static const primaryAccent = Color(0xFF5B6F82); // Muted Slate Blue (Premium)
+  static const secondaryAccent = Color(0xFF6B9EAA); // Soft Teal (Subtle)
+  static const accentViolet = Color(0xFF7A8B9E); // Neutral Slate (Refined)
 
   // Dark Mode Palette
-  static const darkBackground = Color(0xFF0F172A); // Slate 900
-  static const darkSurface1 = Color(0xFF1E293B); // Slate 800
-  static const darkSurface2 = Color(0xFF334155); // Slate 700
-  static const darkSurfaceBorder = Color(0xFF475569); // Slate 600
+  static const darkBackground = Color(0xFF1A1A1A); // Deep Charcoal
+  static const darkSurface1 = Color(0xFF2A2A2A); // Subtle Dark Gray
+  static const darkSurface2 = Color(0xFF3A3A3A); // Lighter Dark Gray
+  static const darkSurfaceBorder = Color(0xFF4A4A4A); // Soft Border
 
-  // Light Mode Palette
-  static const lightBackground = Color(0xFFF8FAFC); // Slate 50
-  static const lightSurface1 = Color(0xFFFFFFFF);
-  static const lightSurface2 = Color(0xFFF1F5F9); // Slate 100
-  static const lightSurfaceBorder = Color(0xFFE2E8F0); // Slate 200
+  // Light Mode Palette - Premium White
+  static const lightBackground = Color(0xFFFFFFFF); // Pure White
+  static const lightSurface1 = Color(0xFFFFFFFF); // White Cards
+  static const lightSurface2 = Color(0xFFF7F8F9); // Subtle Light Gray
+  static const lightSurfaceBorder = Color(0xFFDFDFDF); // Refined Border
 
   // Unified Text Colors
   static const textLightPrimary = Color(0xFFFFFFFF);
-  static const textLightSecondary = Color(0xFF94A3B8); // Slate 400
-  static const textDarkPrimary = Color(0xFF0F172A); // Slate 900
-  static const textDarkSecondary = Color(0xFF64748B); // Slate 500
+  static const textLightSecondary = Color(0xFFA0A0A0); // Soft Gray
+  static const textDarkPrimary = Color(0xFF1A1A1A); // Dark Charcoal
+  static const textDarkSecondary = Color(0xFF757575); // Muted Gray
 
   // Semantic / Functional
   static const success = Color(0xFF10B981); // Emerald

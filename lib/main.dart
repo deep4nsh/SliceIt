@@ -10,6 +10,7 @@ import 'package:sliceit/screens/split_history_screen.dart';
 import 'package:sliceit/screens/subscriptions_screen.dart';
 import 'package:sliceit/services/theme_provider.dart';
 import 'package:sliceit/services/notification_service.dart';
+import 'package:sliceit/services/notification_preferences.dart';
 import 'package:sliceit/services/offline_service.dart';
 import 'package:sliceit/services/connectivity_service.dart';
 import 'package:sliceit/screens/analytics_screen.dart';
@@ -49,9 +50,12 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   AppLinks? _appLinks;
   Uri? _pendingInvite;
+  late NotificationPreferences _notificationPreferences;
+
   @override
   void initState() {
     super.initState();
+    _initializeNotificationPreferences();
     if (!kIsWeb) {
       _initDynamicLinks();
       _initAppLinks();
@@ -63,6 +67,11 @@ class _MyAppState extends State<MyApp> {
         _handleIncomingUri(uri);
       }
     });
+  }
+
+  void _initializeNotificationPreferences() {
+    _notificationPreferences = NotificationPreferences();
+    NotificationService().setNotificationPreferences(_notificationPreferences);
   }
 
   Future<void> _initDynamicLinks() async {
@@ -202,8 +211,11 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => ThemeProvider(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(create: (_) => _notificationPreferences),
+      ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
           return MaterialApp(

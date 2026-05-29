@@ -32,13 +32,14 @@ class AppTheme {
       ),
       cardTheme: CardThemeData(
         color: AppColors.darkSurface1,
-        elevation: 0,
+        elevation: 1,
+        shadowColor: Colors.black.withValues(alpha: 0.3),
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusCard),
           side: BorderSide(
-            color: AppColors.darkSurfaceBorder.withValues(alpha: 0.5),
-            width: 0.8,
+            color: AppColors.darkSurfaceBorder.withValues(alpha: 0.4),
+            width: 0.5,
           ),
         ),
       ),
@@ -77,13 +78,14 @@ class AppTheme {
       ),
       cardTheme: CardThemeData(
         color: AppColors.lightSurface1,
-        elevation: 0,
+        elevation: 1,
+        shadowColor: Colors.black.withValues(alpha: 0.08),
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusCard),
           side: BorderSide(
-            color: AppColors.lightSurfaceBorder.withValues(alpha: 0.5),
-            width: 0.8,
+            color: AppColors.lightSurfaceBorder.withValues(alpha: 0.3),
+            width: 0.5,
           ),
         ),
       ),

@@ -33,6 +33,9 @@ subprojects {
         if (project.plugins.hasPlugin("com.android.library")) {
              project.extensions.configure<com.android.build.gradle.LibraryExtension> {
                  compileSdk = 36
+                 if (namespace == null) {
+                     namespace = "com.example." + project.name.replace("-", "_").replace(".", "_")
+                 }
              }
         }
     }

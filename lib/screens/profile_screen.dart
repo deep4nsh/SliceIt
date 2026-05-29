@@ -11,6 +11,7 @@ import '../widgets/mesh_background.dart';
 import '../widgets/custom_button.dart';
 import '../services/auth_service.dart';
 import '../services/theme_provider.dart';
+import '../services/notification_preferences.dart';
 import 'login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -245,7 +246,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   AppSpacing.screenPadding,
                   120, // Space for AppBar
                   AppSpacing.screenPadding,
-                  AppSpacing.screenPadding,
+                  120, // Space for bottom navigation
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
@@ -355,6 +356,72 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
+                    Consumer<NotificationPreferences>(
+                      builder: (context, notificationPrefs, _) => Column(
+                        children: [
+                          ModernCard(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text("Notifications", style: AppTextStyles.h3),
+                                const SizedBox(height: 12),
+                                _buildNotificationToggle(
+                                  title: "Push Notifications",
+                                  subtitle: "Enable all notifications",
+                                  value: notificationPrefs.pushNotificationsEnabled,
+                                  onChanged: (value) =>
+                                      notificationPrefs.setPushNotifications(value),
+                                  icon: Icons.notifications,
+                                ),
+                                if (notificationPrefs.pushNotificationsEnabled) ...[
+                                  const Divider(height: 20, color: Colors.white12),
+                                  _buildNotificationToggle(
+                                    title: "Settlement Reminders",
+                                    subtitle: "Get reminded about pending payments",
+                                    value: notificationPrefs.settlementRemindersEnabled,
+                                    onChanged: (value) =>
+                                        notificationPrefs.setSettlementReminders(value),
+                                    icon: Icons.payment,
+                                    indented: true,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  _buildNotificationToggle(
+                                    title: "Group Invites",
+                                    subtitle: "Receive group invitation notifications",
+                                    value: notificationPrefs.groupInvitesEnabled,
+                                    onChanged: (value) =>
+                                        notificationPrefs.setGroupInvites(value),
+                                    icon: Icons.group_add,
+                                    indented: true,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  _buildNotificationToggle(
+                                    title: "Expense Updates",
+                                    subtitle: "Get notified about new expenses",
+                                    value: notificationPrefs.expenseUpdatesEnabled,
+                                    onChanged: (value) =>
+                                        notificationPrefs.setExpenseUpdates(value),
+                                    icon: Icons.receipt,
+                                    indented: true,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  _buildNotificationToggle(
+                                    title: "Payment Reminders",
+                                    subtitle: "Reminders for overdue payments",
+                                    value: notificationPrefs.paymentRemindersEnabled,
+                                    onChanged: (value) =>
+                                        notificationPrefs.setPaymentReminders(value),
+                                    icon: Icons.alarm,
+                                    indented: true,
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+                      ),
+                    ),
                     ModernCard(
                       child: SwitchListTile(
                         contentPadding: EdgeInsets.zero,
@@ -410,6 +477,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
             overflow: TextOverflow.ellipsis,
             style: AppTextStyles.bodyL.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
           ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNotificationToggle({
+    required String title,
+    required String subtitle,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+    required IconData icon,
+    bool indented = false,
+  }) {
+    return Row(
+      children: [
+        if (indented) const SizedBox(width: 20),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(icon, size: 18, color: AppColors.primaryGold),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(title, style: AppTextStyles.bodyL),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                style: AppTextStyles.bodyM.copyWith(color: Colors.white60),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        Switch(
+          value: value,
+          onChanged: onChanged,
+          activeColor: AppColors.primaryGold,
         ),
       ],
     );

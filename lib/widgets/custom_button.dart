@@ -35,7 +35,7 @@ class CustomButton extends StatelessWidget {
     this.backgroundColor,
     this.textColor,
     this.width,
-    this.height = 56.0,
+    this.height = 44.0,
     this.borderRadius = AppSpacing.radiusButton,
     this.variant = ButtonVariant.primary,
   });
@@ -66,7 +66,7 @@ class CustomButton extends StatelessWidget {
       case ButtonVariant.outline:
         resolvedBg = Colors.transparent;
         resolvedText = textColor ?? (isDark ? AppColors.secondaryAccent : AppColors.primaryAccent);
-        resolvedBorder = BorderSide(color: resolvedText, width: 1.5);
+        resolvedBorder = BorderSide(color: resolvedText, width: 1);
         break;
       case ButtonVariant.ghost:
         resolvedBg = Colors.transparent;
@@ -83,15 +83,13 @@ class CustomButton extends StatelessWidget {
         foregroundColor: resolvedText,
         disabledBackgroundColor: resolvedBg.withValues(alpha: 0.4),
         disabledForegroundColor: resolvedText.withValues(alpha: 0.6),
-        elevation: variant == ButtonVariant.primary ? 2 : 0,
-        shadowColor: variant == ButtonVariant.primary
-            ? Colors.black.withValues(alpha: 0.1)
-            : Colors.transparent,
+        elevation: 0,
+        shadowColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(borderRadius),
           side: resolvedBorder,
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 24),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
       ),
       child: isLoading
           ? Row(
@@ -111,7 +109,7 @@ class CustomButton extends StatelessWidget {
                   'Processing...',
                   style: AppTextStyles.label.copyWith(
                     color: resolvedText,
-                    letterSpacing: 1.0,
+                    letterSpacing: 0.5,
                   ),
                 ).animate(onPlay: (c) => c.repeat(reverse: true)).fade(begin: 0.5, end: 1.0),
               ],

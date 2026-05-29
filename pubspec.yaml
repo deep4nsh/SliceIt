@@ -44,12 +44,13 @@ dependencies:
   shared_preferences: ^2.5.5
 
   # Contacts & Permissions
-  contacts_service: ^0.6.3
-  permission_handler: ^11.4.4
+  flutter_contacts: ^2.1.0
+  permission_handler: ^12.0.1
 
-  # PDF Export
+  # PDF Export with Professional Templates
   pdf: ^3.10.4
   printing: ^5.11.0
+  html: ^0.15.4
 
   # Offline Support
   hive: ^2.2.3

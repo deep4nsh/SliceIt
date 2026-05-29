@@ -47,15 +47,15 @@ class ModernCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(cardRadius),
         border: Border.all(
           color: (isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder)
-              .withValues(alpha: 0.5),
-          width: 0.8,
+              .withValues(alpha: 0.4),
+          width: 0.5,
         ),
         boxShadow: [
           BoxShadow(
             color: (isDark ? Colors.black : AppColors.textDarkPrimary)
-                .withValues(alpha: isDark ? 0.12 : 0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+                .withValues(alpha: isDark ? 0.08 : 0.02),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
             spreadRadius: 0,
           ),
         ],

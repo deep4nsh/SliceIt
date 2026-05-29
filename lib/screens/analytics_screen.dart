@@ -692,9 +692,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.05),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
+                          color: Colors.black.withValues(alpha: isDark ? 0.1 : 0.02),
+                          blurRadius: 4,
+                          offset: const Offset(0, 1),
                         ),
                       ],
                     ),
@@ -769,7 +769,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with SingleTickerProv
     }
 
     return ModernCard(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

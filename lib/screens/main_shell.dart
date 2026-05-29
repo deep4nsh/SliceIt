@@ -60,16 +60,16 @@ class _MainShellState extends State<MainShell> {
                     borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
                     border: Border.all(
                       color: isDark
-                          ? AppColors.darkSurfaceBorder.withValues(alpha: 0.5)
-                          : AppColors.lightSurfaceBorder.withValues(alpha: 0.6),
-                      width: 1.2,
+                          ? AppColors.darkSurfaceBorder.withValues(alpha: 0.3)
+                          : AppColors.lightSurfaceBorder.withValues(alpha: 0.4),
+                      width: 0.5,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.05),
-                        blurRadius: 10,
+                        color: Colors.black.withValues(alpha: isDark ? 0.1 : 0.02),
+                        blurRadius: 4,
                         spreadRadius: 0,
-                        offset: const Offset(0, 4),
+                        offset: const Offset(0, 1),
                       ),
                     ],
                   ),

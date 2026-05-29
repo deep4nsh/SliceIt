@@ -761,7 +761,7 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
           onPressed: _addSubscription,
           backgroundColor: AppColors.primaryAccent,
           foregroundColor: Colors.white,
-          elevation: 4,
+          elevation: 1,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
           ),
