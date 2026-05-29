@@ -77,13 +77,38 @@ class _SettlementHistoryScreenState extends State<SettlementHistoryScreen> {
     if (!mounted) return;
 
     try {
+      // Show loading dialog with progress
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogContext) => AlertDialog(
+            backgroundColor: Theme.of(context).brightness == Brightness.dark
+                ? AppColors.darkSurface2
+                : AppColors.lightSurface1,
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(color: AppColors.primaryGold),
+                const SizedBox(height: 16),
+                Text('Uploading proof...', style: AppTextStyles.bodyM),
+              ],
+            ),
+          ),
+        );
+      }
+
       await _settlementService.addProofToSettlement(
         groupId: widget.groupId,
         settlementId: settlement.id,
         proofImage: File(pickedFile.path),
+        onProgress: (progress) {
+          debugPrint('Upload progress: ${(progress * 100).toStringAsFixed(0)}%');
+        },
       );
 
       if (mounted) {
+        Navigator.pop(context); // Close loading dialog
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Proof uploaded successfully', style: AppTextStyles.bodyM),
@@ -94,6 +119,7 @@ class _SettlementHistoryScreenState extends State<SettlementHistoryScreen> {
       }
     } catch (e) {
       if (mounted) {
+        Navigator.pop(context); // Close loading dialog
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error uploading proof: $e', style: AppTextStyles.bodyM),

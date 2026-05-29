@@ -1,14 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
 import '../models/settlement_model.dart';
 import 'app_notification_service.dart';
+import 'cloudinary_service.dart';
 
 class SettlementService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseStorage _storage = FirebaseStorage.instance;
+  final CloudinaryService _cloudinary = CloudinaryService();
 
   Future<String> recordSettlement({
     required String groupId,
@@ -57,21 +57,21 @@ class SettlementService {
     required String groupId,
     required String settlementId,
     required File proofImage,
+    required Function(double) onProgress,
   }) async {
     try {
       final userId = _auth.currentUser?.uid;
       if (userId == null) throw Exception('User not logged in');
 
-      final fileName = 'settlement_proof_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final ref = _storage
-          .ref()
-          .child('settlements')
-          .child(groupId)
-          .child(settlementId)
-          .child(fileName);
+      // Upload to Cloudinary
+      final url = await _cloudinary.uploadSettlementProofDirect(
+        proofImage,
+        onProgress: onProgress,
+      );
 
-      await ref.putFile(proofImage);
-      final url = await ref.getDownloadURL();
+      if (url == null) {
+        throw Exception('Failed to upload proof to Cloudinary');
+      }
 
       // Update settlement with proof URL
       await _firestore
