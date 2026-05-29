@@ -38,308 +38,455 @@ class PdfExportService {
     bool share = true,
   }) async {
     final totalAmount = expenses.fold<double>(0, (sum, exp) => sum + ((exp['amount'] as num?)?.toDouble() ?? 0));
-    final escapedGroupName = _escapeHtml(groupName);
 
-    // Build expenses table rows
-    final buffer = StringBuffer();
-    for (int i = 0; i < expenses.length; i++) {
-      final exp = expenses[i];
-      final title = _escapeHtml((exp['title'] as String?) ?? 'Unknown');
-      final amount = (exp['amount'] as num?)?.toDouble() ?? 0;
-      final paidBy = _escapeHtml(((exp['paidBy'] as String?) ?? 'Unknown').split('@').first);
-      final date = _formatDate(exp['date']);
+    final pdf = pw.Document();
+    final inter = await PdfGoogleFonts.interRegular();
+    final interBold = await PdfGoogleFonts.interBold();
 
-      buffer.write('''
-        <tr>
-          <td>${i + 1}</td>
-          <td>$title</td>
-          <td>${_currencyFormat.format(amount)}</td>
-          <td>$paidBy</td>
-          <td>$date</td>
-        </tr>
-      ''');
-    }
-    final expensesRows = buffer.toString();
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.symmetric(horizontal: 40, vertical: 35),
+        build: (context) => [
+          // Header with logo area
+          pw.Container(
+            decoration: pw.BoxDecoration(
+              border: pw.Border(bottom: pw.BorderSide(color: PdfColor.fromHex('3C78D8'), width: 3)),
+            ),
+            padding: const pw.EdgeInsets.only(bottom: 20),
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: pw.CrossAxisAlignment.center,
+              children: [
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      'SliceIt',
+                      style: pw.TextStyle(
+                        fontSize: 32,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColor.fromHex('3C78D8'),
+                        font: interBold,
+                      ),
+                    ),
+                    pw.SizedBox(height: 4),
+                    pw.Text(
+                      'Group Expense Report',
+                      style: pw.TextStyle(
+                        fontSize: 14,
+                        color: PdfColor.fromHex('64748b'),
+                        font: inter,
+                      ),
+                    ),
+                  ],
+                ),
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.end,
+                  children: [
+                    pw.Text(
+                      'Generated',
+                      style: pw.TextStyle(
+                        fontSize: 10,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColor.fromHex('94a3b8'),
+                        font: inter,
+                      ),
+                    ),
+                    pw.SizedBox(height: 6),
+                    pw.Text(
+                      _dateFormat.format(DateTime.now()),
+                      style: pw.TextStyle(
+                        fontSize: 12,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColor.fromHex('1e293b'),
+                        font: interBold,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          pw.SizedBox(height: 25),
 
-    // Build members summary table rows
-    final membersBuffer = StringBuffer();
-    for (var entry in balances.entries) {
-      final name = _escapeHtml(entry.key.split('@').first);
-      final val = entry.value;
-      final statusText = val > 0 ? 'Owed Money' : (val < 0 ? 'Owes Money' : 'Settled');
-      final badgeClass = val > 0 ? 'owed' : (val < 0 ? 'owes' : 'settled');
+          // Group info card with gradient effect
+          pw.Container(
+            decoration: pw.BoxDecoration(
+              color: PdfColor.fromHex('f0f4ff'),
+              border: pw.Border.all(color: PdfColor.fromHex('3C78D8'), width: 2),
+              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+            ),
+            padding: const pw.EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(
+                  groupName.toUpperCase(),
+                  style: pw.TextStyle(
+                    fontSize: 18,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColor.fromHex('3C78D8'),
+                    font: interBold,
+                  ),
+                ),
+                pw.SizedBox(height: 12),
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(
+                          'MEMBERS',
+                          style: pw.TextStyle(fontSize: 9, color: PdfColor.fromHex('64748b'), fontWeight: pw.FontWeight.bold, font: inter),
+                        ),
+                        pw.SizedBox(height: 4),
+                        pw.Text(
+                          '${balances.length}',
+                          style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('1e293b'), font: interBold),
+                        ),
+                      ],
+                    ),
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(
+                          'EXPENSES',
+                          style: pw.TextStyle(fontSize: 9, color: PdfColor.fromHex('64748b'), fontWeight: pw.FontWeight.bold, font: inter),
+                        ),
+                        pw.SizedBox(height: 4),
+                        pw.Text(
+                          '${expenses.length}',
+                          style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('1e293b'), font: interBold),
+                        ),
+                      ],
+                    ),
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(
+                          'TOTAL SPENT',
+                          style: pw.TextStyle(fontSize: 9, color: PdfColor.fromHex('64748b'), fontWeight: pw.FontWeight.bold, font: inter),
+                        ),
+                        pw.SizedBox(height: 4),
+                        pw.Text(
+                          _formatCurrency(totalAmount),
+                          style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('3C78D8'), font: interBold),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          pw.SizedBox(height: 30),
 
-      membersBuffer.write('''
-        <tr>
-          <td>$name</td>
-          <td>${_currencyFormat.format(val)}</td>
-          <td><span class="badge $badgeClass">$statusText</span></td>
-        </tr>
-      ''');
-    }
-    final membersRows = membersBuffer.toString();
+          // Stats grid
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              _buildEnhancedStatCard(
+                'Total Spent',
+                _formatCurrency(totalAmount),
+                PdfColor.fromHex('3c78d8'),
+                inter,
+                interBold,
+              ),
+              _buildEnhancedStatCard(
+                'Average',
+                _formatCurrency(expenses.isEmpty ? 0.0 : totalAmount / expenses.length),
+                PdfColor.fromHex('34a853'),
+                inter,
+                interBold,
+              ),
+              _buildEnhancedStatCard(
+                'Members',
+                '${balances.length}',
+                PdfColor.fromHex('ea4335'),
+                inter,
+                interBold,
+              ),
+            ],
+          ),
+          pw.SizedBox(height: 30),
 
-    final htmlContent = '''
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      color: #1f2937;
-      margin: 0;
-      padding: 30px;
-      font-size: 13px;
-      line-height: 1.5;
-    }
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 2px solid #e5e7eb;
-      padding-bottom: 15px;
-      margin-bottom: 25px;
-    }
-    .logo {
-      font-size: 26px;
-      font-weight: 800;
-      color: #3C78D8;
-    }
-    .title-sub {
-      font-size: 12px;
-      color: #6b7280;
-      margin-top: 4px;
-    }
-    .date-box {
-      text-align: right;
-    }
-    .date-label {
-      font-size: 10px;
-      color: #6b7280;
-      text-transform: uppercase;
-      font-weight: bold;
-      letter-spacing: 0.5px;
-    }
-    .date-value {
-      font-size: 14px;
-      font-weight: 700;
-      color: #111827;
-      margin-top: 2px;
-    }
-    .group-card {
-      background-color: #f9fafb;
-      border: 1px solid #e5e7eb;
-      border-radius: 8px;
-      padding: 16px;
-      margin-bottom: 20px;
-    }
-    .group-title {
-      font-size: 18px;
-      font-weight: 700;
-      color: #111827;
-      margin: 0 0 8px 0;
-    }
-    .group-meta {
-      display: flex;
-      justify-content: space-between;
-      font-size: 12px;
-      color: #4b5563;
-    }
-    .bento-grid {
-      display: flex;
-      gap: 15px;
-      margin-bottom: 30px;
-    }
-    .bento-card {
-      flex: 1;
-      border-radius: 8px;
-      padding: 15px;
-      text-align: center;
-      background: #ffffff;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    }
-    .bento-card.blue { border: 1.5px solid #3c78d8; border-top: 6px solid #3c78d8; }
-    .bento-card.green { border: 1.5px solid #34a853; border-top: 6px solid #34a853; }
-    .bento-card.red { border: 1.5px solid #ea4335; border-top: 6px solid #ea4335; }
-    .bento-label {
-      font-size: 9px;
-      font-weight: 800;
-      color: #6b7280;
-      text-transform: uppercase;
-      margin-bottom: 6px;
-      letter-spacing: 0.5px;
-    }
-    .bento-value {
-      font-size: 18px;
-      font-weight: 800;
-    }
-    .bento-card.blue .bento-value { color: #3c78d8; }
-    .bento-card.green .bento-value { color: #34a853; }
-    .bento-card.red .bento-value { color: #ea4335; }
-    
-    h2 {
-      font-size: 15px;
-      font-weight: 700;
-      margin: 25px 0 12px 0;
-      color: #111827;
-      border-left: 4px solid #3c78d8;
-      padding-left: 8px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 25px;
-      border-radius: 8px;
-      overflow: hidden;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.02);
-      border: 1px solid #e5e7eb;
-    }
-    th {
-      background-color: #1f2937;
-      color: #ffffff;
-      font-weight: 600;
-      text-align: left;
-      padding: 12px;
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    td {
-      padding: 12px;
-      border-bottom: 1px solid #e5e7eb;
-      color: #374151;
-    }
-    tr:last-child td {
-      border-bottom: none;
-    }
-    tr:nth-child(even) {
-      background-color: #fcfdfd;
-    }
-    .text-right {
-      text-align: right;
-    }
-    .badge {
-      display: inline-block;
-      padding: 4px 8px;
-      border-radius: 12px;
-      font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.3px;
-    }
-    .badge.owed {
-      background-color: #e6f4ea;
-      color: #137333;
-    }
-    .badge.owes {
-      background-color: #fce8e6;
-      color: #c5221f;
-    }
-    .badge.settled {
-      background-color: #f1f3f4;
-      color: #5f6368;
-    }
-    .footer {
-      border-top: 1px solid #e5e7eb;
-      padding-top: 15px;
-      margin-top: 40px;
-      text-align: center;
-      font-size: 10px;
-      color: #9ca3af;
-    }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <div>
-      <div class="logo">🍕 SliceIt</div>
-      <div class="title-sub">Group Expense Report</div>
-    </div>
-    <div class="date-box">
-      <div class="date-label">Report Date</div>
-      <div class="date-value">${_dateFormat.format(DateTime.now())}</div>
-    </div>
-  </div>
+          // Expenses table
+          pw.Text(
+            'EXPENSE BREAKDOWN',
+            style: pw.TextStyle(
+              fontSize: 13,
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColor.fromHex('1e293b'),
+              font: interBold,
+            ),
+          ),
+          pw.SizedBox(height: 12),
+          _buildEnhancedExpensesTable(expenses, inter, interBold),
+          pw.SizedBox(height: 28),
 
-  <div class="group-card">
-    <div class="group-title">GROUP: $escapedGroupName</div>
-    <div class="group-meta">
-      <span>Members: ${balances.length}</span>
-      <span>Total Expenses: ${expenses.length}</span>
-    </div>
-  </div>
+          // Members table
+          pw.Text(
+            'MEMBER SETTLEMENT',
+            style: pw.TextStyle(
+              fontSize: 13,
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColor.fromHex('1e293b'),
+              font: interBold,
+            ),
+          ),
+          pw.SizedBox(height: 12),
+          _buildEnhancedMembersTable(balances, inter, interBold),
+          pw.SizedBox(height: 35),
 
-  <div class="bento-grid">
-    <div class="bento-card blue">
-      <div class="bento-label">Total Spent</div>
-      <div class="bento-value">${_currencyFormat.format(totalAmount)}</div>
-    </div>
-    <div class="bento-card green">
-      <div class="bento-label">Avg Per Expense</div>
-      <div class="bento-value">${_currencyFormat.format(expenses.isEmpty ? 0 : totalAmount / expenses.length)}</div>
-    </div>
-    <div class="bento-card red">
-      <div class="bento-label">Total Members</div>
-      <div class="bento-value">${balances.length}</div>
-    </div>
-  </div>
-
-  <h2>Expense Breakdown</h2>
-  <table>
-    <thead>
-      <tr>
-        <th style="width: 8%;">#</th>
-        <th style="width: 42%;">Title</th>
-        <th style="width: 18%;">Amount</th>
-        <th style="width: 18%;">Paid By</th>
-        <th style="width: 14%;">Date</th>
-      </tr>
-    </thead>
-    <tbody>
-      $expensesRows
-    </tbody>
-  </table>
-
-  <h2>Member Summary</h2>
-  <table>
-    <thead>
-      <tr>
-        <th style="width: 45%;">Member</th>
-        <th style="width: 30%;">Balance</th>
-        <th style="width: 25%;">Status</th>
-      </tr>
-    </thead>
-    <tbody>
-      $membersRows
-    </tbody>
-  </table>
-
-  <div class="footer">
-    Generated by SliceIt • Split bills effortlessly
-  </div>
-</body>
-</html>
-    ''';
-
-    final pdfBytes = await Printing.convertHtml(
-      html: htmlContent,
-      format: PdfPageFormat.a4,
+          // Footer
+          pw.Container(
+            decoration: pw.BoxDecoration(
+              border: pw.Border(top: pw.BorderSide(color: PdfColor.fromHex('e2e8f0'), width: 1)),
+            ),
+            padding: const pw.EdgeInsets.only(top: 15),
+            child: pw.Text(
+              'Generated by SliceIt • Split bills effortlessly',
+              textAlign: pw.TextAlign.center,
+              style: pw.TextStyle(
+                fontSize: 10,
+                color: PdfColor.fromHex('94a3b8'),
+                font: inter,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
+
+    final bytes = await pdf.save();
 
     if (share) {
       await Printing.sharePdf(
-        bytes: pdfBytes,
+        bytes: bytes,
         filename: 'sliceit_${groupName.toLowerCase().replaceAll(' ', '_')}_invoice_${DateTime.now().millisecondsSinceEpoch}.pdf',
       );
     } else {
       await Printing.layoutPdf(
-        onLayout: (format) async => pdfBytes,
+        onLayout: (_) async => bytes,
         name: 'sliceit_${groupName.toLowerCase().replaceAll(' ', '_')}_invoice_${DateTime.now().millisecondsSinceEpoch}',
       );
     }
+  }
+
+  static String _formatCurrency(double amount) {
+    if (amount >= 10000000) {
+      return '₹${(amount / 10000000).toStringAsFixed(1)}Cr';
+    } else if (amount >= 100000) {
+      return '₹${(amount / 100000).toStringAsFixed(1)}L';
+    }
+    return _currencyFormat.format(amount);
+  }
+
+  static pw.Widget _buildEnhancedStatCard(
+    String label,
+    String value,
+    PdfColor color,
+    pw.Font font,
+    pw.Font fontBold,
+  ) {
+    return pw.Expanded(
+      child: pw.Container(
+        decoration: pw.BoxDecoration(
+          border: pw.Border.all(color: color, width: 2),
+          borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+          color: PdfColor.fromHex('ffffff'),
+        ),
+        padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.center,
+          mainAxisAlignment: pw.MainAxisAlignment.center,
+          children: [
+            pw.Text(
+              label,
+              style: pw.TextStyle(
+                fontSize: 9,
+                fontWeight: pw.FontWeight.bold,
+                color: PdfColor.fromHex('64748b'),
+                font: font,
+              ),
+            ),
+            pw.SizedBox(height: 8),
+            pw.Text(
+              value,
+              textAlign: pw.TextAlign.center,
+              maxLines: 2,
+              style: pw.TextStyle(
+                fontSize: 16,
+                fontWeight: pw.FontWeight.bold,
+                color: color,
+                font: fontBold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static pw.Widget _buildEnhancedExpensesTable(
+    List<Map<String, dynamic>> expenses,
+    pw.Font font,
+    pw.Font fontBold,
+  ) {
+    return pw.Table(
+      columnWidths: {
+        0: const pw.FlexColumnWidth(0.8),
+        1: const pw.FlexColumnWidth(2.5),
+        2: const pw.FlexColumnWidth(1.5),
+        3: const pw.FlexColumnWidth(1.8),
+        4: const pw.FlexColumnWidth(1.4),
+      },
+      border: pw.TableBorder(
+        top: pw.BorderSide(color: PdfColor.fromHex('cbd5e1'), width: 1),
+        bottom: pw.BorderSide(color: PdfColor.fromHex('cbd5e1'), width: 1),
+        horizontalInside: pw.BorderSide(color: PdfColor.fromHex('e2e8f0'), width: 0.5),
+      ),
+      children: [
+        pw.TableRow(
+          decoration: pw.BoxDecoration(color: PdfColor.fromHex('f1f5f9')),
+          children: [
+            _buildEnhancedTableHeader('#', font),
+            _buildEnhancedTableHeader('Description', font),
+            _buildEnhancedTableHeader('Amount', font),
+            _buildEnhancedTableHeader('Paid By', font),
+            _buildEnhancedTableHeader('Date', font),
+          ],
+        ),
+        ...expenses.asMap().entries.map((entry) {
+          final i = entry.key;
+          final exp = entry.value;
+          final title = (exp['title'] as String?) ?? 'Unknown';
+          final amount = (exp['amount'] as num?)?.toDouble() ?? 0;
+          final paidBy = ((exp['paidBy'] as String?) ?? 'Unknown').split('@').first;
+          final date = _formatDate(exp['date']);
+          final isEven = i.isEven;
+
+          return pw.TableRow(
+            decoration: pw.BoxDecoration(color: isEven ? PdfColor.fromHex('ffffff') : PdfColor.fromHex('f8fafc')),
+            children: [
+              _buildEnhancedTableCell('${i + 1}', font),
+              _buildEnhancedTableCell(title, font),
+              _buildEnhancedTableCell(_formatCurrency(amount), font, align: pw.TextAlign.right),
+              _buildEnhancedTableCell(paidBy, font),
+              _buildEnhancedTableCell(date, font),
+            ],
+          );
+        }).toList(),
+      ],
+    );
+  }
+
+  static pw.Widget _buildEnhancedMembersTable(
+    Map<String, double> balances,
+    pw.Font font,
+    pw.Font fontBold,
+  ) {
+    final entries = balances.entries.toList();
+    return pw.Table(
+      columnWidths: {
+        0: const pw.FlexColumnWidth(2),
+        1: const pw.FlexColumnWidth(1.5),
+        2: const pw.FlexColumnWidth(1.5),
+      },
+      border: pw.TableBorder(
+        top: pw.BorderSide(color: PdfColor.fromHex('cbd5e1'), width: 1),
+        bottom: pw.BorderSide(color: PdfColor.fromHex('cbd5e1'), width: 1),
+        horizontalInside: pw.BorderSide(color: PdfColor.fromHex('e2e8f0'), width: 0.5),
+      ),
+      children: [
+        pw.TableRow(
+          decoration: pw.BoxDecoration(color: PdfColor.fromHex('f1f5f9')),
+          children: [
+            _buildEnhancedTableHeader('Member', font),
+            _buildEnhancedTableHeader('Balance', font),
+            _buildEnhancedTableHeader('Status', font),
+          ],
+        ),
+        ...entries.asMap().entries.map((entry) {
+          final idx = entry.key;
+          final mapEntry = entry.value;
+          final name = mapEntry.key;
+          final val = mapEntry.value;
+
+          final statusText = val > 0.01 ? 'Gets Back' : (val < -0.01 ? 'Pays' : 'Settled');
+          final statusColor = val > 0.01 ? PdfColor.fromHex('34a853') : (val < -0.01 ? PdfColor.fromHex('ea4335') : PdfColor.fromHex('64748b'));
+          final isEven = idx.isEven;
+
+          return pw.TableRow(
+            decoration: pw.BoxDecoration(color: isEven ? PdfColor.fromHex('ffffff') : PdfColor.fromHex('f8fafc')),
+            children: [
+              _buildEnhancedTableCell(name, font),
+              _buildEnhancedTableCell(_formatCurrency(val.abs()), font, align: pw.TextAlign.right),
+              _buildStatusCell(statusText, statusColor, font),
+            ],
+          );
+        }).toList(),
+      ],
+    );
+  }
+
+  static pw.Widget _buildEnhancedTableHeader(String text, pw.Font font) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(
+          fontSize: 9,
+          fontWeight: pw.FontWeight.bold,
+          color: PdfColor.fromHex('475569'),
+          font: font,
+        ),
+      ),
+    );
+  }
+
+  static pw.Widget _buildEnhancedTableCell(
+    String text,
+    pw.Font font, {
+    pw.TextAlign align = pw.TextAlign.left,
+  }) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(
+          fontSize: 10,
+          color: PdfColor.fromHex('1e293b'),
+          font: font,
+        ),
+        textAlign: align,
+      ),
+    );
+  }
+
+  static pw.Widget _buildStatusCell(String text, PdfColor color, pw.Font font) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+      child: pw.Container(
+        decoration: pw.BoxDecoration(
+          color: color.withAlpha(0.1),
+          borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+        ),
+        padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        child: pw.Text(
+          text,
+          style: pw.TextStyle(
+            fontSize: 9,
+            fontWeight: pw.FontWeight.bold,
+            color: color,
+            font: font,
+          ),
+          textAlign: pw.TextAlign.center,
+        ),
+      ),
+    );
   }
 
   static Future<void> exportGroupStatement({
@@ -362,248 +509,279 @@ class PdfExportService {
     required double totalSpent,
     bool share = true,
   }) async {
-    final escapedUserName = _escapeHtml(userName);
+    final pdf = pw.Document();
+    final inter = await PdfGoogleFonts.interRegular();
+    final interBold = await PdfGoogleFonts.interBold();
+    final avgExpense = expenses.isEmpty ? 0.0 : totalSpent / expenses.length;
 
-    // Build expenses table rows
-    final buffer = StringBuffer();
-    for (int i = 0; i < expenses.length; i++) {
-      final exp = expenses[i];
-      final title = _escapeHtml((exp['title'] as String?) ?? 'Unknown');
-      final amount = (exp['amount'] as num?)?.toDouble() ?? 0;
-      final category = _escapeHtml((exp['category'] as String?) ?? 'Other');
-      final date = _formatDate(exp['date']);
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.symmetric(horizontal: 40, vertical: 35),
+        build: (context) => [
+          // Header
+          pw.Container(
+            decoration: pw.BoxDecoration(
+              border: pw.Border(bottom: pw.BorderSide(color: PdfColor.fromHex('3C78D8'), width: 3)),
+            ),
+            padding: const pw.EdgeInsets.only(bottom: 20),
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: pw.CrossAxisAlignment.center,
+              children: [
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      'SliceIt',
+                      style: pw.TextStyle(
+                        fontSize: 32,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColor.fromHex('3C78D8'),
+                        font: interBold,
+                      ),
+                    ),
+                    pw.SizedBox(height: 4),
+                    pw.Text(
+                      'Personal Expense Report',
+                      style: pw.TextStyle(
+                        fontSize: 14,
+                        color: PdfColor.fromHex('64748b'),
+                        font: inter,
+                      ),
+                    ),
+                  ],
+                ),
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.end,
+                  children: [
+                    pw.Text(
+                      'Generated',
+                      style: pw.TextStyle(
+                        fontSize: 10,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColor.fromHex('94a3b8'),
+                        font: inter,
+                      ),
+                    ),
+                    pw.SizedBox(height: 6),
+                    pw.Text(
+                      _dateFormat.format(DateTime.now()),
+                      style: pw.TextStyle(
+                        fontSize: 12,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColor.fromHex('1e293b'),
+                        font: interBold,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          pw.SizedBox(height: 25),
 
-      buffer.write('''
-        <tr>
-          <td>${i + 1}</td>
-          <td>$title</td>
-          <td>${_currencyFormat.format(amount)}</td>
-          <td>$category</td>
-          <td>$date</td>
-        </tr>
-      ''');
-    }
-    final expensesRows = buffer.toString();
+          // User info card
+          pw.Container(
+            decoration: pw.BoxDecoration(
+              color: PdfColor.fromHex('f0f4ff'),
+              border: pw.Border.all(color: PdfColor.fromHex('3C78D8'), width: 2),
+              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+            ),
+            padding: const pw.EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(
+                  userName.toUpperCase(),
+                  style: pw.TextStyle(
+                    fontSize: 18,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColor.fromHex('3C78D8'),
+                    font: interBold,
+                  ),
+                ),
+                pw.SizedBox(height: 12),
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(
+                          'TOTAL SPENT',
+                          style: pw.TextStyle(fontSize: 9, color: PdfColor.fromHex('64748b'), fontWeight: pw.FontWeight.bold, font: inter),
+                        ),
+                        pw.SizedBox(height: 4),
+                        pw.Text(
+                          _formatCurrency(totalSpent),
+                          style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('3C78D8'), font: interBold),
+                        ),
+                      ],
+                    ),
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(
+                          'EXPENSES',
+                          style: pw.TextStyle(fontSize: 9, color: PdfColor.fromHex('64748b'), fontWeight: pw.FontWeight.bold, font: inter),
+                        ),
+                        pw.SizedBox(height: 4),
+                        pw.Text(
+                          '${expenses.length}',
+                          style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('1e293b'), font: interBold),
+                        ),
+                      ],
+                    ),
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(
+                          'AVERAGE',
+                          style: pw.TextStyle(fontSize: 9, color: PdfColor.fromHex('64748b'), fontWeight: pw.FontWeight.bold, font: inter),
+                        ),
+                        pw.SizedBox(height: 4),
+                        pw.Text(
+                          _formatCurrency(avgExpense),
+                          style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('1e293b'), font: interBold),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          pw.SizedBox(height: 30),
 
-    final htmlContent = '''
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      color: #1f2937;
-      margin: 0;
-      padding: 30px;
-      font-size: 13px;
-      line-height: 1.5;
-    }
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 2px solid #e5e7eb;
-      padding-bottom: 15px;
-      margin-bottom: 25px;
-    }
-    .logo {
-      font-size: 26px;
-      font-weight: 800;
-      color: #3C78D8;
-    }
-    .title-sub {
-      font-size: 12px;
-      color: #6b7280;
-      margin-top: 4px;
-    }
-    .date-box {
-      text-align: right;
-    }
-    .date-label {
-      font-size: 10px;
-      color: #6b7280;
-      text-transform: uppercase;
-      font-weight: bold;
-      letter-spacing: 0.5px;
-    }
-    .date-value {
-      font-size: 14px;
-      font-weight: 700;
-      color: #111827;
-      margin-top: 2px;
-    }
-    .user-card {
-      background-color: #f9fafb;
-      border: 1px solid #e5e7eb;
-      border-radius: 8px;
-      padding: 16px;
-      margin-bottom: 20px;
-    }
-    .user-name {
-      font-size: 18px;
-      font-weight: 700;
-      color: #111827;
-      margin: 0 0 8px 0;
-    }
-    .user-meta {
-      font-size: 12px;
-      color: #4b5563;
-    }
-    .bento-grid {
-      display: flex;
-      gap: 15px;
-      margin-bottom: 30px;
-    }
-    .bento-card {
-      flex: 1;
-      border-radius: 8px;
-      padding: 15px;
-      text-align: center;
-      background: #ffffff;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    }
-    .bento-card.blue { border: 1.5px solid #3c78d8; border-top: 6px solid #3c78d8; }
-    .bento-card.green { border: 1.5px solid #34a853; border-top: 6px solid #34a853; }
-    .bento-card.red { border: 1.5px solid #ea4335; border-top: 6px solid #ea4335; }
-    .bento-label {
-      font-size: 9px;
-      font-weight: 800;
-      color: #6b7280;
-      text-transform: uppercase;
-      margin-bottom: 6px;
-      letter-spacing: 0.5px;
-    }
-    .bento-value {
-      font-size: 18px;
-      font-weight: 800;
-    }
-    .bento-card.blue .bento-value { color: #3c78d8; }
-    .bento-card.green .bento-value { color: #34a853; }
-    .bento-card.red .bento-value { color: #ea4335; }
-    
-    h2 {
-      font-size: 15px;
-      font-weight: 700;
-      margin: 25px 0 12px 0;
-      color: #111827;
-      border-left: 4px solid #3c78d8;
-      padding-left: 8px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 25px;
-      border-radius: 8px;
-      overflow: hidden;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.02);
-      border: 1px solid #e5e7eb;
-    }
-    th {
-      background-color: #1f2937;
-      color: #ffffff;
-      font-weight: 600;
-      text-align: left;
-      padding: 12px;
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    td {
-      padding: 12px;
-      border-bottom: 1px solid #e5e7eb;
-      color: #374151;
-    }
-    tr:last-child td {
-      border-bottom: none;
-    }
-    tr:nth-child(even) {
-      background-color: #fcfdfd;
-    }
-    .footer {
-      border-top: 1px solid #e5e7eb;
-      padding-top: 15px;
-      margin-top: 40px;
-      text-align: center;
-      font-size: 10px;
-      color: #9ca3af;
-    }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <div>
-      <div class="logo">🍕 SliceIt</div>
-      <div class="title-sub">Personal Expense Report</div>
-    </div>
-    <div class="date-box">
-      <div class="date-label">Report Date</div>
-      <div class="date-value">${_dateFormat.format(DateTime.now())}</div>
-    </div>
-  </div>
+          // Stats grid
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              _buildEnhancedStatCard(
+                'Total Spent',
+                _formatCurrency(totalSpent),
+                PdfColor.fromHex('3c78d8'),
+                inter,
+                interBold,
+              ),
+              _buildEnhancedStatCard(
+                'Expenses Count',
+                '${expenses.length}',
+                PdfColor.fromHex('34a853'),
+                inter,
+                interBold,
+              ),
+              _buildEnhancedStatCard(
+                'Per Expense',
+                _formatCurrency(avgExpense),
+                PdfColor.fromHex('ea4335'),
+                inter,
+                interBold,
+              ),
+            ],
+          ),
+          pw.SizedBox(height: 30),
 
-  <div class="user-card">
-    <div class="user-name">USER: $escapedUserName</div>
-    <div class="user-meta">
-      <span>Personal Expense Tracking Report</span>
-    </div>
-  </div>
+          // Expenses table
+          pw.Text(
+            'EXPENSE DETAILS',
+            style: pw.TextStyle(
+              fontSize: 13,
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColor.fromHex('1e293b'),
+              font: interBold,
+            ),
+          ),
+          pw.SizedBox(height: 12),
+          _buildPersonalExpensesTable(expenses, inter, interBold),
+          pw.SizedBox(height: 35),
 
-  <div class="bento-grid">
-    <div class="bento-card blue">
-      <div class="bento-label">Total Spent</div>
-      <div class="bento-value">${_currencyFormat.format(totalSpent)}</div>
-    </div>
-    <div class="bento-card green">
-      <div class="bento-label">Expense Count</div>
-      <div class="bento-value">${expenses.length}</div>
-    </div>
-    <div class="bento-card red">
-      <div class="bento-label">Avg Expense</div>
-      <div class="bento-value">${_currencyFormat.format(expenses.isEmpty ? 0 : totalSpent / expenses.length)}</div>
-    </div>
-  </div>
-
-  <h2>Expense Details</h2>
-  <table>
-    <thead>
-      <tr>
-        <th style="width: 8%;">#</th>
-        <th style="width: 42%;">Title</th>
-        <th style="width: 18%;">Amount</th>
-        <th style="width: 18%;">Category</th>
-        <th style="width: 14%;">Date</th>
-      </tr>
-    </thead>
-    <tbody>
-      $expensesRows
-    </tbody>
-  </table>
-
-  <div class="footer">
-    Generated by SliceIt • Split bills effortlessly
-  </div>
-</body>
-</html>
-    ''';
-
-    final pdfBytes = await Printing.convertHtml(
-      html: htmlContent,
-      format: PdfPageFormat.a4,
+          // Footer
+          pw.Container(
+            decoration: pw.BoxDecoration(
+              border: pw.Border(top: pw.BorderSide(color: PdfColor.fromHex('e2e8f0'), width: 1)),
+            ),
+            padding: const pw.EdgeInsets.only(top: 15),
+            child: pw.Text(
+              'Generated by SliceIt • Split bills effortlessly',
+              textAlign: pw.TextAlign.center,
+              style: pw.TextStyle(
+                fontSize: 10,
+                color: PdfColor.fromHex('94a3b8'),
+                font: inter,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
+
+    final bytes = await pdf.save();
 
     if (share) {
       await Printing.sharePdf(
-        bytes: pdfBytes,
+        bytes: bytes,
         filename: 'sliceit_${userName.toLowerCase().replaceAll(' ', '_')}_statement_${DateTime.now().millisecondsSinceEpoch}.pdf',
       );
     } else {
       await Printing.layoutPdf(
-        onLayout: (format) async => pdfBytes,
+        onLayout: (_) async => bytes,
         name: 'sliceit_${userName.toLowerCase().replaceAll(' ', '_')}_statement_${DateTime.now().millisecondsSinceEpoch}',
       );
     }
+  }
+
+  static pw.Widget _buildPersonalExpensesTable(
+    List<Map<String, dynamic>> expenses,
+    pw.Font font,
+    pw.Font fontBold,
+  ) {
+    return pw.Table(
+      columnWidths: {
+        0: const pw.FlexColumnWidth(0.8),
+        1: const pw.FlexColumnWidth(2.5),
+        2: const pw.FlexColumnWidth(1.5),
+        3: const pw.FlexColumnWidth(1.8),
+        4: const pw.FlexColumnWidth(1.4),
+      },
+      border: pw.TableBorder(
+        top: pw.BorderSide(color: PdfColor.fromHex('cbd5e1'), width: 1),
+        bottom: pw.BorderSide(color: PdfColor.fromHex('cbd5e1'), width: 1),
+        horizontalInside: pw.BorderSide(color: PdfColor.fromHex('e2e8f0'), width: 0.5),
+      ),
+      children: [
+        pw.TableRow(
+          decoration: pw.BoxDecoration(color: PdfColor.fromHex('f1f5f9')),
+          children: [
+            _buildEnhancedTableHeader('#', font),
+            _buildEnhancedTableHeader('Description', font),
+            _buildEnhancedTableHeader('Amount', font),
+            _buildEnhancedTableHeader('Category', font),
+            _buildEnhancedTableHeader('Date', font),
+          ],
+        ),
+        ...expenses.asMap().entries.map((entry) {
+          final i = entry.key;
+          final exp = entry.value;
+          final title = (exp['title'] as String?) ?? 'Unknown';
+          final amount = (exp['amount'] as num?)?.toDouble() ?? 0;
+          final category = (exp['category'] as String?) ?? 'Other';
+          final date = _formatDate(exp['date']);
+          final isEven = i.isEven;
+
+          return pw.TableRow(
+            decoration: pw.BoxDecoration(color: isEven ? PdfColor.fromHex('ffffff') : PdfColor.fromHex('f8fafc')),
+            children: [
+              _buildEnhancedTableCell('${i + 1}', font),
+              _buildEnhancedTableCell(title, font),
+              _buildEnhancedTableCell(_formatCurrency(amount), font, align: pw.TextAlign.right),
+              _buildEnhancedTableCell(category, font),
+              _buildEnhancedTableCell(date, font),
+            ],
+          );
+        }).toList(),
+      ],
+    );
   }
 }
