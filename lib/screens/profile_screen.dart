@@ -1,6 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../utils/colors.dart';
 import '../utils/app_spacing.dart';
@@ -25,6 +28,158 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   Map<String, dynamic>? userData;
   bool isLoading = true;
+  bool _isUploadingImage = false;
+
+  Future<void> _pickAndUploadImage() async {
+    final picker = ImagePicker();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // Show source selection sheet
+    final ImageSource? source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkSurface2 : AppColors.lightSurface1,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(AppSpacing.radiusLg)),
+          border: Border.all(color: isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder),
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: (isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary).withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Update Profile Picture',
+              style: AppTextStyles.h2.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 20),
+            ListTile(
+              leading: const Icon(Icons.photo_library_rounded, color: AppColors.primaryGold),
+              title: Text('Choose from Gallery', style: AppTextStyles.bodyL),
+              onTap: () => Navigator.pop(context, ImageSource.gallery),
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt_rounded, color: AppColors.primaryGold),
+              title: Text('Take a Photo', style: AppTextStyles.bodyL),
+              onTap: () => Navigator.pop(context, ImageSource.camera),
+            ),
+            if (userData?['photoUrl'] != null || _auth.currentUser?.photoURL != null)
+              ListTile(
+                leading: const Icon(Icons.delete_rounded, color: AppColors.error),
+                title: Text('Remove Photo', style: AppTextStyles.bodyL.copyWith(color: AppColors.error)),
+                onTap: () => Navigator.pop(context, null),
+              ),
+          ],
+        ),
+      ),
+    );
+
+    if (source == null && (userData?['photoUrl'] == null && _auth.currentUser?.photoURL == null)) {
+      return;
+    }
+
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    if (source == null) {
+      // Remove photo action
+      setState(() => _isUploadingImage = true);
+      try {
+        await user.updatePhotoURL(null);
+        await _firestore.collection('users').doc(user.uid).update({
+          'photoUrl': FieldValue.delete(),
+        });
+        await user.reload();
+        await _loadUserData();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Profile picture removed successfully', style: AppTextStyles.bodyM),
+              backgroundColor: AppColors.success,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to remove image: $e', style: AppTextStyles.bodyM),
+              backgroundColor: AppColors.error,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _isUploadingImage = false);
+      }
+      return;
+    }
+
+    try {
+      final XFile? pickedFile = await picker.pickImage(
+        source: source,
+        maxWidth: 512,
+        maxHeight: 512,
+        imageQuality: 75,
+      );
+
+      if (pickedFile == null) return;
+
+      setState(() => _isUploadingImage = true);
+
+      final storageRef = FirebaseStorage.instance
+          .ref()
+          .child('profile_images/${user.uid}.jpg');
+      
+      final uploadFile = File(pickedFile.path);
+      await storageRef.putFile(uploadFile);
+      final downloadUrl = await storageRef.getDownloadURL();
+
+      await user.updatePhotoURL(downloadUrl);
+      await _firestore.collection('users').doc(user.uid).set({
+        'photoUrl': downloadUrl,
+      }, SetOptions(merge: true));
+
+      await user.reload();
+      await _loadUserData();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Profile picture updated successfully!', style: AppTextStyles.bodyM),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint("Error updating profile picture: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update profile picture: $e', style: AppTextStyles.bodyM),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isUploadingImage = false);
+    }
+  }
 
   @override
   void initState() {
@@ -137,27 +292,56 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     const SizedBox(height: 20),
-                    Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: AppColors.primaryGold, width: 2),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primaryGold.withValues(alpha: 0.3),
-                            blurRadius: 15,
-                            spreadRadius: 2,
+                    GestureDetector(
+                      onTap: _isUploadingImage ? null : _pickAndUploadImage,
+                      child: Stack(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: AppColors.primaryGold, width: 2),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.primaryGold.withValues(alpha: 0.3),
+                                  blurRadius: 15,
+                                  spreadRadius: 2,
+                                ),
+                              ],
+                            ),
+                            child: CircleAvatar(
+                              radius: 50,
+                              backgroundImage: _isUploadingImage
+                                  ? null
+                                  : (userData?['photoUrl'] != null
+                                      ? NetworkImage(userData!['photoUrl'])
+                                      : (user?.photoURL != null
+                                          ? NetworkImage(user!.photoURL!)
+                                          : null)),
+                              child: _isUploadingImage
+                                  ? const CircularProgressIndicator(color: AppColors.primaryGold)
+                                  : ((userData?['photoUrl'] == null && user?.photoURL == null)
+                                      ? Icon(Icons.person, size: 50, color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary)
+                                      : null),
+                            ),
+                          ),
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: const BoxDecoration(
+                                color: AppColors.primaryGold,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.camera_alt_rounded,
+                                size: 16,
+                                color: isDark ? AppColors.textDarkPrimary : Colors.white,
+                              ),
+                            ),
                           ),
                         ],
-                      ),
-                      child: CircleAvatar(
-                        radius: 50,
-                        backgroundImage: user?.photoURL != null
-                            ? NetworkImage(user!.photoURL!)
-                            : null,
-                        child: user?.photoURL == null
-                            ? Icon(Icons.person, size: 50, color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary)
-                            : null,
                       ),
                     ),
                     const SizedBox(height: 12),

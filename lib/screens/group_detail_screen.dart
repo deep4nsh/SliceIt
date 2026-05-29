@@ -65,7 +65,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
 
   Future<void> _showExpenseDialog({DocumentSnapshot? expenseDoc, Color? accentColor}) async {
     final groupDoc = await _getGroupStream().first;
-    final members = (groupDoc.data() as Map<String, dynamic>?)?['members']?.cast<String>() ?? [];
+    final groupData = groupDoc.data() as Map<String, dynamic>?;
+    final members = groupData?['members']?.cast<String>() ?? [];
+    final groupName = groupData?['name'] ?? 'Group';
     final currentUser = _auth.currentUser;
 
     if (mounted) {
@@ -73,6 +75,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         context: context,
         builder: (_) => _AddEditExpenseDialog(
           groupId: widget.groupId,
+          groupName: groupName,
           groupMemberUids: members,
           expenseDoc: expenseDoc,
           canEdit: expenseDoc == null || ((expenseDoc.data() as Map<String, dynamic>)['paidBy'] == currentUser?.uid),
@@ -418,6 +421,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
 
         final Color activeColor = groupColors[themeColorIndex.clamp(0, groupColors.length - 1)];
         final String displayName = groupEmoji.isNotEmpty ? '$groupEmoji $groupName' : groupName;
+        final groupPhotoUrl = groupData['photoUrl'] as String? ?? '';
 
         return MeshBackground(
           child: DefaultTabController(
@@ -428,12 +432,28 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                 backgroundColor: Colors.transparent,
                 elevation: 0,
                 iconTheme: IconThemeData(color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary),
-                title: Text(
-                  displayName,
-                  style: AppTextStyles.h2.copyWith(
-                    color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
-                    fontWeight: FontWeight.bold,
-                  ),
+                title: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (groupPhotoUrl.isNotEmpty) ...[
+                      CircleAvatar(
+                        radius: 16,
+                        backgroundImage: NetworkImage(groupPhotoUrl),
+                        backgroundColor: activeColor.withValues(alpha: 0.2),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    Flexible(
+                      child: Text(
+                        displayName,
+                        style: AppTextStyles.h2.copyWith(
+                          color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
                 actions: [
                   IconButton(
@@ -1162,6 +1182,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
 
 class _AddEditExpenseDialog extends StatefulWidget {
   final String groupId;
+  final String groupName;
   final List<String> groupMemberUids;
   final DocumentSnapshot? expenseDoc;
   final bool canEdit;
@@ -1169,6 +1190,7 @@ class _AddEditExpenseDialog extends StatefulWidget {
 
   const _AddEditExpenseDialog({
     required this.groupId,
+    required this.groupName,
     required this.groupMemberUids,
     this.expenseDoc,
     this.canEdit = true,

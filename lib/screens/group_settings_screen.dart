@@ -1,6 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:share_plus/share_plus.dart';
@@ -32,6 +35,147 @@ class _GroupSettingsScreenState extends State<GroupSettingsScreen> {
 
   final Map<String, Map<String, dynamic>> _userCache = {};
   bool _isProcessing = false;
+
+  Future<void> _pickAndUploadGroupImage(String currentPhotoUrl) async {
+    final picker = ImagePicker();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // Show source selection sheet
+    final ImageSource? source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkSurface2 : AppColors.lightSurface1,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(AppSpacing.radiusLg)),
+          border: Border.all(color: isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder),
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: (isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary).withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Update Group Picture',
+              style: AppTextStyles.h2.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 20),
+            ListTile(
+              leading: Icon(Icons.photo_library_rounded, color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent),
+              title: Text('Choose from Gallery', style: AppTextStyles.bodyL),
+              onTap: () => Navigator.pop(context, ImageSource.gallery),
+            ),
+            ListTile(
+              leading: Icon(Icons.camera_alt_rounded, color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent),
+              title: Text('Take a Photo', style: AppTextStyles.bodyL),
+              onTap: () => Navigator.pop(context, ImageSource.camera),
+            ),
+            if (currentPhotoUrl.isNotEmpty)
+              ListTile(
+                leading: const Icon(Icons.delete_rounded, color: AppColors.error),
+                title: Text('Remove Photo', style: AppTextStyles.bodyL.copyWith(color: AppColors.error)),
+                onTap: () => Navigator.pop(context, null),
+              ),
+          ],
+        ),
+      ),
+    );
+
+    if (source == null && currentPhotoUrl.isEmpty) {
+      return;
+    }
+
+    if (source == null) {
+      // Remove photo
+      setState(() => _isProcessing = true);
+      try {
+        await _firestore.collection('groups').doc(widget.groupId).update({
+          'photoUrl': FieldValue.delete(),
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Group picture removed successfully', style: AppTextStyles.bodyM),
+              backgroundColor: AppColors.success,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to remove image: $e', style: AppTextStyles.bodyM),
+              backgroundColor: AppColors.error,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _isProcessing = false);
+      }
+      return;
+    }
+
+    try {
+      final XFile? pickedFile = await picker.pickImage(
+        source: source,
+        maxWidth: 512,
+        maxHeight: 512,
+        imageQuality: 75,
+      );
+
+      if (pickedFile == null) return;
+
+      setState(() => _isProcessing = true);
+
+      final storageRef = FirebaseStorage.instance
+          .ref()
+          .child('group_images/${widget.groupId}.jpg');
+      
+      final uploadFile = File(pickedFile.path);
+      await storageRef.putFile(uploadFile);
+      final downloadUrl = await storageRef.getDownloadURL();
+
+      await _firestore.collection('groups').doc(widget.groupId).set({
+        'photoUrl': downloadUrl,
+      }, SetOptions(merge: true));
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Group picture updated successfully!', style: AppTextStyles.bodyM),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint("Error updating group picture: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update group picture: $e', style: AppTextStyles.bodyM),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
 
   static const List<Map<String, dynamic>> _groupThemes = [
     {
@@ -1562,6 +1706,7 @@ class _GroupSettingsScreenState extends State<GroupSettingsScreen> {
                   final groupEmoji = groupData['emoji'] as String? ?? '';
                   final category = groupData['category'] as String? ?? '';
                   final themeColorIndex = groupData['themeColorIndex'] as int? ?? 0;
+                  final groupPhotoUrl = groupData['photoUrl'] as String? ?? '';
                   
                   final activeTheme = _groupThemes[themeColorIndex.clamp(0, _groupThemes.length - 1)];
                   final Color selectedColor = activeTheme['color'] as Color;
@@ -1578,37 +1723,70 @@ class _GroupSettingsScreenState extends State<GroupSettingsScreen> {
                         padding: const EdgeInsets.all(20),
                         child: Column(
                           children: [
-                            Container(
-                              width: 76,
-                              height: 76,
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: selectedGradient,
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.4),
-                                  width: 2.5,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: selectedColor.withValues(alpha: 0.3),
-                                    blurRadius: 10,
-                                    spreadRadius: 1,
-                                  )
-                                ],
-                              ),
-                              child: Center(
-                                child: Text(
-                                  groupEmoji.isNotEmpty ? groupEmoji : (groupName.isNotEmpty ? groupName[0].toUpperCase() : 'G'),
-                                  style: AppTextStyles.h1.copyWith(
-                                    color: Colors.white,
-                                    fontSize: groupEmoji.isNotEmpty ? 36 : 30,
-                                    fontWeight: FontWeight.bold,
+                            GestureDetector(
+                              onTap: isCreator ? () => _pickAndUploadGroupImage(groupPhotoUrl) : null,
+                              child: Stack(
+                                children: [
+                                  Container(
+                                    width: 76,
+                                    height: 76,
+                                    decoration: BoxDecoration(
+                                      gradient: groupPhotoUrl.isNotEmpty ? null : LinearGradient(
+                                        colors: selectedGradient,
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      ),
+                                      image: groupPhotoUrl.isNotEmpty
+                                          ? DecorationImage(
+                                              image: NetworkImage(groupPhotoUrl),
+                                              fit: BoxFit.cover,
+                                            )
+                                          : null,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: Colors.white.withValues(alpha: 0.4),
+                                        width: 2.5,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: selectedColor.withValues(alpha: 0.3),
+                                          blurRadius: 10,
+                                          spreadRadius: 1,
+                                        )
+                                      ],
+                                    ),
+                                    child: groupPhotoUrl.isNotEmpty
+                                        ? null
+                                        : Center(
+                                            child: Text(
+                                              groupEmoji.isNotEmpty ? groupEmoji : (groupName.isNotEmpty ? groupName[0].toUpperCase() : 'G'),
+                                              style: AppTextStyles.h1.copyWith(
+                                                color: Colors.white,
+                                                fontSize: groupEmoji.isNotEmpty ? 36 : 30,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
                                   ),
-                                ),
+                                  if (isCreator)
+                                    Positioned(
+                                      bottom: 0,
+                                      right: 0,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(4),
+                                        decoration: BoxDecoration(
+                                          color: selectedColor,
+                                          shape: BoxShape.circle,
+                                          border: Border.all(color: isDark ? AppColors.darkSurface1 : Colors.white, width: 1.5),
+                                        ),
+                                        child: Icon(
+                                          Icons.camera_alt_rounded,
+                                          size: 12,
+                                          color: isDark ? AppColors.textDarkPrimary : Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                ],
                               ),
                             ),
                             const SizedBox(height: 16),

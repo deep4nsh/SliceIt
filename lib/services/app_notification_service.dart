@@ -65,7 +65,7 @@ class AppNotificationService {
           .where('isRead', isEqualTo: false)
           .count()
           .get();
-      return snapshot.count;
+      return snapshot.count ?? 0;
     } catch (e) {
       debugPrint('Error getting unread count: $e');
       return 0;

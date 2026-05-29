@@ -416,6 +416,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
                 final groupName = data['name'] ?? 'Unnamed Group';
                 final groupEmoji = data['emoji'] as String? ?? '';
                 final themeColorIndex = data['themeColorIndex'] as int? ?? (index % 5);
+                final groupPhotoUrl = data['photoUrl'] as String? ?? '';
 
                 final List<Map<String, dynamic>> groupThemes = [
                   {
@@ -458,27 +459,35 @@ class _GroupsScreenState extends State<GroupsScreen> {
                           width: 46,
                           height: 46,
                           decoration: BoxDecoration(
-                            gradient: LinearGradient(
+                            gradient: groupPhotoUrl.isNotEmpty ? null : LinearGradient(
                               colors: avatarGradient,
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
+                            image: groupPhotoUrl.isNotEmpty
+                                ? DecorationImage(
+                                    image: NetworkImage(groupPhotoUrl),
+                                    fit: BoxFit.cover,
+                                  )
+                                : null,
                             shape: BoxShape.circle,
                             border: Border.all(
                               color: Colors.white.withValues(alpha: 0.3),
                               width: 1.5,
                             ),
                           ),
-                          child: Center(
-                            child: Text(
-                              groupEmoji.isNotEmpty ? groupEmoji : (groupName.isNotEmpty ? groupName[0].toUpperCase() : 'G'),
-                              style: AppTextStyles.h3.copyWith(
-                                color: Colors.white,
-                                fontSize: groupEmoji.isNotEmpty ? 22 : 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
+                          child: groupPhotoUrl.isNotEmpty
+                              ? null
+                              : Center(
+                                  child: Text(
+                                    groupEmoji.isNotEmpty ? groupEmoji : (groupName.isNotEmpty ? groupName[0].toUpperCase() : 'G'),
+                                    style: AppTextStyles.h3.copyWith(
+                                      color: Colors.white,
+                                      fontSize: groupEmoji.isNotEmpty ? 22 : 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
