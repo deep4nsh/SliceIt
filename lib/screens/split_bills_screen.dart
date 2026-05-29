@@ -563,21 +563,24 @@ class _SplitBillsScreenState extends State<SplitBillsScreen> {
             );
           },
         ),
-        floatingActionButton: FloatingActionButton.extended(
-          heroTag: 'split_bill_fab',
-          elevation: 4,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusLg)),
-          onPressed: () => _createNewBill(context),
-          backgroundColor: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
-          icon: Icon(
-            Icons.add_rounded,
-            color: isDark ? AppColors.textDarkPrimary : Colors.white,
-          ),
-          label: Text(
-            "Create Bill",
-            style: AppTextStyles.button.copyWith(
+        floatingActionButton: Padding(
+          padding: const EdgeInsets.only(bottom: 80.0),
+          child: FloatingActionButton.extended(
+            heroTag: 'split_bill_fab',
+            elevation: 4,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusLg)),
+            onPressed: () => _createNewBill(context),
+            backgroundColor: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
+            icon: Icon(
+              Icons.add_rounded,
               color: isDark ? AppColors.textDarkPrimary : Colors.white,
-              fontWeight: FontWeight.bold,
+            ),
+            label: Text(
+              "Create Bill",
+              style: AppTextStyles.button.copyWith(
+                color: isDark ? AppColors.textDarkPrimary : Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ),

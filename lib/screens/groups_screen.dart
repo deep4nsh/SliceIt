@@ -481,23 +481,26 @@ class _GroupsScreenState extends State<GroupsScreen> {
             );
           },
         ),
-        floatingActionButton: FloatingActionButton.extended(
-          heroTag: 'create_group_fab',
-          elevation: 4,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusLg)),
-          onPressed: _createGroup,
-          icon: Icon(
-            Icons.add_rounded,
-            color: isDark ? AppColors.textDarkPrimary : Colors.white,
-          ),
-          label: Text(
-            'Create Group',
-            style: AppTextStyles.button.copyWith(
+        floatingActionButton: Padding(
+          padding: const EdgeInsets.only(bottom: 80.0),
+          child: FloatingActionButton.extended(
+            heroTag: 'create_group_fab',
+            elevation: 4,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusLg)),
+            onPressed: _createGroup,
+            icon: Icon(
+              Icons.add_rounded,
               color: isDark ? AppColors.textDarkPrimary : Colors.white,
-              fontWeight: FontWeight.bold,
             ),
+            label: Text(
+              'Create Group',
+              style: AppTextStyles.button.copyWith(
+                color: isDark ? AppColors.textDarkPrimary : Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            backgroundColor: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
           ),
-          backgroundColor: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
         ),
       ),
     );
