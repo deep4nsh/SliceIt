@@ -8,6 +8,7 @@ import '../widgets/modern_card.dart';
 import '../widgets/animated_list_item.dart';
 import '../widgets/mesh_background.dart';
 import '../services/home_stats_service.dart';
+import '../services/app_notification_service.dart';
 
 /// State-of-the-art restyled HomeScreen featuring rich Bento-grid geometry,
 /// atmospheric MeshBackground visualization, and unified Poppins typography scale.
@@ -93,12 +94,42 @@ class HomeScreen extends StatelessWidget {
                                 ),
                               ],
                             ),
-                            IconButton(
-                              icon: Icon(
-                                Icons.notifications_none_rounded,
-                                color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
-                              ),
-                              onPressed: () => Navigator.pushNamed(context, '/profile'),
+                            FutureBuilder<int>(
+                              future: AppNotificationService().getUnreadCount(user?.uid ?? ''),
+                              builder: (context, snapshot) {
+                                final unreadCount = snapshot.data ?? 0;
+                                return Stack(
+                                  children: [
+                                    IconButton(
+                                      icon: Icon(
+                                        Icons.notifications_none_rounded,
+                                        color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+                                      ),
+                                      onPressed: () => Navigator.pushNamed(context, '/notifications'),
+                                    ),
+                                    if (unreadCount > 0)
+                                      Positioned(
+                                        top: 8,
+                                        right: 8,
+                                        child: Container(
+                                          padding: const EdgeInsets.all(4),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.error,
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: Text(
+                                            unreadCount > 9 ? '9+' : '$unreadCount',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                );
+                              },
                             ),
                           ],
                         ),

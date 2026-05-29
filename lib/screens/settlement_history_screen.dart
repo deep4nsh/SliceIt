@@ -33,6 +33,33 @@ class _SettlementHistoryScreenState extends State<SettlementHistoryScreen> {
   final ImagePicker _imagePicker = ImagePicker();
   final Map<String, String> _nameCache = {};
 
+  int _limit = 20;
+  bool _hasMore = true;
+  int _loadedCount = 0;
+  late ScrollController _scrollController;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController()..addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      if (_hasMore && _loadedCount == _limit) {
+        setState(() {
+          _limit += 20;
+        });
+      }
+    }
+  }
+
   Future<String> _getCachedName(String uid) async {
     if (_nameCache.containsKey(uid)) {
       return _nameCache[uid]!;
@@ -105,7 +132,7 @@ class _SettlementHistoryScreenState extends State<SettlementHistoryScreen> {
           ),
         ),
         body: StreamBuilder<List<Settlement>>(
-          stream: _settlementService.getGroupSettlements(widget.groupId),
+          stream: _settlementService.getGroupSettlements(widget.groupId, limit: _limit),
           builder: (context, snapshot) {
             if (snapshot.hasError) {
               return Center(
@@ -116,7 +143,7 @@ class _SettlementHistoryScreenState extends State<SettlementHistoryScreen> {
               );
             }
 
-            if (snapshot.connectionState == ConnectionState.waiting) {
+            if (snapshot.connectionState == ConnectionState.waiting && _loadedCount == 0) {
               return Center(
                 child: CircularProgressIndicator(
                   color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
@@ -125,6 +152,8 @@ class _SettlementHistoryScreenState extends State<SettlementHistoryScreen> {
             }
 
             final settlements = snapshot.data ?? [];
+            _loadedCount = settlements.length;
+            _hasMore = _loadedCount >= _limit;
 
             if (settlements.isEmpty) {
               return Center(
@@ -150,131 +179,140 @@ class _SettlementHistoryScreenState extends State<SettlementHistoryScreen> {
             }
 
             return ListView.separated(
+              controller: _scrollController,
               padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.screenPadding,
                 vertical: 16,
               ),
-              itemCount: settlements.length,
+              itemCount: settlements.length + (_hasMore ? 1 : 0),
               separatorBuilder: (context, index) => const SizedBox(height: 12),
               itemBuilder: (context, index) {
+                if (index == settlements.length) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 16.0),
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
+                      ),
+                    ),
+                  );
+                }
                 final settlement = settlements[index];
                 return AnimatedListItem(
                   index: index,
-                  child: FutureBuilder<String>(
-                    future: _getCachedName(settlement.fromUserUid),
-                    builder: (context, fromNameSnapshot) {
-                      return FutureBuilder<String>(
-                        future: _getCachedName(settlement.toUserUid),
-                        builder: (context, toNameSnapshot) {
-                          final fromName = fromNameSnapshot.data ?? 'User';
-                          final toName = toNameSnapshot.data ?? 'User';
+                  child: FutureBuilder<List<String>>(
+                    future: Future.wait([
+                      _getCachedName(settlement.fromUserUid),
+                      _getCachedName(settlement.toUserUid),
+                    ]),
+                    builder: (context, snapshot) {
+                      final fromName = snapshot.data?[0] ?? 'User';
+                      final toName = snapshot.data?[1] ?? 'User';
 
-                          return ModernCard(
-                            margin: EdgeInsets.zero,
-                            padding: const EdgeInsets.all(16),
-                            color: isDark ? AppColors.darkSurface1 : AppColors.lightSurface1,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                      return ModernCard(
+                        margin: EdgeInsets.zero,
+                        padding: const EdgeInsets.all(16),
+                        color: isDark ? AppColors.darkSurface1 : AppColors.lightSurface1,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        '$fromName → $toName',
-                                        style: AppTextStyles.bodyL.copyWith(
-                                          color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
+                                Expanded(
+                                  child: Text(
+                                    '$fromName → $toName',
+                                    style: AppTextStyles.bodyL.copyWith(
+                                      color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+                                      fontWeight: FontWeight.bold,
                                     ),
-                                    const SizedBox(width: 8),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.success.withValues(alpha: 0.15),
-                                        borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
-                                      ),
-                                      child: Text(
-                                        '₹${settlement.amount.toStringAsFixed(2)}',
-                                        style: AppTextStyles.label.copyWith(
-                                          color: AppColors.success,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  DateFormat('dd MMM yyyy, HH:mm').format(settlement.settledAt),
-                                  style: AppTextStyles.label.copyWith(
-                                    color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                                if (settlement.note != null && settlement.note!.isNotEmpty) ...[
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    settlement.note!,
-                                    style: AppTextStyles.bodyM.copyWith(
-                                      color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
-                                    ),
-                                    maxLines: 2,
+                                    maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
-                                ],
-                                if (settlement.proofUrl == null) ...[
-                                  const SizedBox(height: 12),
-                                  SizedBox(
-                                    width: double.infinity,
-                                    child: OutlinedButton.icon(
-                                      icon: Icon(
-                                        Icons.add_photo_alternate_rounded,
-                                        size: 18,
-                                        color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
-                                      ),
-                                      label: Text(
-                                        'Add Proof',
-                                        style: AppTextStyles.label.copyWith(
-                                          color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
-                                        ),
-                                      ),
-                                      style: OutlinedButton.styleFrom(
-                                        side: BorderSide(
-                                          color: (isDark ? AppColors.secondaryAccent : AppColors.primaryAccent)
-                                              .withValues(alpha: 0.5),
-                                        ),
-                                      ),
-                                      onPressed: () => _addProofToSettlement(settlement),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.success.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
+                                  ),
+                                  child: Text(
+                                    '₹${settlement.amount.toStringAsFixed(2)}',
+                                    style: AppTextStyles.label.copyWith(
+                                      color: AppColors.success,
+                                      fontWeight: FontWeight.bold,
                                     ),
                                   ),
-                                ] else ...[
-                                  const SizedBox(height: 12),
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.check_circle_rounded,
-                                        size: 16,
-                                        color: AppColors.success,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        'Proof attached',
-                                        style: AppTextStyles.label.copyWith(
-                                          color: AppColors.success,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
+                                ),
                               ],
                             ),
-                          );
-                        },
+                            const SizedBox(height: 12),
+                            Text(
+                              DateFormat('dd MMM yyyy, HH:mm').format(settlement.settledAt),
+                              style: AppTextStyles.label.copyWith(
+                                color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
+                                fontSize: 11,
+                              ),
+                            ),
+                            if (settlement.note != null && settlement.note!.isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                settlement.note!,
+                                style: AppTextStyles.bodyM.copyWith(
+                                  color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                            if (settlement.proofUrl == null) ...[
+                              const SizedBox(height: 12),
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  icon: Icon(
+                                    Icons.add_photo_alternate_rounded,
+                                    size: 18,
+                                    color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
+                                  ),
+                                  label: Text(
+                                    'Add Proof',
+                                    style: AppTextStyles.label.copyWith(
+                                      color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
+                                    ),
+                                  ),
+                                  style: OutlinedButton.styleFrom(
+                                    side: BorderSide(
+                                      color: (isDark ? AppColors.secondaryAccent : AppColors.primaryAccent)
+                                          .withValues(alpha: 0.5),
+                                    ),
+                                  ),
+                                  onPressed: () => _addProofToSettlement(settlement),
+                                ),
+                              ),
+                            ] else ...[
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.check_circle_rounded,
+                                    size: 16,
+                                    color: AppColors.success,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Proof attached',
+                                    style: AppTextStyles.label.copyWith(
+                                      color: AppColors.success,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ],
+                        ),
                       );
                     },
                   ),

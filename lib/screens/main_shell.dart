@@ -19,6 +19,7 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
+  bool _navBarAnimated = false;
 
   final List<Widget> _screens = const [
     HomeScreen(),
@@ -30,84 +31,90 @@ class _MainShellState extends State<MainShell> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final navBar = RepaintBoundary(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+          child: Container(
+            height: 68,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.darkSurface1 : AppColors.lightSurface1,
+              borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
+              border: Border.all(
+                color: isDark
+                    ? AppColors.darkSurfaceBorder.withValues(alpha: 0.3)
+                    : AppColors.lightSurfaceBorder.withValues(alpha: 0.4),
+                width: 0.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.1 : 0.02),
+                  blurRadius: 4,
+                  spreadRadius: 0,
+                  offset: const Offset(0, 1),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildNavItem(
+                  index: 0,
+                  icon: Icons.dashboard_rounded,
+                  label: 'Home',
+                  isDark: isDark,
+                ),
+                _buildNavItem(
+                  index: 1,
+                  icon: Icons.groups_rounded,
+                  label: 'Groups',
+                  isDark: isDark,
+                ),
+                _buildNavItem(
+                  index: 2,
+                  icon: Icons.call_split_rounded,
+                  label: 'Splits',
+                  isDark: isDark,
+                ),
+                _buildNavItem(
+                  index: 3,
+                  icon: Icons.person_rounded,
+                  label: 'Profile',
+                  isDark: isDark,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final animatedNavBar = !_navBarAnimated
+        ? (navBar
+            .animate(onInit: (_) {
+              _navBarAnimated = true;
+            })
+            .fade(duration: 500.ms, curve: Curves.easeOut)
+            .slideY(begin: 0.8, end: 0, duration: 500.ms, curve: Curves.easeOutCubic))
+        : navBar;
 
     return Scaffold(
       extendBody: true,
       body: Stack(
         children: [
-          // Preserves inner view state across active navigation transitions
-          IndexedStack(
-            index: _currentIndex,
-            children: _screens,
+          RepaintBoundary(
+            child: IndexedStack(
+              index: _currentIndex,
+              children: _screens,
+            ),
           ),
-
-          // Floating Glassmorphic Bottom Navigation Bar
           Positioned(
             left: AppSpacing.screenPadding,
             right: AppSpacing.screenPadding,
             bottom: 24,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-                child: Container(
-                  height: 68,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? AppColors.darkSurface1
-                        : AppColors.lightSurface1,
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
-                    border: Border.all(
-                      color: isDark
-                          ? AppColors.darkSurfaceBorder.withValues(alpha: 0.3)
-                          : AppColors.lightSurfaceBorder.withValues(alpha: 0.4),
-                      width: 0.5,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: isDark ? 0.1 : 0.02),
-                        blurRadius: 4,
-                        spreadRadius: 0,
-                        offset: const Offset(0, 1),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildNavItem(
-                        index: 0,
-                        icon: Icons.dashboard_rounded,
-                        label: 'Home',
-                        isDark: isDark,
-                      ),
-                      _buildNavItem(
-                        index: 1,
-                        icon: Icons.groups_rounded,
-                        label: 'Groups',
-                        isDark: isDark,
-                      ),
-                      _buildNavItem(
-                        index: 2,
-                        icon: Icons.call_split_rounded,
-                        label: 'Splits',
-                        isDark: isDark,
-                      ),
-                      _buildNavItem(
-                        index: 3,
-                        icon: Icons.person_rounded,
-                        label: 'Profile',
-                        isDark: isDark,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            )
-                .animate()
-                .fade(duration: 500.ms, curve: Curves.easeOut)
-                .slideY(begin: 0.8, end: 0, duration: 500.ms, curve: Curves.easeOutCubic),
+            child: animatedNavBar,
           ),
         ],
       ),

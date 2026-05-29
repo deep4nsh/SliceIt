@@ -16,6 +16,33 @@ class _SplitHistoryScreenState extends State<SplitHistoryScreen> {
   final _firestore = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
 
+  int _limit = 20;
+  bool _hasMore = true;
+  int _loadedCount = 0;
+  late ScrollController _scrollController;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController()..addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      if (_hasMore && _loadedCount == _limit) {
+        setState(() {
+          _limit += 20;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentUserEmail = _auth.currentUser?.email;
@@ -36,9 +63,10 @@ class _SplitHistoryScreenState extends State<SplitHistoryScreen> {
             .collection('split_bills')
             .where('participants', arrayContains: currentUserEmail)
             .orderBy('createdAt', descending: true)
+            .limit(_limit)
             .snapshots(),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+          if (snapshot.connectionState == ConnectionState.waiting && _loadedCount == 0) {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
@@ -49,10 +77,30 @@ class _SplitHistoryScreenState extends State<SplitHistoryScreen> {
             return const Center(child: Text('No split bills found.'));
           }
 
+          final docs = snapshot.data!.docs;
+          _loadedCount = docs.length;
+          _hasMore = _loadedCount >= _limit;
+
           return ListView.builder(
-            itemCount: snapshot.data!.docs.length,
+            controller: _scrollController,
+            itemCount: docs.length + (_hasMore ? 1 : 0),
             itemBuilder: (context, index) {
-              final doc = snapshot.data!.docs[index];
+              if (index == docs.length) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24.0),
+                  child: Center(
+                    child: SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryNavy),
+                      ),
+                    ),
+                  ),
+                );
+              }
+              final doc = docs[index];
               final data = doc.data() as Map<String, dynamic>;
 
               // Safely extract data

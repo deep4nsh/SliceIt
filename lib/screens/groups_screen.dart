@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter/foundation.dart';
 
 import '../utils/deep_link_config.dart';
 import '../screens/group_detail_screen.dart';
@@ -11,6 +12,7 @@ import '../utils/colors.dart';
 import '../utils/text_styles.dart';
 import '../utils/app_spacing.dart';
 import '../services/invite_service.dart';
+import '../services/app_notification_service.dart';
 import '../widgets/modern_card.dart';
 import '../widgets/animated_list_item.dart';
 import '../widgets/mesh_background.dart';
@@ -32,6 +34,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
     return _firestore
         .collection('groups')
         .where('members', arrayContains: _auth.currentUser!.uid)
+        .limit(50)
         .snapshots();
   }
 
@@ -230,6 +233,31 @@ class _GroupsScreenState extends State<GroupsScreen> {
                 }, SetOptions(merge: true));
               }
               await batch.commit();
+
+              // Send in-app notifications to existing users
+              for (final email in emails) {
+                try {
+                  final userQuery = await _firestore
+                      .collection('users')
+                      .where('email', isEqualTo: email)
+                      .limit(1)
+                      .get();
+
+                  if (userQuery.docs.isNotEmpty) {
+                    final uid = userQuery.docs.first.id;
+                    await AppNotificationService.writeNotification(
+                      uid,
+                      type: 'group_invite',
+                      title: '$groupName',
+                      body: '${currentUser.displayName ?? "Someone"} invited you to join',
+                      relatedId: groupId,
+                      actionUserName: currentUser.displayName,
+                    );
+                  }
+                } catch (e) {
+                  debugPrint('Error sending notification for $email: $e');
+                }
+              }
 
               // Send real emails via Cloud Function
               try {

@@ -11,6 +11,7 @@ import 'package:permission_handler/permission_handler.dart';
 import '../services/debt_simplifier.dart';
 import '../services/pdf_export_service.dart';
 import '../services/group_analytics_service.dart';
+import '../services/app_notification_service.dart';
 import '../widgets/custom_button.dart';
 import 'settlement_history_screen.dart';
 import 'group_settings_screen.dart';
@@ -58,6 +59,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         .doc(widget.groupId)
         .collection('expenses')
         .orderBy('date', descending: true)
+        .limit(50)
         .snapshots();
   }
 
@@ -1245,6 +1247,20 @@ class _AddEditExpenseDialogState extends State<_AddEditExpenseDialog> {
 
     if (widget.expenseDoc == null) {
       await collection.add(expenseData);
+
+      for (final participantUid in participants) {
+        if (participantUid != currentUser.uid) {
+          await AppNotificationService.writeNotification(
+            participantUid,
+            type: 'expense_added',
+            title: 'New expense in ${widget.groupName}',
+            body: '$title - ₹${amount.toStringAsFixed(2)}',
+            relatedId: widget.groupId,
+            actionUserName: currentUser.displayName,
+            amount: amount,
+          );
+        }
+      }
     } else {
       await collection.doc(widget.expenseDoc!.id).update(expenseData);
     }
@@ -1419,7 +1435,7 @@ class _AddEditExpenseDialogState extends State<_AddEditExpenseDialog> {
   }
 }
 
-class UserNameDisplay extends StatelessWidget {
+class UserNameDisplay extends StatefulWidget {
   final String uid;
   final Widget Function(String name) builder;
   final Future<String> Function(String uid)? cacheFn;
@@ -1427,28 +1443,55 @@ class UserNameDisplay extends StatelessWidget {
   const UserNameDisplay({super.key, required this.uid, required this.builder, this.cacheFn});
 
   @override
-  Widget build(BuildContext context) {
-    if (uid.isEmpty) return builder('Unknown');
+  State<UserNameDisplay> createState() => _UserNameDisplayState();
+}
 
-    final Future<String> future = cacheFn != null
-        ? cacheFn!(uid)
-        : FirebaseFirestore.instance.collection('users').doc(uid).get().then<String>((doc) {
-            final data = doc.data();
-            return (data?['name'] as String?) ?? 'User';
-          });
+class _UserNameDisplayState extends State<UserNameDisplay> {
+  late Future<String> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeFuture();
+  }
+
+  @override
+  void didUpdateWidget(covariant UserNameDisplay oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.uid != widget.uid || oldWidget.cacheFn != widget.cacheFn) {
+      _initializeFuture();
+    }
+  }
+
+  void _initializeFuture() {
+    if (widget.uid.isEmpty) {
+      _future = Future.value('Unknown');
+    } else if (widget.cacheFn != null) {
+      _future = widget.cacheFn!(widget.uid);
+    } else {
+      _future = FirebaseFirestore.instance.collection('users').doc(widget.uid).get().then<String>((doc) {
+        final data = doc.data();
+        return (data?['name'] as String?) ?? 'User';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.uid.isEmpty) return widget.builder('Unknown');
 
     return FutureBuilder<String>(
-      future: future,
+      future: _future,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) return builder('...');
-        if (snapshot.hasError || !snapshot.hasData) return builder('Unknown');
-        return builder(snapshot.data!);
+        if (snapshot.connectionState == ConnectionState.waiting) return widget.builder('...');
+        if (snapshot.hasError || !snapshot.hasData) return widget.builder('Unknown');
+        return widget.builder(snapshot.data!);
       },
     );
   }
 }
 
-class MemberChip extends StatelessWidget {
+class MemberChip extends StatefulWidget {
   final String uid;
   final Future<String> Function(String uid)? cacheFn;
   final bool isDark;
@@ -1457,21 +1500,49 @@ class MemberChip extends StatelessWidget {
   const MemberChip({super.key, required this.uid, this.cacheFn, this.isDark = true, this.accentColor});
 
   @override
+  State<MemberChip> createState() => _MemberChipState();
+}
+
+class _MemberChipState extends State<MemberChip> {
+  late Future<Map<String, dynamic>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeFuture();
+  }
+
+  @override
+  void didUpdateWidget(covariant MemberChip oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.uid != widget.uid || oldWidget.cacheFn != widget.cacheFn) {
+      _initializeFuture();
+    }
+  }
+
+  void _initializeFuture() {
+    if (widget.cacheFn != null) {
+      _future = widget.cacheFn!(widget.uid).then((name) => {'name': name});
+    } else {
+      _future = FirebaseFirestore.instance.collection('users').doc(widget.uid).get()
+          .then((doc) => doc.data() ?? {});
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final activeColor = accentColor ?? (isDark ? AppColors.secondaryAccent : AppColors.primaryAccent);
+    final activeColor = widget.accentColor ?? (widget.isDark ? AppColors.secondaryAccent : AppColors.primaryAccent);
 
     return Padding(
       padding: const EdgeInsets.only(right: 8.0),
       child: FutureBuilder<Map<String, dynamic>>(
-        future: FirebaseFirestore.instance.collection('users').doc(uid).get().then((doc) {
-          return doc.data() ?? {};
-        }),
+        future: _future,
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return Chip(
               label: Text('...', style: AppTextStyles.bodyM),
-              backgroundColor: isDark ? AppColors.darkSurface1 : AppColors.lightSurface1,
-              side: BorderSide(color: isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder),
+              backgroundColor: widget.isDark ? AppColors.darkSurface1 : AppColors.lightSurface1,
+              side: BorderSide(color: widget.isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder),
             );
           }
           final data = snapshot.data!;
@@ -1497,12 +1568,12 @@ class MemberChip extends StatelessWidget {
             label: Text(
               name,
               style: AppTextStyles.bodyM.copyWith(
-                color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
+                color: widget.isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
                 fontWeight: FontWeight.w500,
               ),
             ),
-            backgroundColor: isDark ? AppColors.darkSurface1 : AppColors.lightSurface1,
-            side: BorderSide(color: isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder),
+            backgroundColor: widget.isDark ? AppColors.darkSurface1 : AppColors.lightSurface1,
+            side: BorderSide(color: widget.isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusLg)),
           );
         },

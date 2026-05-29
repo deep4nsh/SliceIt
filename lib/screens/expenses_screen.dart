@@ -31,15 +31,23 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   Timer? _debounce;
   static final DateFormat _dateFormatter = DateFormat('dd MMM yyyy');
 
+  List<DocumentSnapshot> _expenseDocs = [];
+  DocumentSnapshot? _lastDocument;
+  bool _hasMore = true;
+  bool _isLoadingMore = false;
+  late ScrollController _scrollController;
+
   @override
   void initState() {
     super.initState();
+    _scrollController = ScrollController()..addListener(_onScroll);
     _fetchExpenses();
     _searchController.addListener(_onSearchChanged);
   }
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _searchController.removeListener(_onSearchChanged);
     _debounce?.cancel();
     _searchController.dispose();
@@ -51,31 +59,70 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     _debounce = Timer(const Duration(milliseconds: 300), _filterExpenses);
   }
 
-  Future<void> _fetchExpenses() async {
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      if (_hasMore && !_isLoadingMore && !_isLoading) {
+        _fetchExpenses(isLoadMore: true);
+      }
+    }
+  }
+
+  Future<void> _fetchExpenses({bool isLoadMore = false}) async {
     if (!mounted) return;
-    setState(() => _isLoading = true);
+
+    if (isLoadMore) {
+      if (!_hasMore || _isLoadingMore) return;
+      setState(() => _isLoadingMore = true);
+    } else {
+      setState(() {
+        _isLoading = true;
+        _expenseDocs.clear();
+        _lastDocument = null;
+        _hasMore = true;
+      });
+    }
+
     final currentUser = _auth.currentUser;
     if (currentUser == null) {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _isLoadingMore = false;
+        });
+      }
       return;
     }
     final uid = currentUser.uid;
 
     try {
-      Query query = _firestore
+      Query<Map<String, dynamic>> query = _firestore
           .collection('users')
           .doc(uid)
           .collection('expenses')
-          .orderBy('date', descending: true);
+          .orderBy('date', descending: true)
+          .limit(20);
 
       if (_selectedDateRange != null) {
         query = query.where('date', isGreaterThanOrEqualTo: _selectedDateRange!.start);
         query = query.where('date', isLessThanOrEqualTo: _selectedDateRange!.end.add(const Duration(days: 1)));
       }
 
+      if (isLoadMore && _lastDocument != null) {
+        query = query.startAfterDocument(_lastDocument!);
+      }
+
       final snapshot = await query.get();
 
-      _allExpenses = snapshot.docs.map((doc) {
+      if (snapshot.docs.length < 20) {
+        _hasMore = false;
+      }
+
+      if (snapshot.docs.isNotEmpty) {
+        _lastDocument = snapshot.docs.last;
+        _expenseDocs.addAll(snapshot.docs);
+      }
+
+      _allExpenses = _expenseDocs.map((doc) {
         final data = doc.data() as Map<String, dynamic>?;
         if (data == null) return null;
         return {...data, 'id': doc.id};
@@ -94,7 +141,10 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       }
     } finally {
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() {
+          _isLoading = false;
+          _isLoadingMore = false;
+        });
       }
     }
   }
@@ -478,9 +528,20 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                           ),
                         )
                       : ListView.builder(
+                          controller: _scrollController,
                           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding, vertical: 8),
-                          itemCount: _filteredExpenses.length,
+                          itemCount: _filteredExpenses.length + (_hasMore ? 1 : 0),
                           itemBuilder: (_, index) {
+                            if (index == _filteredExpenses.length) {
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 24.0),
+                                child: Center(
+                                  child: CircularProgressIndicator(
+                                    color: isDark ? AppColors.secondaryAccent : AppColors.primaryAccent,
+                                  ),
+                                ),
+                              );
+                            }
                             final expense = _filteredExpenses[index];
                             final date = expense['date'] != null
                                 ? (expense['date'] as Timestamp).toDate()

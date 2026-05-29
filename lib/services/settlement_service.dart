@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
 import '../models/settlement_model.dart';
+import 'app_notification_service.dart';
 
 class SettlementService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -35,6 +36,16 @@ class SettlementService {
           .doc(groupId)
           .collection('settlements')
           .add(settlement.toMap());
+
+      await AppNotificationService.writeNotification(
+        toUserUid,
+        type: 'settlement',
+        title: 'Payment received',
+        body: '${currentUser.displayName ?? "Someone"} settled ₹${amount.toStringAsFixed(2)}',
+        relatedId: groupId,
+        actionUserName: currentUser.displayName,
+        amount: amount,
+      );
 
       return docRef.id;
     } catch (e) {
@@ -78,32 +89,40 @@ class SettlementService {
     }
   }
 
-  Stream<List<Settlement>> getGroupSettlements(String groupId) {
-    return _firestore
+  Stream<List<Settlement>> getGroupSettlements(String groupId, {int? limit}) {
+    Query<Map<String, dynamic>> query = _firestore
         .collection('groups')
         .doc(groupId)
         .collection('settlements')
-        .orderBy('settledAt', descending: true)
-        .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => Settlement.fromMap(doc.data(), doc.id))
-            .toList());
+        .orderBy('settledAt', descending: true);
+
+    if (limit != null) {
+      query = query.limit(limit);
+    }
+
+    return query.snapshots().map((snapshot) => snapshot.docs
+        .map((doc) => Settlement.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .toList());
   }
 
-  Stream<List<Settlement>> getUserSettlements(String groupId) {
+  Stream<List<Settlement>> getUserSettlements(String groupId, {int? limit}) {
     final userId = _auth.currentUser?.uid;
     if (userId == null) return Stream.value([]);
 
-    return _firestore
+    Query<Map<String, dynamic>> query = _firestore
         .collection('groups')
         .doc(groupId)
         .collection('settlements')
         .where('fromUserUid', isEqualTo: userId)
-        .orderBy('settledAt', descending: true)
-        .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => Settlement.fromMap(doc.data(), doc.id))
-            .toList());
+        .orderBy('settledAt', descending: true);
+
+    if (limit != null) {
+      query = query.limit(limit);
+    }
+
+    return query.snapshots().map((snapshot) => snapshot.docs
+        .map((doc) => Settlement.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+        .toList());
   }
 
   Future<void> updateSettlementNote({

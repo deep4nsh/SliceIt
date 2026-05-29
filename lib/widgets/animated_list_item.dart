@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 /// Highly efficient declarative list item transition component powered by flutter_animate.
-/// Flawlessly injects sequential staggered entrance choreography without boilerplate controllers.
-class AnimatedListItem extends StatelessWidget {
+/// Entrance animation plays only once on initial render; subsequent rebuilds skip animation.
+class AnimatedListItem extends StatefulWidget {
   final Widget child;
   final int index;
   final Duration duration;
@@ -16,21 +16,29 @@ class AnimatedListItem extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    // Smoothly stagger entrances with capped max delays to preserve responsiveness
-    final effectiveDelay = (index * 40).clamp(0, 600).ms;
+  State<AnimatedListItem> createState() => _AnimatedListItemState();
+}
 
-    return child
+class _AnimatedListItemState extends State<AnimatedListItem> {
+  bool _animated = false;
+
+  @override
+  Widget build(BuildContext context) {
+    if (_animated) return widget.child;
+    _animated = true;
+
+    final effectiveDelay = (widget.index * 40).clamp(0, 600).ms;
+    return widget.child
         .animate()
         .fade(
-          duration: duration,
+          duration: widget.duration,
           delay: effectiveDelay,
           curve: Curves.easeOut,
         )
         .slideY(
           begin: 0.15,
           end: 0,
-          duration: duration,
+          duration: widget.duration,
           delay: effectiveDelay,
           curve: Curves.easeOutCubic,
         );

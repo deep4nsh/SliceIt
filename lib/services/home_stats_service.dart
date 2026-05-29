@@ -177,6 +177,7 @@ class HomeStatsService {
           splitBillsSub = _firestore
               .collection('split_bills')
               .where('participants', arrayContains: userEmail)
+              .limit(50)
               .snapshots()
               .listen((snapshot) {
             latestSplitBills = snapshot.docs;

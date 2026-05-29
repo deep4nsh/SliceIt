@@ -30,6 +30,55 @@ class _LineChartTouchState extends StatefulWidget {
 class _LineChartTouchStateState extends State<_LineChartTouchState> {
   double? _selectedAmount;
   String? _selectedDateLabel;
+  late Map<int, String> _axisLabels;
+
+  @override
+  void initState() {
+    super.initState();
+    _computeLabels();
+  }
+
+  @override
+  void didUpdateWidget(covariant _LineChartTouchState oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.trendData.length != widget.trendData.length ||
+        (oldWidget.trendData.isNotEmpty && widget.trendData.isNotEmpty &&
+            oldWidget.trendData.first != widget.trendData.first)) {
+      _computeLabels();
+    }
+  }
+
+  void _computeLabels() {
+    _axisLabels = {};
+    for (int i = 0; i < widget.trendData.length; i++) {
+      final key = widget.trendData[i]['key'] as String;
+      String label = key;
+      if (key.contains('-') && key.length > 7) {
+        try {
+          final date = DateTime.parse(key);
+          label = DateFormat('d/M').format(date);
+        } catch (_) {}
+      } else if (key.length == 7) {
+        try {
+          final date = DateFormat('yyyy-MM').parse(key);
+          label = DateFormat('MMM').format(date);
+        } catch (_) {}
+      }
+      _axisLabels[i] = label;
+    }
+  }
+
+  String _getDateLabelForTouch(String key) {
+    try {
+      if (key.length > 7) {
+        return DateFormat('MMM d, yyyy').format(DateTime.parse(key));
+      } else {
+        return DateFormat('MMMM yyyy').format(DateFormat('yyyy-MM').parse(key));
+      }
+    } catch (_) {
+      return key;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -108,19 +157,7 @@ class _LineChartTouchStateState extends State<_LineChartTouchState> {
                               return const SizedBox.shrink();
                             }
 
-                            final key = widget.trendData[index]['key'] as String;
-                            String label = key;
-                            if (key.contains('-') && key.length > 7) {
-                              try {
-                                final date = DateTime.parse(key);
-                                label = DateFormat('d/M').format(date);
-                              } catch (_) {}
-                            } else if (key.length == 7) {
-                              try {
-                                final date = DateFormat('yyyy-MM').parse(key);
-                                label = DateFormat('MMM').format(date);
-                              } catch (_) {}
-                            }
+                            final label = _axisLabels[index] ?? '';
                             return Padding(
                               padding: const EdgeInsets.only(top: 8.0),
                               child: Text(
@@ -179,18 +216,10 @@ class _LineChartTouchStateState extends State<_LineChartTouchState> {
                         final spot = touchResponse.lineBarSpots![0];
                         final index = spot.x.toInt();
                         if (index >= 0 && index < widget.trendData.length) {
+                          final key = widget.trendData[index]['key'] as String;
                           setState(() {
                             _selectedAmount = spot.y;
-                            final key = widget.trendData[index]['key'] as String;
-                            try {
-                              if (key.length > 7) {
-                                _selectedDateLabel = DateFormat('MMM d, yyyy').format(DateTime.parse(key));
-                              } else {
-                                _selectedDateLabel = DateFormat('MMMM yyyy').format(DateFormat('yyyy-MM').parse(key));
-                              }
-                            } catch (_) {
-                              _selectedDateLabel = key;
-                            }
+                            _selectedDateLabel = _getDateLabelForTouch(key);
                           });
                         }
                       }
@@ -228,6 +257,36 @@ class _PieChartTouchState extends StatefulWidget {
 
 class _PieChartTouchStateState extends State<_PieChartTouchState> {
   int _touchedIndex = -1;
+  late List<PieChartSectionData> _pieSections;
+
+  @override
+  void initState() {
+    super.initState();
+    _buildSections(-1);
+  }
+
+  void _buildSections(int touchedIndex) {
+    _pieSections = widget.sortedCategories.asMap().entries.map((entry) {
+      final index = entry.key;
+      final data = entry.value;
+      final isTouched = index == touchedIndex;
+      final fontSize = isTouched ? 18.0 : 12.0;
+      final radius = isTouched ? 60.0 : 50.0;
+      final percentage = widget.totalSpending > 0 ? (data.value / widget.totalSpending * 100) : 0.0;
+
+      return PieChartSectionData(
+        color: widget.getCategoryColor(data.key),
+        value: data.value,
+        title: percentage > 5 ? '${percentage.toStringAsFixed(0)}%' : '',
+        radius: radius,
+        titleStyle: AppTextStyles.label.copyWith(
+          fontSize: fontSize,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+      );
+    }).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -253,40 +312,26 @@ class _PieChartTouchStateState extends State<_PieChartTouchState> {
               PieChartData(
                 pieTouchData: PieTouchData(
                   touchCallback: (FlTouchEvent event, pieTouchResponse) {
-                    setState(() {
-                      if (!event.isInterestedForInteractions ||
-                          pieTouchResponse == null ||
-                          pieTouchResponse.touchedSection == null) {
+                    if (!event.isInterestedForInteractions ||
+                        pieTouchResponse == null ||
+                        pieTouchResponse.touchedSection == null) {
+                      setState(() {
                         _touchedIndex = -1;
-                        return;
-                      }
-                      _touchedIndex = pieTouchResponse.touchedSection!.touchedSectionIndex;
+                        _buildSections(-1);
+                      });
+                      return;
+                    }
+                    final newTouchedIndex = pieTouchResponse.touchedSection!.touchedSectionIndex;
+                    setState(() {
+                      _touchedIndex = newTouchedIndex;
+                      _buildSections(newTouchedIndex);
                     });
                   },
                 ),
                 borderData: FlBorderData(show: false),
                 sectionsSpace: 2,
                 centerSpaceRadius: 40,
-                sections: widget.sortedCategories.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final data = entry.value;
-                  final isTouched = index == _touchedIndex;
-                  final fontSize = isTouched ? 18.0 : 12.0;
-                  final radius = isTouched ? 60.0 : 50.0;
-                  final percentage = widget.totalSpending > 0 ? (data.value / widget.totalSpending * 100) : 0.0;
-
-                  return PieChartSectionData(
-                    color: widget.getCategoryColor(data.key),
-                    value: data.value,
-                    title: percentage > 5 ? '${percentage.toStringAsFixed(0)}%' : '',
-                    radius: radius,
-                    titleStyle: AppTextStyles.label.copyWith(
-                      fontSize: fontSize,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  );
-                }).toList(),
+                sections: _pieSections,
               ),
             ),
           ),

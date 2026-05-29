@@ -6,6 +6,7 @@ import 'package:firebase_dynamic_links/firebase_dynamic_links.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:app_links/app_links.dart';
+import 'dart:async';
 import 'package:sliceit/screens/split_history_screen.dart';
 import 'package:sliceit/screens/subscriptions_screen.dart';
 import 'package:sliceit/services/theme_provider.dart';
@@ -19,6 +20,7 @@ import 'package:sliceit/screens/profile_screen.dart';
 import 'package:sliceit/screens/split_bills_screen.dart';
 import 'package:sliceit/screens/groups_screen.dart';
 import 'package:sliceit/screens/group_detail_screen.dart';
+import 'package:sliceit/screens/notifications_screen.dart';
 import 'package:sliceit/utils/colors.dart';
 import 'package:sliceit/utils/text_styles.dart';
 import 'package:sliceit/utils/app_spacing.dart';
@@ -55,6 +57,9 @@ class _MyAppState extends State<MyApp> {
   AppLinks? _appLinks;
   Uri? _pendingInvite;
   late NotificationPreferences _notificationPreferences;
+  StreamSubscription? _authSub;
+  StreamSubscription? _dynamicLinkSub;
+  StreamSubscription? _appLinkSub;
 
   @override
   void initState() {
@@ -64,13 +69,21 @@ class _MyAppState extends State<MyApp> {
       _initDynamicLinks();
       _initAppLinks();
     }
-    FirebaseAuth.instance.authStateChanges().listen((user) {
+    _authSub = FirebaseAuth.instance.authStateChanges().listen((user) {
       if (user != null && _pendingInvite != null) {
         final uri = _pendingInvite!;
         _pendingInvite = null;
         _handleIncomingUri(uri);
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _authSub?.cancel();
+    _dynamicLinkSub?.cancel();
+    _appLinkSub?.cancel();
+    super.dispose();
   }
 
   void _initializeNotificationPreferences() {
@@ -81,9 +94,9 @@ class _MyAppState extends State<MyApp> {
   Future<void> _initDynamicLinks() async {
     // Handle links when app is already open
     // ignore: deprecated_member_use
-    FirebaseDynamicLinks.instance.onLink.listen((dynamicLink) {
+    _dynamicLinkSub = FirebaseDynamicLinks.instance.onLink.listen((dynamicLink) {
       _handleDynamicLink(dynamicLink.link);
-    }).onError((error) {
+    }, onError: (error) {
       debugPrint('onLink error: $error');
     });
 
@@ -108,7 +121,7 @@ class _MyAppState extends State<MyApp> {
     try {
       _appLinks = AppLinks();
       // Stream for links while app is running
-      _appLinks!.uriLinkStream.listen((uri) {
+      _appLinkSub = _appLinks!.uriLinkStream.listen((uri) {
         _handleIncomingUri(uri);
       }, onError: (err) {
         debugPrint('AppLinks stream error: $err');
@@ -404,6 +417,7 @@ class _MyAppState extends State<MyApp> {
               '/groups': (context) => const GroupsScreen(),
               '/split_history': (context) => const SplitHistoryScreen(),
               '/subscriptions': (context) => const SubscriptionsScreen(),
+              '/notifications': (context) => const NotificationsScreen(),
             },
           );
         },
