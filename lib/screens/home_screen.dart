@@ -98,7 +98,7 @@ class HomeScreen extends StatelessWidget {
                                 Icons.notifications_none_rounded,
                                 color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
                               ),
-                              onPressed: () {},
+                              onPressed: () => Navigator.pushNamed(context, '/profile'),
                             ),
                           ],
                         ),
