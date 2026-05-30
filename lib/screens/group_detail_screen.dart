@@ -341,6 +341,28 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
   }
 
   Widget _buildMembersTab(BuildContext context, List<dynamic> members) {
+    if (members.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.people_rounded,
+              size: 64,
+              color: AppColors.textTertiary,
+            ),
+            const SizedBox(height: AppSpacing.gapMd),
+            Text(
+              'No members yet',
+              style: AppTextStyles.h3.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
       child: ListView.builder(
@@ -351,6 +373,37 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
           return FutureBuilder<DocumentSnapshot>(
             future: _firestore.collection('users').doc(memberId).get(),
             builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return AppCard(
+                  margin: const EdgeInsets.only(bottom: AppSpacing.gapMd),
+                  interactive: false,
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 24,
+                        backgroundColor: AppColors.darkSurface2,
+                      ),
+                      const SizedBox(width: AppSpacing.gapMd),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              height: 16,
+                              width: 100,
+                              decoration: BoxDecoration(
+                                color: AppColors.darkSurface2,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
               final userData = snapshot.data?.data() as Map?;
               final photoURL = userData?['photoURL'] as String?;
               final name = userData?['name'] as String? ?? 'User';
