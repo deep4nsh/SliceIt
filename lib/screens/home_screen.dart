@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/colors.dart';
 import '../utils/text_styles.dart';
 import '../utils/app_spacing.dart';
@@ -7,6 +8,7 @@ import '../widgets/app_card.dart';
 import '../widgets/app_button.dart' show AppButton, ButtonVariant;
 import '../services/home_stats_service.dart';
 import '../services/app_notification_service.dart';
+import 'group_detail_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -279,6 +281,9 @@ class HomeScreen extends StatelessWidget {
   }
 
   Widget _buildActivitySection(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    final firestore = FirebaseFirestore.instance;
+
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.screenPadding,
@@ -292,54 +297,104 @@ class HomeScreen extends StatelessWidget {
             style: AppTextStyles.h2,
           ),
           const SizedBox(height: AppSpacing.gapMd),
-          AppCard(
-            margin: EdgeInsets.zero,
-            interactive: false,
-            child: Column(
-              children: [
-                _buildActivityItem(
-                  'Dinner at XYZ',
-                  '₹ 1,200',
-                  '2 days ago',
-                  Icons.restaurant_rounded,
+          StreamBuilder<QuerySnapshot>(
+            stream: firestore
+                .collectionGroup('expenses')
+                .where('participants', arrayContains: user?.uid)
+                .orderBy('createdAt', descending: true)
+                .limit(3)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const SizedBox(
+                  height: 100,
+                  child: Center(
+                    child: CircularProgressIndicator(color: AppColors.primary),
+                  ),
+                );
+              }
+
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                return AppCard(
+                  margin: EdgeInsets.zero,
+                  interactive: false,
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.gapMd),
+                    child: Text(
+                      'No recent activity yet.',
+                      style: AppTextStyles.body.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                );
+              }
+
+              final activities = snapshot.data!.docs;
+
+              return AppCard(
+                margin: EdgeInsets.zero,
+                interactive: false,
+                child: Column(
+                  children: List.generate(
+                    activities.length,
+                    (index) {
+                      final activityData = activities[index].data() as Map<String, dynamic>;
+                      final description = activityData['description'] ?? 'Expense';
+                      final amount = activityData['amount'] ?? 0.0;
+                      final createdAt = activityData['createdAt'] as Timestamp?;
+                      final formattedDate = createdAt != null
+                          ? _formatDate(createdAt.toDate())
+                          : 'Recently';
+
+                      return Column(
+                        children: [
+                          _buildActivityItem(
+                            description,
+                            '₹ ${amount.toStringAsFixed(2)}',
+                            formattedDate,
+                            Icons.receipt_rounded,
+                          ),
+                          if (index < activities.length - 1)
+                            const Divider(
+                              color: AppColors.borderDefault,
+                              height: 1,
+                              thickness: 1,
+                            ),
+                        ],
+                      );
+                    },
+                  ),
                 ),
-                const Divider(
-                  color: AppColors.borderDefault,
-                  height: 1,
-                  thickness: 1,
-                ),
-                _buildActivityItem(
-                  'Paid Deepansh',
-                  '₹ 500',
-                  'Settlement • 1 day ago',
-                  Icons.check_circle_rounded,
-                  color: AppColors.success,
-                ),
-                const Divider(
-                  color: AppColors.borderDefault,
-                  height: 1,
-                  thickness: 1,
-                ),
-                _buildActivityItem(
-                  'Added to Friends trip',
-                  '₹ 2,500',
-                  '3 days ago',
-                  Icons.people_rounded,
-                ),
-              ],
-            ),
+              );
+            },
           ),
           const SizedBox(height: AppSpacing.gapMd),
           Center(
             child: AppButton(
               label: 'View All Activity',
               variant: ButtonVariant.tertiary,
-              onPressed: () {},
+              onPressed: () => Navigator.pushNamed(context, '/split_history'),
             ),
           ),
         ],
       ),
     );
+  }
+
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+
+    if (difference.inDays == 0) {
+      return 'Today';
+    } else if (difference.inDays == 1) {
+      return 'Yesterday';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays} days ago';
+    } else {
+      return '${date.day}/${date.month}/${date.year}';
+    }
   }
 
   Widget _buildActivityItem(
@@ -397,6 +452,9 @@ class HomeScreen extends StatelessWidget {
   }
 
   Widget _buildGroupsSection(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    final firestore = FirebaseFirestore.instance;
+
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.screenPadding,
@@ -410,30 +468,85 @@ class HomeScreen extends StatelessWidget {
             style: AppTextStyles.h2,
           ),
           const SizedBox(height: AppSpacing.gapMd),
-          AppCard(
-            margin: EdgeInsets.zero,
-            interactive: false,
-            child: Column(
-              children: [
-                _buildGroupItem(
-                  'Friends Trip',
-                  '3 members',
-                  'You owe: ₹ 1,200',
-                  isOwe: true,
+          StreamBuilder<QuerySnapshot>(
+            stream: firestore
+                .collection('groups')
+                .where('members', arrayContains: user?.uid)
+                .limit(3)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const SizedBox(
+                  height: 100,
+                  child: Center(
+                    child: CircularProgressIndicator(color: AppColors.primary),
+                  ),
+                );
+              }
+
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                return AppCard(
+                  margin: EdgeInsets.zero,
+                  interactive: false,
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.gapMd),
+                    child: Text(
+                      'No groups yet. Create or join a group to get started.',
+                      style: AppTextStyles.body.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                );
+              }
+
+              final groups = snapshot.data!.docs;
+
+              return GestureDetector(
+                onTap: () => Navigator.pushNamed(context, '/groups'),
+                child: AppCard(
+                  margin: EdgeInsets.zero,
+                  interactive: true,
+                  child: Column(
+                    children: List.generate(
+                      groups.length,
+                      (index) {
+                        final groupDoc = groups[index];
+                        final groupId = groupDoc.id;
+                        final groupData = groupDoc.data() as Map<String, dynamic>;
+                        final groupName = groupData['name'] ?? 'Unknown Group';
+                        final members = groupData['members'] as List<dynamic>? ?? [];
+
+                        return Column(
+                          children: [
+                            GestureDetector(
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => GroupDetailScreen(groupId: groupId),
+                                ),
+                              ),
+                              child: _buildGroupItem(
+                                groupName,
+                                '${members.length} member${members.length != 1 ? 's' : ''}',
+                                '', // Balance calculation would need expense data
+                                isOwe: false,
+                              ),
+                            ),
+                            if (index < groups.length - 1)
+                              const Divider(
+                                color: AppColors.borderDefault,
+                                height: 1,
+                                thickness: 1,
+                              ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
                 ),
-                const Divider(
-                  color: AppColors.borderDefault,
-                  height: 1,
-                  thickness: 1,
-                ),
-                _buildGroupItem(
-                  'Apartment',
-                  '2 members',
-                  'Owed to you: ₹ 5,030',
-                  isOwe: false,
-                ),
-              ],
-            ),
+              );
+            },
           ),
         ],
       ),
@@ -478,13 +591,15 @@ class HomeScreen extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.gapSm),
-          Text(
-            balance,
-            style: AppTextStyles.body.copyWith(
-              color: isOwe ? AppColors.error : AppColors.success,
+          if (balance.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.gapSm),
+            Text(
+              balance,
+              style: AppTextStyles.body.copyWith(
+                color: isOwe ? AppColors.error : AppColors.success,
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
