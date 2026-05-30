@@ -127,7 +127,7 @@ class _AppButtonState extends State<AppButton> {
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.max,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   if (widget.isLoading)
                     SizedBox(

@@ -164,6 +164,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: SizedBox(height: AppSpacing.gapLg),
             ),
 
+            // Friends Section
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.screenPadding,
+                ),
+                child: Text(
+                  'Friends',
+                  style: AppTextStyles.h2,
+                ),
+              ),
+            ),
+
+            const SliverToBoxAdapter(
+              child: SizedBox(height: AppSpacing.gapMd),
+            ),
+
+            // Add Friend Button
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.screenPadding,
+                ),
+                child: AppButton(
+                  label: 'Add Friend',
+                  onPressed: () => Navigator.of(context).pushNamed('/add_friend'),
+                ),
+              ),
+            ),
+
+            const SliverToBoxAdapter(
+              child: SizedBox(height: AppSpacing.gapLg),
+            ),
+
             // Settings Section
             SliverToBoxAdapter(
               child: Padding(

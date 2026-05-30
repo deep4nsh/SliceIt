@@ -9,6 +9,8 @@ import '../utils/app_spacing.dart';
 import '../widgets/app_card.dart';
 import '../widgets/app_button.dart' show AppButton, ButtonVariant, ButtonSize;
 import '../services/debt_simplifier.dart';
+import 'group_settings_screen.dart';
+import 'settlement_history_screen.dart';
 
 class GroupDetailScreen extends StatefulWidget {
   final String groupId;
@@ -173,10 +175,34 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
               ],
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.share_rounded),
-            color: AppColors.textPrimary,
-            onPressed: () => _shareGroup(groupName),
+          Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.history_rounded),
+                color: AppColors.textPrimary,
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => SettlementHistoryScreen(groupId: widget.groupId),
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.settings_rounded),
+                color: AppColors.textPrimary,
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => GroupSettingsScreen(groupId: widget.groupId),
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.share_rounded),
+                color: AppColors.textPrimary,
+                onPressed: () => _shareGroup(groupName),
+              ),
+            ],
           ),
         ],
       ),

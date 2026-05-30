@@ -9,6 +9,7 @@ import 'package:app_links/app_links.dart';
 import 'dart:async';
 import 'package:sliceit/screens/split_history_screen.dart';
 import 'package:sliceit/screens/subscriptions_screen.dart';
+import 'package:sliceit/screens/add_friend_screen.dart';
 import 'package:sliceit/services/theme_provider.dart';
 import 'package:sliceit/services/notification_service.dart';
 import 'package:sliceit/services/notification_preferences.dart';
@@ -622,6 +623,7 @@ class _MyAppState extends State<MyApp> {
               '/split_history': (context) => const SplitHistoryScreen(),
               '/subscriptions': (context) => const SubscriptionsScreen(),
               '/notifications': (context) => const NotificationsScreen(),
+              '/add_friend': (context) => const AddFriendScreen(),
             },
           );
         },

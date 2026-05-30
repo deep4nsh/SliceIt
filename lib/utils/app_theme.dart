@@ -14,12 +14,13 @@ class AppTheme {
       brightness: Brightness.dark,
       scaffoldBackgroundColor: AppColors.darkBackground,
       colorScheme: const ColorScheme.dark(
-        primary: AppColors.primaryAccent,
-        secondary: AppColors.secondaryAccent,
+        primary: AppColors.primary,
+        secondary: AppColors.secondary,
+        tertiary: AppColors.success,
         surface: AppColors.darkSurface1,
         error: AppColors.error,
         onPrimary: Colors.white,
-        onSecondary: Colors.black,
+        onSecondary: Colors.white,
         onSurface: Colors.white,
       ),
       textTheme: TextTheme(
@@ -33,18 +34,18 @@ class AppTheme {
       cardTheme: CardThemeData(
         color: AppColors.darkSurface1,
         elevation: 1,
-        shadowColor: Colors.black.withValues(alpha: 0.3),
+        shadowColor: Colors.black.withValues(alpha: 0.5),
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusCard),
           side: BorderSide(
-            color: AppColors.darkSurfaceBorder.withValues(alpha: 0.4),
+            color: AppColors.borderDefault.withValues(alpha: 0.5),
             width: 0.5,
           ),
         ),
       ),
       dividerTheme: const DividerThemeData(
-        color: AppColors.darkSurfaceBorder,
+        color: AppColors.borderSubtle,
         thickness: 1,
         space: 1,
       ),
