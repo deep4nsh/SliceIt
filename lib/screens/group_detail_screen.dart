@@ -370,51 +370,20 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
         itemCount: members.length,
         itemBuilder: (context, index) {
           final memberId = members[index] as String;
-          return FutureBuilder<DocumentSnapshot>(
-            future: _firestore.collection('users').doc(memberId).get(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return AppCard(
-                  margin: const EdgeInsets.only(bottom: AppSpacing.gapMd),
-                  interactive: false,
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 24,
-                        backgroundColor: AppColors.darkSurface2,
-                      ),
-                      const SizedBox(width: AppSpacing.gapMd),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              height: 16,
-                              width: 100,
-                              decoration: BoxDecoration(
-                                color: AppColors.darkSurface2,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }
+          return AppCard(
+            margin: const EdgeInsets.only(bottom: AppSpacing.gapMd),
+            interactive: false,
+            child: Row(
+              children: [
+                FutureBuilder<DocumentSnapshot>(
+                  future: _firestore.collection('users').doc(memberId).get(),
+                  builder: (context, snapshot) {
+                    final userData = snapshot.data?.data() as Map?;
+                    final photoURL = userData?['photoURL'] as String?;
+                    final name = userData?['name'] as String? ?? 'User';
+                    final initials = name.split(' ').map((e) => e.isNotEmpty ? e[0] : '').join().toUpperCase();
 
-              final userData = snapshot.data?.data() as Map?;
-              final photoURL = userData?['photoURL'] as String?;
-              final name = userData?['name'] as String? ?? 'User';
-              final initials = name.split(' ').map((e) => e.isNotEmpty ? e[0] : '').join().toUpperCase();
-
-              return AppCard(
-                margin: const EdgeInsets.only(bottom: AppSpacing.gapMd),
-                interactive: false,
-                child: Row(
-                  children: [
-                    CircleAvatar(
+                    return CircleAvatar(
                       radius: 24,
                       backgroundColor: AppColors.darkSurface2,
                       backgroundImage: photoURL != null && photoURL.isNotEmpty
@@ -428,25 +397,26 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                               ),
                             )
                           : null,
-                    ),
-                    const SizedBox(width: AppSpacing.gapMd),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            name,
-                            style: AppTextStyles.body.copyWith(
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                    );
+                  },
                 ),
-              );
-            },
+                const SizedBox(width: AppSpacing.gapMd),
+                Expanded(
+                  child: FutureBuilder<DocumentSnapshot>(
+                    future: _firestore.collection('users').doc(memberId).get(),
+                    builder: (context, snapshot) {
+                      final name = (snapshot.data?.data() as Map?)?['name'] ?? 'User';
+                      return Text(
+                        name,
+                        style: AppTextStyles.body.copyWith(
+                          color: AppColors.textPrimary,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
           );
         },
       ),
