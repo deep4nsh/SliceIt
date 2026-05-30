@@ -46,10 +46,15 @@ class AppColors {
   static const Color infoLight = Color(0x1506B6D4); // 10% opacity
   static const Color infoDark = Color(0xFF0891B2); // Darker for contrast
 
-  // ============ TEXT COLORS ============
-  static const Color textPrimary = Color(0xFFFFFFFF); // Main content (99% of text)
-  static const Color textSecondary = Color(0xFFC9D1D9); // Labels, placeholders
-  static const Color textTertiary = Color(0xFF8B949E); // Disabled, hints, tertiary
+  // ============ TEXT COLORS - DARK MODE ============
+  static const Color textPrimary = Color(0xFFFFFFFF); // Main content in dark mode
+  static const Color textSecondary = Color(0xFFC9D1D9); // Labels, placeholders in dark mode
+  static const Color textTertiary = Color(0xFF8B949E); // Disabled, hints in dark mode
+
+  // ============ TEXT COLORS - LIGHT MODE ============
+  static const Color textDarkModePrimary = Color(0xFF1F2937); // Main content in light mode
+  static const Color textDarkModeSecondary = Color(0xFF6B7280); // Labels in light mode
+  static const Color textDarkModeTertiary = Color(0xFF9CA3AF); // Disabled in light mode
 
   // ============ BORDER COLORS ============
   static const Color borderDefault = Color(0xFF30363D); // All dividers and edges
@@ -88,10 +93,10 @@ class AppColors {
   static const Color lightSurface2 = Color(0xFFF7F8F9);
   static const Color lightSurfaceBorder = Color(0xFFDFDFDF);
 
-  static const Color textLightPrimary = textPrimary;
-  static const Color textLightSecondary = textSecondary;
-  static const Color textDarkPrimary = textPrimary;
-  static const Color textDarkSecondary = textSecondary;
+  static const Color textLightPrimary = textPrimary; // White text for dark mode
+  static const Color textLightSecondary = textSecondary; // Light gray for dark mode
+  static const Color textDarkPrimary = textDarkModePrimary; // Dark text for light mode
+  static const Color textDarkSecondary = textDarkModeSecondary; // Gray text for light mode
 
   static const Color darkSurfaceBorder = borderDefault;
   static const Color lightSurfaceWhite = lightSurface1;
