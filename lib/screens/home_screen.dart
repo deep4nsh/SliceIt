@@ -1,17 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import '../utils/colors.dart';
 import '../utils/text_styles.dart';
 import '../utils/app_spacing.dart';
-import '../widgets/modern_card.dart';
-import '../widgets/animated_list_item.dart';
-import '../widgets/mesh_background.dart';
+import '../widgets/app_card.dart';
+import '../widgets/app_button.dart' show AppButton, ButtonVariant;
 import '../services/home_stats_service.dart';
 import '../services/app_notification_service.dart';
 
-/// State-of-the-art restyled HomeScreen featuring rich Bento-grid geometry,
-/// atmospheric MeshBackground visualization, and unified Poppins typography scale.
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
@@ -19,390 +15,477 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     final statsService = HomeStatsService();
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return MeshBackground(
-      child: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
+    return Scaffold(
+      backgroundColor: AppColors.darkBackground,
+      body: CustomScrollView(
+        physics: const ScrollPhysics(),
         slivers: [
-          // Core Financial Bento Dashboard
+          // HEADER: Profile + Notifications
           SliverToBoxAdapter(
             child: SafeArea(
               bottom: false,
-              child: StreamBuilder<Map<String, double>>(
-                stream: statsService.getHomeStats(),
-                initialData: const {'spent': 0.0, 'owe': 0.0, 'owed': 0.0},
-                builder: (context, snapshot) {
-                  final stats = snapshot.data ?? {'spent': 0.0, 'owe': 0.0, 'owed': 0.0};
-                  final totalSpent = stats['spent']!;
-                  final youOwe = stats['owe']!;
-                  final owedToYou = stats['owed']!;
+              child: _buildHeader(context, user),
+            ),
+          ),
 
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 16),
-                        // Restyled profile header row
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                Container(
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: (isDark ? AppColors.secondaryAccent : AppColors.primaryAccent).withValues(alpha: 0.5),
-                                      width: 1.5,
-                                    ),
-                                  ),
-                                  child: CircleAvatar(
-                                    radius: 20,
-                                    backgroundColor: isDark ? AppColors.darkSurface2 : AppColors.lightSurface2,
-                                    backgroundImage: user?.photoURL != null
-                                        ? NetworkImage(user!.photoURL!)
-                                        : const AssetImage('assets/images/user.png') as ImageProvider,
-                                    onBackgroundImageError: (_, __) {},
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      "Welcome back,",
-                                      style: TextStyle(
-                                        fontFamily: 'Poppins',
-                                        color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                    Text(
-                                      user?.displayName?.split(' ').first ?? "User",
-                                      style: TextStyle(
-                                        fontFamily: 'Poppins',
-                                        color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        letterSpacing: -0.3,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                            FutureBuilder<int>(
-                              future: AppNotificationService().getUnreadCount(user?.uid ?? ''),
-                              builder: (context, snapshot) {
-                                final unreadCount = snapshot.data ?? 0;
-                                return Stack(
-                                  children: [
-                                    IconButton(
-                                      icon: Icon(
-                                        Icons.notifications_none_rounded,
-                                        color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
-                                      ),
-                                      onPressed: () => Navigator.pushNamed(context, '/notifications'),
-                                    ),
-                                    if (unreadCount > 0)
-                                      Positioned(
-                                        top: 8,
-                                        right: 8,
-                                        child: Container(
-                                          padding: const EdgeInsets.all(4),
-                                          decoration: BoxDecoration(
-                                            color: AppColors.error,
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: Text(
-                                            unreadCount > 9 ? '9+' : '$unreadCount',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-                        // Bento Primary Banner: Total Spent
-                        ModernCard(
-                          margin: EdgeInsets.zero,
-                          gradient: LinearGradient(
-                          colors: isDark
-                              ? [AppColors.primaryAccent.withValues(alpha: 0.85), const Color(0xFF1E203C)]
-                              : [AppColors.primaryAccent, AppColors.secondaryAccent.withValues(alpha: 0.8)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Total Spent',
-                                  style: AppTextStyles.label.copyWith(
-                                    color: Colors.white.withValues(alpha: 0.8),
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                                  ),
-                                  child: const Icon(
-                                    Icons.account_balance_wallet_rounded,
-                                    color: Colors.white,
-                                    size: 20,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              '₹ ${totalSpent.toStringAsFixed(2)}',
-                              style: AppTextStyles.h1.copyWith(
-                                color: Colors.white,
-                                fontSize: 32,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ).animate().fade(duration: 400.ms).slideY(begin: 0.1, end: 0, curve: Curves.easeOutCubic),
-                      
-                      const SizedBox(height: 16),
-                      
-                      // Bento Secondary Cells: Owe vs Owed
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ModernCard(
-                              margin: EdgeInsets.zero,
-                              padding: const EdgeInsets.all(16),
-                              color: isDark
-                                  ? AppColors.error.withValues(alpha: 0.12)
-                                  : AppColors.error.withValues(alpha: 0.08),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(Icons.arrow_upward_rounded, color: AppColors.error, size: 14),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        "You Owe",
-                                        style: AppTextStyles.label.copyWith(color: AppColors.error),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    "₹ ${youOwe.toStringAsFixed(2)}",
-                                    style: AppTextStyles.h3.copyWith(
-                                      color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: ModernCard(
-                              margin: EdgeInsets.zero,
-                              padding: const EdgeInsets.all(16),
-                              color: isDark
-                                  ? AppColors.success.withValues(alpha: 0.12)
-                                  : AppColors.success.withValues(alpha: 0.08),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(Icons.arrow_downward_rounded, color: AppColors.success, size: 14),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        "Owed to You",
-                                        style: AppTextStyles.label.copyWith(color: AppColors.success),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    "₹ ${owedToYou.toStringAsFixed(2)}",
-                                    style: AppTextStyles.h3.copyWith(
-                                      color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ).animate().fade(duration: 400.ms, delay: 100.ms).slideY(begin: 0.1, end: 0, curve: Curves.easeOutCubic),
-
-                      const SizedBox(height: 32),
-                      
-                      Text(
-                        "Quick Actions",
-                        style: AppTextStyles.h2.copyWith(
-                          color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
-                          fontSize: 20,
-                        ),
-                      ).animate().fade(duration: 400.ms, delay: 200.ms),
-                      
-                      const SizedBox(height: 16),
-                    ],
-                  ),
-                );
+          // BALANCE CARD: Primary focus
+          SliverToBoxAdapter(
+            child: StreamBuilder<Map<String, double>>(
+              stream: statsService.getHomeStats(),
+              initialData: const {'spent': 0.0, 'owe': 0.0, 'owed': 0.0},
+              builder: (context, snapshot) {
+                final stats = snapshot.data ?? {'spent': 0.0, 'owe': 0.0, 'owed': 0.0};
+                final netBalance = (stats['owed'] ?? 0) - (stats['owe'] ?? 0);
+                return _buildBalanceCard(context, netBalance);
               },
             ),
           ),
-        ),
 
-          // Synchronized Action Matrix
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
-            sliver: SliverGrid.count(
-              crossAxisCount: 2,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-              childAspectRatio: 1.15,
-              children: [
-                _buildBentoActionCell(
-                  context,
-                  index: 0,
-                  icon: Icons.receipt_long_rounded,
-                  title: "Expenses",
-                  color: AppColors.secondaryAccent,
-                  route: '/expenses',
-                  isDark: isDark,
-                ),
-                _buildBentoActionCell(
-                  context,
-                  index: 1,
-                  icon: Icons.analytics_rounded,
-                  title: "Analytics",
-                  color: const Color(0xFF8B5CF6),
-                  route: '/analytics',
-                  isDark: isDark,
-                ),
-                _buildBentoActionCell(
-                  context,
-                  index: 2,
-                  icon: Icons.call_split_rounded,
-                  title: "Split Bills",
-                  color: const Color(0xFFF59E0B),
-                  route: '/split',
-                  isDark: isDark,
-                ),
-                _buildBentoActionCell(
-                  context,
-                  index: 3,
-                  icon: Icons.history_rounded,
-                  title: "History",
-                  color: const Color(0xFF10B981),
-                  route: '/split_history',
-                  isDark: isDark,
-                ),
-                _buildBentoActionCell(
-                  context,
-                  index: 4,
-                  icon: Icons.groups_rounded,
-                  title: "Groups",
-                  color: const Color(0xFFEC4899),
-                  route: '/groups',
-                  isDark: isDark,
-                ),
-                _buildBentoActionCell(
-                  context,
-                  index: 5,
-                  icon: Icons.person_rounded,
-                  title: "Profile",
-                  color: const Color(0xFF3B82F6),
-                  route: '/profile',
-                  isDark: isDark,
-                ),
-                _buildBentoActionCell(
-                  context,
-                  index: 6,
-                  icon: Icons.event_repeat_rounded,
-                  title: "Subscriptions",
-                  color: const Color(0xFF14B8A6),
-                  route: '/subscriptions',
-                  isDark: isDark,
-                ),
-              ],
+          // BREAKDOWN: You owe vs owed
+          SliverToBoxAdapter(
+            child: StreamBuilder<Map<String, double>>(
+              stream: statsService.getHomeStats(),
+              initialData: const {'spent': 0.0, 'owe': 0.0, 'owed': 0.0},
+              builder: (context, snapshot) {
+                final stats = snapshot.data ?? {'spent': 0.0, 'owe': 0.0, 'owed': 0.0};
+                return _buildBreakdownCard(context, stats['owe'] ?? 0, stats['owed'] ?? 0);
+              },
             ),
           ),
 
-          // Extra footer scroll headroom to comfortably clear the persistent bottom shell bar
-          const SliverToBoxAdapter(child: SizedBox(height: 120)),
+          // ACTIONS: 2 primary buttons
+          SliverToBoxAdapter(
+            child: _buildActionButtons(context),
+          ),
+
+          // ACTIVITY SECTION: Recent events
+          SliverToBoxAdapter(
+            child: _buildActivitySection(context),
+          ),
+
+          // GROUPS SECTION: Quick summary
+          SliverToBoxAdapter(
+            child: _buildGroupsSection(context),
+          ),
+
+          // FOOTER: Safe area for nav bar
+          const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.safeAreaBottom)),
         ],
       ),
     );
   }
 
-  Widget _buildBentoActionCell(
-    BuildContext context, {
-    required int index,
-    required IconData icon,
-    required String title,
-    required Color color,
-    required String route,
-    required bool isDark,
-  }) {
-    return AnimatedListItem(
-      index: index + 3, // Delays sequential flow after header stats
-      child: ModernCard(
-        margin: EdgeInsets.zero,
-        padding: const EdgeInsets.all(14),
-        color: isDark ? AppColors.darkSurface1 : AppColors.lightSurface1,
-        onTap: () => Navigator.pushNamed(context, route),
+  Widget _buildHeader(BuildContext context, User? user) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.screenPadding,
+        vertical: AppSpacing.base,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: AppColors.darkSurface2,
+                backgroundImage: user?.photoURL != null
+                    ? NetworkImage(user!.photoURL!)
+                    : null,
+                child: user?.photoURL == null
+                    ? const Icon(Icons.person, color: AppColors.textSecondary)
+                    : null,
+              ),
+              const SizedBox(width: AppSpacing.gapMd),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    user?.displayName?.split(' ').first ?? "User",
+                    style: AppTextStyles.bodyL.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  Text(
+                    'Welcome back',
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          FutureBuilder<int>(
+            future: AppNotificationService().getUnreadCount(user?.uid ?? ''),
+            builder: (context, snapshot) {
+              final unreadCount = snapshot.data ?? 0;
+              return Stack(
+                children: [
+                  IconButton(
+                    icon: const Icon(
+                      Icons.notifications_none_rounded,
+                      color: AppColors.textPrimary,
+                      size: 24,
+                    ),
+                    onPressed: () => Navigator.pushNamed(context, '/notifications'),
+                    tooltip: 'Notifications',
+                  ),
+                  if (unreadCount > 0)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: const BoxDecoration(
+                          color: AppColors.error,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          unreadCount > 9 ? '9+' : '$unreadCount',
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBalanceCard(BuildContext context, double balance) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
+      child: AppCard(
+        margin: const EdgeInsets.symmetric(vertical: AppSpacing.gapMd),
+        padding: const EdgeInsets.all(AppSpacing.cardPaddingLarge),
+        interactive: false,
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: isDark ? 0.15 : 0.1),
-                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                border: Border.all(
-                  color: color.withValues(alpha: 0.2),
-                  width: 1,
-                ),
-              ),
-              child: Icon(icon, color: color, size: 24),
-            ),
-            const Spacer(),
             Text(
-              title,
-              style: AppTextStyles.bodyM.copyWith(
-                fontWeight: FontWeight.w600,
-                color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
-                letterSpacing: -0.2,
+              'Your Balance',
+              style: AppTextStyles.subtitle.copyWith(
+                color: AppColors.textSecondary,
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: AppSpacing.gapSm),
+            Text(
+              '₹ ${balance.toStringAsFixed(2)}',
+              style: AppTextStyles.display,
+            ),
+            const SizedBox(height: AppSpacing.gapSm),
+            Text(
+              balance >= 0 ? 'You are owed this amount' : 'You owe this amount',
+              style: AppTextStyles.helper.copyWith(
+                color: AppColors.textSecondary,
+              ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildBreakdownCard(BuildContext context, double youOwe, double owedToYou) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
+      child: AppCard(
+        margin: const EdgeInsets.only(bottom: AppSpacing.gapMd),
+        interactive: false,
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'You Owe',
+                    style: AppTextStyles.body.copyWith(
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.gapXs),
+                  Text(
+                    '₹ ${youOwe.toStringAsFixed(2)}',
+                    style: AppTextStyles.h3.copyWith(
+                      color: youOwe > 0 ? AppColors.error : AppColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Owed to You',
+                    style: AppTextStyles.body.copyWith(
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.gapXs),
+                  Text(
+                    '₹ ${owedToYou.toStringAsFixed(2)}',
+                    style: AppTextStyles.h3.copyWith(
+                      color: owedToYou > 0 ? AppColors.success : AppColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButtons(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.screenPadding,
+        vertical: AppSpacing.gapLg,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: AppButton(
+              label: 'Add Expense',
+              icon: Icons.add_rounded,
+              onPressed: () => Navigator.pushNamed(context, '/create_split_bill'),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.gapSm),
+          Expanded(
+            child: AppButton(
+              label: 'Settle',
+              variant: ButtonVariant.secondary,
+              icon: Icons.arrow_forward_rounded,
+              onPressed: () => Navigator.pushNamed(context, '/settlements'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActivitySection(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.screenPadding,
+        vertical: AppSpacing.gapLg,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Recent Activity',
+            style: AppTextStyles.h2,
+          ),
+          const SizedBox(height: AppSpacing.gapMd),
+          AppCard(
+            margin: EdgeInsets.zero,
+            interactive: false,
+            child: Column(
+              children: [
+                _buildActivityItem(
+                  'Dinner at XYZ',
+                  '₹ 1,200',
+                  '2 days ago',
+                  Icons.restaurant_rounded,
+                ),
+                const Divider(
+                  color: AppColors.borderDefault,
+                  height: 1,
+                  thickness: 1,
+                ),
+                _buildActivityItem(
+                  'Paid Deepansh',
+                  '₹ 500',
+                  'Settlement • 1 day ago',
+                  Icons.check_circle_rounded,
+                  color: AppColors.success,
+                ),
+                const Divider(
+                  color: AppColors.borderDefault,
+                  height: 1,
+                  thickness: 1,
+                ),
+                _buildActivityItem(
+                  'Added to Friends trip',
+                  '₹ 2,500',
+                  '3 days ago',
+                  Icons.people_rounded,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.gapMd),
+          Center(
+            child: AppButton(
+              label: 'View All Activity',
+              variant: ButtonVariant.tertiary,
+              onPressed: () {},
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActivityItem(
+    String title,
+    String amount,
+    String timestamp,
+    IconData icon, {
+    Color? color,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.gapMd),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: (color ?? AppColors.primary).withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+            ),
+            child: Icon(
+              icon,
+              color: color ?? AppColors.primary,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.gapMd),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: AppTextStyles.body.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                Text(
+                  timestamp,
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            amount,
+            style: AppTextStyles.h3.copyWith(
+              color: color ?? AppColors.textPrimary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGroupsSection(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.screenPadding,
+        vertical: AppSpacing.gapLg,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Groups You\'re In',
+            style: AppTextStyles.h2,
+          ),
+          const SizedBox(height: AppSpacing.gapMd),
+          AppCard(
+            margin: EdgeInsets.zero,
+            interactive: false,
+            child: Column(
+              children: [
+                _buildGroupItem(
+                  'Friends Trip',
+                  '3 members',
+                  'You owe: ₹ 1,200',
+                  isOwe: true,
+                ),
+                const Divider(
+                  color: AppColors.borderDefault,
+                  height: 1,
+                  thickness: 1,
+                ),
+                _buildGroupItem(
+                  'Apartment',
+                  '2 members',
+                  'Owed to you: ₹ 5,030',
+                  isOwe: false,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGroupItem(
+    String groupName,
+    String members,
+    String balance, {
+    required bool isOwe,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.gapMd),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    groupName,
+                    style: AppTextStyles.body.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  Text(
+                    members,
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.textSecondary,
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.gapSm),
+          Text(
+            balance,
+            style: AppTextStyles.body.copyWith(
+              color: isOwe ? AppColors.error : AppColors.success,
+            ),
+          ),
+        ],
       ),
     );
   }

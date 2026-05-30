@@ -1,15 +1,12 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import '../utils/colors.dart';
+import '../utils/text_styles.dart';
 import '../utils/app_spacing.dart';
 import 'home_screen.dart';
 import 'groups_screen.dart';
-import 'split_bills_screen.dart';
+import 'activity_screen.dart';
 import 'profile_screen.dart';
 
-/// Centralized application navigation shell providing a persistent UI container
-/// with a state-of-the-art floating glassmorphic island bottom navigation bar.
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
 
@@ -19,165 +16,74 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
-  bool _navBarAnimated = false;
 
   final List<Widget> _screens = const [
     HomeScreen(),
     GroupsScreen(),
-    SplitBillsScreen(),
+    ActivityScreen(),
     ProfileScreen(),
   ];
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final navBar = RepaintBoundary(
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-          child: Container(
-            height: 68,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.darkSurface1 : AppColors.lightSurface1,
-              borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
-              border: Border.all(
-                color: isDark
-                    ? AppColors.darkSurfaceBorder.withValues(alpha: 0.3)
-                    : AppColors.lightSurfaceBorder.withValues(alpha: 0.4),
-                width: 0.5,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: isDark ? 0.1 : 0.02),
-                  blurRadius: 4,
-                  spreadRadius: 0,
-                  offset: const Offset(0, 1),
-                ),
-              ],
+    return Scaffold(
+      body: IndexedStack(
+        index: _currentIndex,
+        children: _screens,
+      ),
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          color: AppColors.darkSurface1,
+          border: Border(
+            top: BorderSide(
+              color: AppColors.borderDefault,
+              width: 1,
             ),
+          ),
+        ),
+        child: SafeArea(
+          top: false,
+          child: SizedBox(
+            height: 64,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildNavItem(
-                  index: 0,
-                  icon: Icons.dashboard_rounded,
-                  label: 'Home',
-                  isDark: isDark,
-                ),
-                _buildNavItem(
-                  index: 1,
-                  icon: Icons.groups_rounded,
-                  label: 'Groups',
-                  isDark: isDark,
-                ),
-                _buildNavItem(
-                  index: 2,
-                  icon: Icons.call_split_rounded,
-                  label: 'Splits',
-                  isDark: isDark,
-                ),
-                _buildNavItem(
-                  index: 3,
-                  icon: Icons.person_rounded,
-                  label: 'Profile',
-                  isDark: isDark,
-                ),
+                _buildNavItem(0, Icons.home_rounded, 'Home'),
+                _buildNavItem(1, Icons.groups_rounded, 'Groups'),
+                _buildNavItem(2, Icons.history_rounded, 'Activity'),
+                _buildNavItem(3, Icons.person_rounded, 'Profile'),
               ],
             ),
           ),
         ),
-      ),
-    );
-
-    final animatedNavBar = !_navBarAnimated
-        ? (navBar
-            .animate(onInit: (_) {
-              _navBarAnimated = true;
-            })
-            .fade(duration: 500.ms, curve: Curves.easeOut)
-            .slideY(begin: 0.8, end: 0, duration: 500.ms, curve: Curves.easeOutCubic))
-        : navBar;
-
-    return Scaffold(
-      extendBody: true,
-      body: Stack(
-        children: [
-          RepaintBoundary(
-            child: IndexedStack(
-              index: _currentIndex,
-              children: _screens,
-            ),
-          ),
-          Positioned(
-            left: AppSpacing.screenPadding,
-            right: AppSpacing.screenPadding,
-            bottom: 24,
-            child: animatedNavBar,
-          ),
-        ],
       ),
     );
   }
 
-  Widget _buildNavItem({
-    required int index,
-    required IconData icon,
-    required String label,
-    required bool isDark,
-  }) {
-    final isSelected = _currentIndex == index;
-    final activeColor = isDark ? AppColors.secondaryAccent : AppColors.primaryAccent;
-    final inactiveColor = isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary;
+  Widget _buildNavItem(int index, IconData icon, String label) {
+    final isActive = _currentIndex == index;
+    final color = isActive ? AppColors.primary : AppColors.textTertiary;
 
     return GestureDetector(
-      onTap: () {
-        if (_currentIndex != index) {
-          setState(() => _currentIndex = index);
-        }
-      },
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeOutCubic,
-        padding: EdgeInsets.symmetric(
-          horizontal: isSelected ? 16.0 : 12.0,
-          vertical: 8.0,
-        ),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? activeColor.withValues(alpha: 0.15)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              color: isSelected ? activeColor : inactiveColor,
-              size: 24,
-            )
-                .animate(target: isSelected ? 1 : 0)
-                .scaleXY(end: 1.15, duration: 200.ms, curve: Curves.easeOut),
-            if (isSelected) ...[
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  fontFamily: 'Poppins',
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: activeColor,
-                ),
-              )
-                  .animate()
-                  .fade(duration: 200.ms)
-                  .slideX(begin: -0.1, end: 0, duration: 200.ms, curve: Curves.easeOut),
-            ],
-          ],
-        ),
+      onTap: () => setState(() => _currentIndex = index),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            icon,
+            color: color,
+            size: 24,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: AppTextStyles.caption.copyWith(
+              color: color,
+              fontWeight: isActive ? FontWeight.w500 : FontWeight.w400,
+            ),
+          ),
+        ],
       ),
     );
   }

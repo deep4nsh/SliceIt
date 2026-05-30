@@ -1,30 +1,15 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:cloud_functions/cloud_functions.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import 'package:permission_handler/permission_handler.dart';
 
-import '../services/debt_simplifier.dart';
-import '../services/pdf_export_service.dart';
-import '../services/group_analytics_service.dart';
-import '../services/app_notification_service.dart';
-import '../widgets/custom_button.dart';
-import 'settlement_history_screen.dart';
-import 'group_settings_screen.dart';
 import '../utils/colors.dart';
 import '../utils/text_styles.dart';
 import '../utils/app_spacing.dart';
-import '../utils/deep_link_config.dart';
-import '../widgets/modern_card.dart';
-import '../widgets/animated_list_item.dart';
-import '../widgets/mesh_background.dart';
+import '../widgets/app_card.dart';
+import '../widgets/app_button.dart' show AppButton, ButtonVariant, ButtonSize;
+import '../services/debt_simplifier.dart';
 
-/// Highly stylized GroupDetailScreen integrating rich Tab structures,
-/// reactive modern settlement calculation cards, glass dialog forms, and smooth kinetics.
 class GroupDetailScreen extends StatefulWidget {
   final String groupId;
 
@@ -34,23 +19,14 @@ class GroupDetailScreen extends StatefulWidget {
   State<GroupDetailScreen> createState() => _GroupDetailScreenState();
 }
 
-class _GroupDetailScreenState extends State<GroupDetailScreen> {
+class _GroupDetailScreenState extends State<GroupDetailScreen>
+    with SingleTickerProviderStateMixin {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final Map<String, String> _nameCache = {};
+  late TabController _tabController;
 
   Stream<DocumentSnapshot> _getGroupStream() {
     return _firestore.collection('groups').doc(widget.groupId).snapshots();
-  }
-
-  Future<String> _getCachedName(String uid) async {
-    if (_nameCache.containsKey(uid)) {
-      return _nameCache[uid]!;
-    }
-    final doc = await _firestore.collection('users').doc(uid).get();
-    final name = doc.data()?['name'] ?? 'User';
-    _nameCache[uid] = name;
-    return name;
   }
 
   Stream<QuerySnapshot> _getGroupExpensesStream() {
@@ -63,1545 +39,534 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         .snapshots();
   }
 
-  Future<void> _showExpenseDialog({DocumentSnapshot? expenseDoc, Color? accentColor}) async {
-    final groupDoc = await _getGroupStream().first;
-    final groupData = groupDoc.data() as Map<String, dynamic>?;
-    final members = groupData?['members']?.cast<String>() ?? [];
-    final groupName = groupData?['name'] ?? 'Group';
-    final currentUser = _auth.currentUser;
-
-    if (mounted) {
-      await showDialog(
-        context: context,
-        builder: (_) => _AddEditExpenseDialog(
-          groupId: widget.groupId,
-          groupName: groupName,
-          groupMemberUids: members,
-          expenseDoc: expenseDoc,
-          canEdit: expenseDoc == null || ((expenseDoc.data() as Map<String, dynamic>)['paidBy'] == currentUser?.uid),
-          accentColor: accentColor,
-        ),
-      );
-    }
-  }
-
-  Future<void> _sendSettlementReminders(List<dynamic> settlements) async {
-    if (settlements.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('No settlements to remind about', style: AppTextStyles.bodyM),
-            backgroundColor: AppColors.warning,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-      return;
-    }
-
-    try {
-      // Show loading dialog
-      if (mounted) {
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => Dialog(
-            backgroundColor: Colors.transparent,
-            child: Center(
-              child: CircularProgressIndicator(
-                color: AppColors.primaryGold,
-              ),
-            ),
-          ),
-        );
-      }
-
-      // Get all expenses for the group
-      final expensesSnapshot = await _firestore
-          .collection('groups')
-          .doc(widget.groupId)
-          .collection('expenses')
-          .get();
-
-      final expenseIds = expensesSnapshot.docs.map((doc) => doc.id).toList();
-
-      // Call the Cloud Function
-      final result = await FirebaseFunctions.instance
-          .httpsCallable('notifySettlementReminder')
-          .call({
-        'groupId': widget.groupId,
-        'expenseIds': expenseIds,
-      });
-
-      if (mounted) {
-        Navigator.pop(context); // Close loading dialog
-
-        final notifiedCount = result.data['notified'] as int? ?? 0;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              notifiedCount > 0
-                  ? 'Settlement reminders sent to $notifiedCount member${notifiedCount > 1 ? 's' : ''}!'
-                  : 'No notifications sent. Make sure group members have FCM tokens registered.',
-              style: AppTextStyles.bodyM,
-            ),
-            backgroundColor: notifiedCount > 0 ? AppColors.success : AppColors.warning,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        Navigator.pop(context); // Close loading dialog
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error sending reminders: $e', style: AppTextStyles.bodyM),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-      debugPrint('Error sending settlement reminders: $e');
-    }
-  }
-
-  Future<void> _exportStatement({required bool share}) async {
-    try {
-      if (share && Platform.isAndroid) {
-        int sdkInt = 0;
-        try {
-          final sdkString = Platform.operatingSystemVersion;
-          if (sdkString.contains('SDK')) {
-            final match = RegExp(r'SDK\s+(\d+)').firstMatch(sdkString);
-            if (match != null) {
-              sdkInt = int.parse(match.group(1)!);
-            }
-          }
-        } catch (_) {}
-
-        if (sdkInt >= 33) {
-          final status = await Permission.photos.status;
-          if (status.isDenied) {
-            final result = await Permission.photos.request();
-            if (!result.isGranted) {
-              debugPrint("Photos permission denied, attempting sharing anyway.");
-            }
-          }
-        } else {
-          final status = await Permission.storage.status;
-          if (status.isDenied) {
-            final result = await Permission.storage.request();
-            if (!result.isGranted) {
-              debugPrint("Storage permission denied, attempting sharing anyway.");
-            }
-          }
-        }
-      }
-
-      final groupDoc = await _firestore.collection('groups').doc(widget.groupId).get();
-      final groupName = groupDoc.data()?['name'] ?? 'Group';
-
-      final expensesSnapshot = await _firestore
-          .collection('groups')
-          .doc(widget.groupId)
-          .collection('expenses')
-          .get();
-
-      final members = groupDoc.data()?['members'] as List? ?? [];
-      final allUids = <String>{};
-      for (final member in members) {
-        allUids.add(member.toString());
-      }
-      for (var doc in expensesSnapshot.docs) {
-        final data = doc.data() as Map<String, dynamic>?;
-        if (data == null) continue;
-        final paidBy = data['paidBy'] as String? ?? '';
-        if (paidBy.isNotEmpty) allUids.add(paidBy);
-        final List<String> participants = (data['participants'] as List?)?.cast<String>() ?? [];
-        for (final p in participants) {
-          if (p.isNotEmpty) allUids.add(p);
-        }
-      }
-
-      final resolvedNames = <String, String>{};
-      for (final uid in allUids) {
-        final name = await _getCachedName(uid);
-        resolvedNames[uid] = name;
-      }
-
-      final balances = <String, double>{};
-      for (final member in members) {
-        balances[member.toString()] = 0.0;
-      }
-
-      for (var doc in expensesSnapshot.docs) {
-        final data = doc.data() as Map<String, dynamic>?;
-        if (data == null) continue;
-        final double amount = (data['amount'] as num?)?.toDouble() ?? 0.0;
-        final String paidBy = data['paidBy'] as String? ?? '';
-        final List<String> participants = (data['participants'] as List?)?.cast<String>() ?? [];
-
-        if (paidBy.isEmpty || participants.isEmpty || amount <= 0) continue;
-
-        balances.update(paidBy, (value) => value + amount, ifAbsent: () => amount);
-
-        final double splitAmount = amount / participants.length;
-        for (var participant in participants) {
-          balances.update(participant, (value) => value - splitAmount, ifAbsent: () => -splitAmount);
-        }
-      }
-
-      final namedBalances = <String, double>{};
-      for (var entry in balances.entries) {
-        final name = resolvedNames[entry.key] ?? entry.key;
-        namedBalances[name] = entry.value;
-      }
-
-      final expenses = <Map<String, dynamic>>[];
-      for (var doc in expensesSnapshot.docs) {
-        final data = doc.data() as Map<String, dynamic>?;
-        final paidByUid = data?['paidBy'] as String? ?? 'Unknown';
-        final paidByName = resolvedNames[paidByUid] ?? await _getCachedName(paidByUid);
-        expenses.add({
-          'title': data?['title'] as String? ?? 'Unknown',
-          'amount': (data?['amount'] as num?)?.toDouble() ?? 0.0,
-          'paidBy': paidByName,
-          'date': data?['createdAt'] as dynamic,
-        });
-      }
-
-      await PdfExportService.exportGroupStatement(
-        groupName: groupName,
-        expenses: expenses,
-        balances: namedBalances,
-        share: share,
-      );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error exporting PDF: $e', style: AppTextStyles.bodyM),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _showExportOptionsSheet() async {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    await showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.darkSurface2 : AppColors.lightSurface1,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(AppSpacing.radiusLg)),
-          border: Border.all(
-            color: isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder,
-          ),
-        ),
-        padding: const EdgeInsets.symmetric(vertical: 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 20),
-              decoration: BoxDecoration(
-                color: (isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary)
-                    .withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            Text(
-              "Export Group Invoice",
-              style: AppTextStyles.h2.copyWith(
-                color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
-                fontSize: 20,
-              ),
-            ),
-            const SizedBox(height: 16),
-            _buildExportOptionTile(
-              icon: Icons.print_rounded,
-              iconColor: AppColors.secondaryAccent,
-              title: "Print / Save PDF",
-              subtitle: "Open system print preview to view, print, or download",
-              onTap: () async {
-                Navigator.pop(context);
-                await _exportStatement(share: false);
-              },
-              isDark: isDark,
-            ),
-            _buildExportOptionTile(
-              icon: Icons.share_rounded,
-              iconColor: AppColors.accentViolet,
-              title: "Share Invoice PDF",
-              subtitle: "Send invoice PDF file to other apps directly",
-              onTap: () async {
-                Navigator.pop(context);
-                await _exportStatement(share: true);
-              },
-              isDark: isDark,
-            ),
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildExportOptionTile({
-    required IconData icon,
-    required Color iconColor,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-    required bool isDark,
-  }) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding, vertical: 4),
-      leading: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: iconColor.withValues(alpha: isDark ? 0.15 : 0.1),
-          shape: BoxShape.circle,
-          border: Border.all(color: iconColor.withValues(alpha: 0.3)),
-        ),
-        child: Icon(icon, color: iconColor, size: 22),
-      ),
-      title: Text(
-        title,
-        style: AppTextStyles.bodyL.copyWith(
-          color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      subtitle: Text(
-        subtitle,
-        style: AppTextStyles.label.copyWith(
-          color: (isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary)
-              .withValues(alpha: 0.8),
-          fontSize: 11,
-          fontWeight: FontWeight.normal,
-          letterSpacing: 0,
-        ),
-      ),
-      trailing: Icon(
-        Icons.chevron_right_rounded,
-        color: (isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary)
-            .withValues(alpha: 0.4),
-      ),
-      onTap: onTap,
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return StreamBuilder<DocumentSnapshot>(
-      stream: _getGroupStream(),
-      builder: (context, snapshot) {
-        final groupData = snapshot.data?.data() as Map<String, dynamic>? ?? {};
-        final groupName = groupData['name'] ?? 'Group Details';
-        final groupEmoji = groupData['emoji'] as String? ?? '';
-        final themeColorIndex = groupData['themeColorIndex'] as int? ?? 0;
-
-        final List<Color> groupColors = [
-          const Color(0xFF5B6F82), // Slate
-          const Color(0xFF6B9EAA), // Teal
-          const Color(0xFF8F7EAA), // Purple
-          const Color(0xFFD68A65), // Orange
-          const Color(0xFF5CA387), // Emerald
-        ];
-
-        final Color activeColor = groupColors[themeColorIndex.clamp(0, groupColors.length - 1)];
-        final String displayName = groupEmoji.isNotEmpty ? '$groupEmoji $groupName' : groupName;
-        final groupPhotoUrl = groupData['photoUrl'] as String? ?? '';
-
-        return MeshBackground(
-          child: DefaultTabController(
-            length: 3,
-            child: Scaffold(
-              backgroundColor: Colors.transparent,
-              appBar: AppBar(
-                backgroundColor: Colors.transparent,
-                elevation: 0,
-                iconTheme: IconThemeData(color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary),
-                title: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (groupPhotoUrl.isNotEmpty) ...[
-                      CircleAvatar(
-                        radius: 16,
-                        backgroundImage: NetworkImage(groupPhotoUrl),
-                        backgroundColor: activeColor.withValues(alpha: 0.2),
-                      ),
-                      const SizedBox(width: 8),
-                    ],
-                    Flexible(
-                      child: Text(
-                        displayName,
-                        style: AppTextStyles.h2.copyWith(
-                          color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                actions: [
-                  IconButton(
-                    icon: Icon(Icons.history_rounded, color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary),
-                    tooltip: 'Settlement History',
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => SettlementHistoryScreen(groupId: widget.groupId),
-                        ),
-                      );
-                    },
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.download_rounded, color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary),
-                    tooltip: 'Export as PDF',
-                    onPressed: _showExportOptionsSheet,
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.share_rounded, color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary),
-                    tooltip: 'Copy and Share Invite Link',
-                    onPressed: () async {
-                      final groupDoc = await _firestore.collection('groups').doc(widget.groupId).get();
-                      final groupName = groupDoc.data()?['name'] ?? 'SliceIt Group';
-
-                      final currentUser = FirebaseAuth.instance.currentUser;
-                      final inviterUid = currentUser?.uid ?? '';
-                      final httpLink = DeepLinkConfig.groupHttp(widget.groupId, inviterUid);
-
-                      // Copy to Clipboard
-                      await Clipboard.setData(ClipboardData(text: httpLink));
-
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Row(
-                              children: [
-                                const Icon(Icons.check_circle_outline_rounded, color: Colors.white, size: 20),
-                                const SizedBox(width: 8),
-                                Text('Invite link copied to clipboard!', style: AppTextStyles.bodyM.copyWith(color: Colors.white)),
-                              ],
-                            ),
-                            backgroundColor: AppColors.success,
-                            behavior: SnackBarBehavior.floating,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusMd)),
-                            duration: const Duration(seconds: 2),
-                          ),
-                        );
-                      }
-
-                      // Trigger Native Share Sheet
-                      final text = "Hey! Join my group '$groupName' on SliceIt to split bills easily.\n\nTap here to join automatically:\n$httpLink";
-                      await Share.share(text, subject: "Join my SliceIt group '$groupName'");
-                    },
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.settings_rounded, color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary),
-                    tooltip: 'Group Settings',
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => GroupSettingsScreen(groupId: widget.groupId),
-                        ),
-                      );
-                    },
-                  ),
-                ],
-                bottom: TabBar(
-                  indicatorColor: activeColor,
-                  indicatorWeight: 3,
-                  labelColor: activeColor,
-                  labelStyle: AppTextStyles.bodyL.copyWith(fontWeight: FontWeight.bold),
-                  unselectedLabelColor: (isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary).withValues(alpha: 0.7),
-                  unselectedLabelStyle: AppTextStyles.bodyL.copyWith(fontWeight: FontWeight.normal),
-                  dividerColor: (isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder).withValues(alpha: 0.5),
-                  tabs: const [
-                    Tab(text: "Expenses"),
-                    Tab(text: "Balances"),
-                    Tab(text: "Analytics"),
-                  ],
-                ),
-              ),
-              body: TabBarView(
-                children: [
-                  _buildExpensesTab(isDark, activeColor),
-                  _buildBalancesTab(isDark, activeColor),
-                  _buildAnalyticsTab(isDark, activeColor),
-                ],
-              ),
-              floatingActionButton: FloatingActionButton.extended(
-                heroTag: 'group_add_expense_fab',
-                elevation: 1,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusLg)),
-                onPressed: () => _showExpenseDialog(accentColor: activeColor),
-                backgroundColor: activeColor,
-                label: Text(
-                  "Add Expense",
-                  style: AppTextStyles.button.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                icon: const Icon(
-                  Icons.add_rounded,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildExpensesTab(bool isDark, Color activeColor) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(AppSpacing.screenPadding, 16, AppSpacing.screenPadding, 8),
-          child: Text(
-            "Members",
-            style: AppTextStyles.h3.copyWith(
-              color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-        SizedBox(
-          height: 48,
-          child: StreamBuilder<DocumentSnapshot>(
-            stream: _getGroupStream(),
-            builder: (context, snapshot) {
-              if (!snapshot.hasData) {
-                return Center(
-                  child: SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: activeColor),
-                  ),
-                );
-              }
-              final members = (snapshot.data!.data() as Map<String, dynamic>?)?['members']?.cast<String>() ?? [];
-              if (members.isEmpty) {
-                return Center(
-                  child: Text(
-                    "No members yet.",
-                    style: AppTextStyles.bodyM.copyWith(color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary),
-                  ),
-                );
-              }
-              return ListView.builder(
-                physics: const BouncingScrollPhysics(),
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
-                itemCount: members.length,
-                itemBuilder: (context, index) {
-                  return MemberChip(uid: members[index], cacheFn: _getCachedName, isDark: isDark, accentColor: activeColor);
-                },
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 8),
-        Divider(color: (isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder).withValues(alpha: 0.5), height: 1),
-        Expanded(
-          child: StreamBuilder<QuerySnapshot>(
-            stream: _getGroupExpensesStream(),
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                return Center(
-                  child: Text("Error loading expenses", style: AppTextStyles.bodyL.copyWith(color: AppColors.error)),
-                );
-              }
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return Center(
-                  child: CircularProgressIndicator(color: activeColor),
-                );
-              }
-              if (snapshot.data!.docs.isEmpty) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.receipt_long_rounded,
-                        size: 48,
-                        color: (isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary).withValues(alpha: 0.4),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        "No expenses yet",
-                        style: AppTextStyles.h3.copyWith(
-                          color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        "Tap below to add the first expense!",
-                        style: AppTextStyles.bodyM.copyWith(
-                          color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
-                        ),
-                      ),
-                    ],
-                  ).animate().fade(duration: 300.ms),
-                );
-              }
-
-              final docs = snapshot.data!.docs;
-
-              return ListView.separated(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.only(
-                  left: AppSpacing.screenPadding,
-                  right: AppSpacing.screenPadding,
-                  top: 16,
-                  bottom: 120, // Cushion to completely avoid floating action button overlap
-                ),
-                itemCount: docs.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 12),
-                itemBuilder: (context, index) {
-                  final expenseDoc = docs[index];
-                  final data = expenseDoc.data() as Map<String, dynamic>;
-                  final participants = (data['participants'] as List?)?.cast<String>() ?? [];
-                  final amount = (data['amount'] as num?)?.toDouble() ?? 0.0;
-                  final title = data['title'] ?? 'No Title';
-                  final isSettlement = data['isSettlement'] == true;
-
-                  return AnimatedListItem(
-                    index: index,
-                    child: ModernCard(
-                      margin: EdgeInsets.zero,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                      color: isDark ? AppColors.darkSurface1 : AppColors.lightSurface1,
-                      onTap: () => _showExpenseDialog(expenseDoc: expenseDoc, accentColor: activeColor),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: (isSettlement
-                                      ? AppColors.success
-                                      : activeColor)
-                                  .withValues(alpha: isDark ? 0.15 : 0.1),
-                              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                              border: Border.all(
-                                color: (isSettlement
-                                        ? AppColors.success
-                                        : activeColor)
-                                    .withValues(alpha: 0.2),
-                                width: 1,
-                              ),
-                            ),
-                            child: Icon(
-                              isSettlement ? Icons.handshake_rounded : Icons.receipt_rounded,
-                              color: isSettlement
-                                  ? AppColors.success
-                                  : activeColor,
-                              size: 22,
-                            ),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  title,
-                                  style: AppTextStyles.bodyL.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                    color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
-                                    letterSpacing: -0.2,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                const SizedBox(height: 2),
-                                UserNameDisplay(
-                                  uid: data['paidBy'] ?? '',
-                                  cacheFn: _getCachedName,
-                                  builder: (name) => Text(
-                                    isSettlement
-                                        ? 'Paid by $name'
-                                        : 'Paid by $name • Split with ${participants.length}',
-                                    style: AppTextStyles.label.copyWith(
-                                      color: (isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary)
-                                          .withValues(alpha: 0.8),
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.normal,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            "₹${amount.toStringAsFixed(2)}",
-                            style: AppTextStyles.h3.copyWith(
-                              color: isSettlement
-                                  ? AppColors.success
-                                  : (isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary),
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildBalancesTab(bool isDark, Color activeColor) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: _getGroupExpensesStream(),
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return Center(child: Text("Error loading balances", style: AppTextStyles.bodyL.copyWith(color: AppColors.error)));
-        }
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(child: CircularProgressIndicator(color: activeColor));
-        }
-
-        final expenses = snapshot.data!.docs.map((doc) => doc.data() as Map<String, dynamic>).toList();
-
-        final settlements = DebtSimplifier.simplifyDebts(expenses);
-        if (settlements.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppColors.success.withValues(alpha: 0.15),
-                  ),
-                  child: const Icon(Icons.check_circle_rounded, size: 54, color: AppColors.success),
-                ).animate().scale(duration: 400.ms, curve: Curves.easeOutBack),
-                const SizedBox(height: 16),
-                Text(
-                  "All settled up!",
-                  style: AppTextStyles.h2.copyWith(
-                    color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ).animate().fade(duration: 300.ms, delay: 100.ms),
-                const SizedBox(height: 4),
-                Text(
-                  "Group balances are perfectly matched.",
-                  style: AppTextStyles.bodyM.copyWith(
-                    color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
-                  ),
-                ).animate().fade(duration: 300.ms, delay: 200.ms),
-              ],
-            ),
-          );
-        }
-
-        return Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.screenPadding,
-                16,
-                AppSpacing.screenPadding,
-                16,
-              ),
-              child: CustomButton(
-                icon: Icons.notifications,
-                text: "Send Settlement Reminders",
-                onPressed: () => _sendSettlementReminders(settlements),
-              ),
-            ),
-            Expanded(
-              child: ListView.separated(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.only(
-                  left: AppSpacing.screenPadding,
-                  right: AppSpacing.screenPadding,
-                  top: 0,
-                  bottom: 120,
-                ),
-                itemCount: settlements.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 12),
-                itemBuilder: (context, index) {
-                  final settlement = settlements[index];
-
-                  return AnimatedListItem(
-                    index: index,
-                    child: ModernCard(
-                      margin: EdgeInsets.zero,
-                      padding: const EdgeInsets.all(16),
-                      color: isDark ? AppColors.darkSurface1 : AppColors.lightSurface1,
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: AppColors.error.withValues(alpha: 0.12),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.arrow_outward_rounded, color: AppColors.error, size: 20),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Flexible(
-                                      child: UserNameDisplay(
-                                        uid: settlement.fromUser,
-                                        cacheFn: _getCachedName,
-                                        builder: (name) => Text(
-                                          name,
-                                          style: AppTextStyles.bodyL.copyWith(
-                                            fontWeight: FontWeight.bold,
-                                            color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ),
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6.0),
-                                      child: Text(
-                                        "owes",
-                                        style: AppTextStyles.bodyM.copyWith(
-                                          color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
-                                          fontStyle: FontStyle.italic,
-                                        ),
-                                      ),
-                                    ),
-                                    Flexible(
-                                      child: UserNameDisplay(
-                                        uid: settlement.toUser,
-                                        cacheFn: _getCachedName,
-                                        builder: (name) => Text(
-                                          name,
-                                          style: AppTextStyles.bodyL.copyWith(
-                                            fontWeight: FontWeight.bold,
-                                            color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            "₹${settlement.amount.toStringAsFixed(2)}",
-                            style: AppTextStyles.h3.copyWith(
-                              color: AppColors.error,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildAnalyticsTab(bool isDark, Color activeColor) {
-    return StreamBuilder<DocumentSnapshot>(
-      stream: _getGroupStream(),
-      builder: (context, groupSnapshot) {
-        if (groupSnapshot.hasError) {
-          return Center(
-            child: Text("Error loading group", style: AppTextStyles.bodyL.copyWith(color: AppColors.error)),
-          );
-        }
-        if (groupSnapshot.connectionState == ConnectionState.waiting) {
-          return Center(
-            child: CircularProgressIndicator(color: activeColor),
-          );
-        }
-
-        final groupData = groupSnapshot.data!.data() as Map<String, dynamic>?;
-        final members = (groupData?['members'] as List?)?.cast<String>() ?? [];
-
-        return StreamBuilder<QuerySnapshot>(
-          stream: _getGroupExpensesStream(),
-          builder: (context, expenseSnapshot) {
-            if (expenseSnapshot.hasError) {
-              return Center(
-                child: Text("Error loading expenses", style: AppTextStyles.bodyL.copyWith(color: AppColors.error)),
-              );
-            }
-            if (expenseSnapshot.connectionState == ConnectionState.waiting) {
-              return Center(
-                child: CircularProgressIndicator(color: activeColor),
-              );
-            }
-
-            final expenses = expenseSnapshot.data!.docs
-                .map((doc) => {
-                      ...doc.data() as Map<String, dynamic>,
-                      'id': doc.id,
-                    })
-                .toList();
-
-            final analytics = GroupAnalyticsService.calculateGroupAnalytics(expenses, members);
-
-            return ListView(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding, vertical: 16),
-              children: [
-                // Summary Cards
-                ModernCard(
-                  color: isDark ? AppColors.darkSurface1 : AppColors.lightSurface1,
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Overview",
-                        style: AppTextStyles.h3.copyWith(
-                          color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                "Total Spent",
-                                style: AppTextStyles.label.copyWith(
-                                  color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                "₹${analytics.totalSpent.toStringAsFixed(2)}",
-                                style: AppTextStyles.h3.copyWith(
-                                  color: activeColor,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                "Expenses",
-                                style: AppTextStyles.label.copyWith(
-                                  color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                "${analytics.expenseCount}",
-                                style: AppTextStyles.h3.copyWith(
-                                  color: activeColor,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                "Average Bill",
-                                style: AppTextStyles.label.copyWith(
-                                  color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                "₹${GroupAnalyticsService.getAverageBillAmount(expenses).toStringAsFixed(2)}",
-                                style: AppTextStyles.h3.copyWith(
-                                  color: activeColor,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ).animate().fade(duration: 300.ms),
-                const SizedBox(height: 16),
-
-                // Spending by Person
-                ModernCard(
-                  color: isDark ? AppColors.darkSurface1 : AppColors.lightSurface1,
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Spending Breakdown",
-                        style: AppTextStyles.h3.copyWith(
-                          color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      ...analytics.spendingByPerson.entries.map((entry) {
-                        final percentage = analytics.percentageByPerson[entry.key] ?? 0.0;
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Expanded(
-                                    child: UserNameDisplay(
-                                      uid: entry.key,
-                                      cacheFn: _getCachedName,
-                                      builder: (name) => Text(
-                                        name,
-                                        style: AppTextStyles.bodyM.copyWith(
-                                          color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    "₹${entry.value.toStringAsFixed(2)} (${percentage.toStringAsFixed(1)}%)",
-                                    style: AppTextStyles.label.copyWith(
-                                      color: activeColor,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 6),
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-                                child: LinearProgressIndicator(
-                                  value: analytics.totalSpent > 0 ? entry.value / analytics.totalSpent : 0,
-                                  minHeight: 6,
-                                  backgroundColor: activeColor.withValues(alpha: 0.15),
-                                  valueColor: AlwaysStoppedAnimation(
-                                    activeColor,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                    ],
-                  ),
-                ).animate().fade(duration: 300.ms, delay: 100.ms),
-                const SizedBox(height: 16),
-
-                // Top Expense
-                ModernCard(
-                  color: isDark ? AppColors.darkSurface1 : AppColors.lightSurface1,
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Top Expense",
-                        style: AppTextStyles.h3.copyWith(
-                          color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      if (expenses.isNotEmpty)
-                        Text(
-                          GroupAnalyticsService.getTopExpenseTitle(expenses),
-                          style: AppTextStyles.bodyL.copyWith(
-                            color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
-                          ),
-                        )
-                      else
-                        Text(
-                          "No expenses yet",
-                          style: AppTextStyles.bodyM.copyWith(
-                            color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
-                          ),
-                        ),
-                    ],
-                  ),
-                ).animate().fade(duration: 300.ms, delay: 200.ms),
-                const SizedBox(height: 100),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-}
-
-class _AddEditExpenseDialog extends StatefulWidget {
-  final String groupId;
-  final String groupName;
-  final List<String> groupMemberUids;
-  final DocumentSnapshot? expenseDoc;
-  final bool canEdit;
-  final Color? accentColor;
-
-  const _AddEditExpenseDialog({
-    required this.groupId,
-    required this.groupName,
-    required this.groupMemberUids,
-    this.expenseDoc,
-    this.canEdit = true,
-    this.accentColor,
-  });
-
-  @override
-  State<_AddEditExpenseDialog> createState() => _AddEditExpenseDialogState();
-}
-
-class _AddEditExpenseDialogState extends State<_AddEditExpenseDialog> {
-  final _formKey = GlobalKey<FormState>();
-  late TextEditingController _titleController;
-  late TextEditingController _amountController;
-  late Map<String, bool> _selectedMembers;
-  bool _selectAll = false;
-
   @override
   void initState() {
     super.initState();
-    final existingData = widget.expenseDoc?.data() as Map<String, dynamic>?;
-    _titleController = TextEditingController(text: existingData?['title']);
-    _amountController = TextEditingController(text: existingData?['amount']?.toString());
-
-    _selectedMembers = {
-      for (var uid in widget.groupMemberUids)
-        uid: (existingData?['participants'] as List?)?.contains(uid) ?? true,
-    };
-    _checkSelectAll();
+    _tabController = TabController(length: 3, vsync: this);
   }
 
-  void _checkSelectAll() {
-    _selectAll = _selectedMembers.values.every((isSelected) => isSelected);
-  }
-
-  void _onSelectAll(bool? value) {
-    setState(() {
-      _selectAll = value ?? false;
-      _selectedMembers.updateAll((key, value) => _selectAll);
-    });
-  }
-
-  Future<void> _saveExpense() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    final title = _titleController.text.trim();
-    final amount = double.tryParse(_amountController.text.trim());
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (amount == null || currentUser == null) return;
-
-    final participants = _selectedMembers.entries
-        .where((entry) => entry.value)
-        .map((entry) => entry.key)
-        .toList();
-
-    if (participants.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Please select at least one participant.", style: AppTextStyles.bodyM),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
-
-    final expenseData = {
-      'title': title,
-      'amount': amount,
-      'paidBy': currentUser.uid,
-      'participants': participants,
-      'date': FieldValue.serverTimestamp(),
-    };
-
-    final collection = FirebaseFirestore.instance.collection('groups').doc(widget.groupId).collection('expenses');
-
-    if (widget.expenseDoc == null) {
-      await collection.add(expenseData);
-
-      for (final participantUid in participants) {
-        if (participantUid != currentUser.uid) {
-          await AppNotificationService.writeNotification(
-            participantUid,
-            type: 'expense_added',
-            title: 'New expense in ${widget.groupName}',
-            body: '$title - ₹${amount.toStringAsFixed(2)}',
-            relatedId: widget.groupId,
-            actionUserName: currentUser.displayName,
-            amount: amount,
-          );
-        }
-      }
-    } else {
-      await collection.doc(widget.expenseDoc!.id).update(expenseData);
-    }
-
-    if (mounted) Navigator.pop(context);
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final activeColor = widget.accentColor ?? (isDark ? AppColors.secondaryAccent : AppColors.primaryAccent);
+    return Scaffold(
+      backgroundColor: AppColors.darkBackground,
+      body: StreamBuilder<DocumentSnapshot>(
+        stream: _getGroupStream(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            );
+          }
 
-    return AlertDialog(
-      backgroundColor: isDark ? AppColors.darkSurface2 : AppColors.lightSurface1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-        side: BorderSide(
-          color: isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder,
-          width: 1,
-        ),
+          if (!snapshot.hasData) {
+            return const Center(child: Text('Group not found'));
+          }
+
+          final groupData = snapshot.data!.data() as Map<String, dynamic>;
+          final groupName = groupData['name'] ?? 'Group';
+          final members = (groupData['members'] as List<dynamic>?) ?? [];
+
+          return CustomScrollView(
+            slivers: [
+              // Header
+              SliverToBoxAdapter(
+                child: SafeArea(
+                  bottom: false,
+                  child: _buildHeader(context, groupName),
+                ),
+              ),
+
+              // Balance Overview
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.screenPadding,
+                    vertical: AppSpacing.gapMd,
+                  ),
+                  child: _buildBalanceOverview(context, groupName),
+                ),
+              ),
+
+              // Tabs
+              SliverToBoxAdapter(
+                child: Container(
+                  color: AppColors.darkBackground,
+                  child: TabBar(
+                    controller: _tabController,
+                    tabs: const [
+                      Tab(text: 'Expenses'),
+                      Tab(text: 'Members'),
+                      Tab(text: 'Settlements'),
+                    ],
+                    indicatorColor: AppColors.primary,
+                    labelStyle: AppTextStyles.label.copyWith(
+                      color: AppColors.primary,
+                    ),
+                    unselectedLabelStyle: AppTextStyles.label.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+              ),
+
+              // Tab Content
+              SliverFillRemaining(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildExpensesTab(context),
+                    _buildMembersTab(context, members),
+                    _buildSettlementsTab(context, groupData),
+                  ],
+                ),
+              ),
+
+              // Bottom padding for add button
+              const SliverToBoxAdapter(
+                child: SizedBox(height: AppSpacing.safeAreaBottom),
+              ),
+            ],
+          );
+        },
       ),
-      title: Text(
-        widget.expenseDoc == null ? "Add Expense" : "Expense Details",
-        style: AppTextStyles.h2.copyWith(
-          color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
-          fontSize: 20,
-        ),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: AppColors.primary,
+        onPressed: () => _showAddExpenseDialog(context),
+        child: const Icon(Icons.add_rounded, color: AppColors.textPrimary),
       ),
-      content: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context, String groupName) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.screenPadding,
+        vertical: AppSpacing.base,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back_rounded),
+                  color: AppColors.textPrimary,
+                  onPressed: () => Navigator.pop(context),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+                const SizedBox(height: AppSpacing.gapSm),
+                Text(
+                  groupName,
+                  style: AppTextStyles.h1,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.share_rounded),
+            color: AppColors.textPrimary,
+            onPressed: () => _shareGroup(groupName),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBalanceOverview(BuildContext context, String groupName) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: _getGroupExpensesStream(),
+      builder: (context, snapshot) {
+        double totalSpent = 0;
+
+        if (snapshot.hasData) {
+          for (var doc in snapshot.data!.docs) {
+            final expense = doc.data() as Map<String, dynamic>;
+            totalSpent += (expense['amount'] as num?)?.toDouble() ?? 0;
+          }
+        }
+
+        return AppCard(
+          interactive: false,
           child: Column(
-            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TextFormField(
-                controller: _titleController,
-                style: AppTextStyles.bodyL.copyWith(color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary),
-                decoration: InputDecoration(
-                  labelText: "Title",
-                  labelStyle: AppTextStyles.bodyM.copyWith(color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary),
-                  enabledBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: activeColor.withValues(alpha: 0.3)),
-                  ),
-                  focusedBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: activeColor),
-                  ),
-                ),
-                enabled: widget.canEdit,
-                validator: (value) => (value?.trim().isEmpty ?? true) ? "Please enter a title" : null,
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _amountController,
-                style: AppTextStyles.bodyL.copyWith(color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary),
-                decoration: InputDecoration(
-                  labelText: "Amount",
-                  prefixText: "₹ ",
-                  prefixStyle: AppTextStyles.bodyL.copyWith(color: activeColor),
-                  labelStyle: AppTextStyles.bodyM.copyWith(color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary),
-                  enabledBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: activeColor.withValues(alpha: 0.3)),
-                  ),
-                  focusedBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: activeColor),
-                  ),
-                ),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                enabled: widget.canEdit,
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) return "Please enter an amount";
-                  if (double.tryParse(value.trim()) == null) return "Please enter a valid number";
-                  return null;
-                },
-              ),
-              const SizedBox(height: 24),
               Text(
-                "Split with:",
-                style: AppTextStyles.label.copyWith(
-                  color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
+                'Group Total',
+                style: AppTextStyles.subtitle.copyWith(
+                  color: AppColors.textSecondary,
                 ),
               ),
-              const SizedBox(height: 8),
-              Theme(
-                data: Theme.of(context).copyWith(
-                  checkboxTheme: CheckboxThemeData(
-                    fillColor: WidgetStateProperty.resolveWith((states) {
-                      if (states.contains(WidgetState.selected)) {
-                        return activeColor;
-                      }
-                      return Colors.transparent;
-                    }),
-                    checkColor: WidgetStateProperty.all(isDark ? AppColors.textDarkPrimary : Colors.white),
-                    side: BorderSide(color: (isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary).withValues(alpha: 0.5)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    CheckboxListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(
-                        "Select All",
-                        style: AppTextStyles.bodyM.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
-                        ),
-                      ),
-                      value: _selectAll,
-                      onChanged: widget.canEdit ? _onSelectAll : null,
-                      controlAffinity: ListTileControlAffinity.leading,
-                      dense: true,
-                    ),
-                    Divider(color: (isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder).withValues(alpha: 0.5), height: 8),
-                    ...widget.groupMemberUids.map((uid) {
-                      return CheckboxListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: UserNameDisplay(
-                          uid: uid,
-                          builder: (name) => Text(
-                            name,
-                            style: AppTextStyles.bodyM.copyWith(
-                              color: isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
-                            ),
-                          ),
-                        ),
-                        value: _selectedMembers[uid] ?? false,
-                        onChanged: widget.canEdit
-                            ? (bool? value) {
-                                setState(() {
-                                  _selectedMembers[uid] = value ?? false;
-                                  _checkSelectAll();
-                                });
-                              }
-                            : null,
-                        controlAffinity: ListTileControlAffinity.leading,
-                        dense: true,
-                      );
-                    }),
-                  ],
+              const SizedBox(height: AppSpacing.gapSm),
+              Text(
+                '₹ ${totalSpent.toStringAsFixed(2)}',
+                style: AppTextStyles.display,
+              ),
+              const SizedBox(height: AppSpacing.gapMd),
+              Text(
+                'Total expenses in this group',
+                style: AppTextStyles.helper.copyWith(
+                  color: AppColors.textSecondary,
                 ),
               ),
             ],
           ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text(
-            "Close",
-            style: AppTextStyles.button.copyWith(
-              color: isDark ? AppColors.textLightSecondary : AppColors.textDarkSecondary,
-            ),
-          ),
-        ),
-        if (widget.canEdit)
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: activeColor,
-              foregroundColor: isDark ? AppColors.textDarkPrimary : Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusMd)),
-              elevation: 0,
-            ),
-            onPressed: _saveExpense,
-            child: const Text("Save", style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-
-      ],
-    );
-  }
-}
-
-class UserNameDisplay extends StatefulWidget {
-  final String uid;
-  final Widget Function(String name) builder;
-  final Future<String> Function(String uid)? cacheFn;
-
-  const UserNameDisplay({super.key, required this.uid, required this.builder, this.cacheFn});
-
-  @override
-  State<UserNameDisplay> createState() => _UserNameDisplayState();
-}
-
-class _UserNameDisplayState extends State<UserNameDisplay> {
-  late Future<String> _future;
-
-  @override
-  void initState() {
-    super.initState();
-    _initializeFuture();
-  }
-
-  @override
-  void didUpdateWidget(covariant UserNameDisplay oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.uid != widget.uid || oldWidget.cacheFn != widget.cacheFn) {
-      _initializeFuture();
-    }
-  }
-
-  void _initializeFuture() {
-    if (widget.uid.isEmpty) {
-      _future = Future.value('Unknown');
-    } else if (widget.cacheFn != null) {
-      _future = widget.cacheFn!(widget.uid);
-    } else {
-      _future = FirebaseFirestore.instance.collection('users').doc(widget.uid).get().then<String>((doc) {
-        final data = doc.data();
-        return (data?['name'] as String?) ?? 'User';
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (widget.uid.isEmpty) return widget.builder('Unknown');
-
-    return FutureBuilder<String>(
-      future: _future,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) return widget.builder('...');
-        if (snapshot.hasError || !snapshot.hasData) return widget.builder('Unknown');
-        return widget.builder(snapshot.data!);
+        );
       },
     );
   }
-}
 
-class MemberChip extends StatefulWidget {
-  final String uid;
-  final Future<String> Function(String uid)? cacheFn;
-  final bool isDark;
-  final Color? accentColor;
-
-  const MemberChip({super.key, required this.uid, this.cacheFn, this.isDark = true, this.accentColor});
-
-  @override
-  State<MemberChip> createState() => _MemberChipState();
-}
-
-class _MemberChipState extends State<MemberChip> {
-  late Future<Map<String, dynamic>> _future;
-
-  @override
-  void initState() {
-    super.initState();
-    _initializeFuture();
-  }
-
-  @override
-  void didUpdateWidget(covariant MemberChip oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.uid != widget.uid || oldWidget.cacheFn != widget.cacheFn) {
-      _initializeFuture();
-    }
-  }
-
-  void _initializeFuture() {
-    if (widget.cacheFn != null) {
-      _future = widget.cacheFn!(widget.uid).then((name) => {'name': name});
-    } else {
-      _future = FirebaseFirestore.instance.collection('users').doc(widget.uid).get()
-          .then((doc) => doc.data() ?? {});
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final activeColor = widget.accentColor ?? (widget.isDark ? AppColors.secondaryAccent : AppColors.primaryAccent);
-
+  Widget _buildExpensesTab(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(right: 8.0),
-      child: FutureBuilder<Map<String, dynamic>>(
-        future: _future,
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
+      child: StreamBuilder<QuerySnapshot>(
+        stream: _getGroupExpensesStream(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return Chip(
-              label: Text('...', style: AppTextStyles.bodyM),
-              backgroundColor: widget.isDark ? AppColors.darkSurface1 : AppColors.lightSurface1,
-              side: BorderSide(color: widget.isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder),
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
             );
           }
-          final data = snapshot.data!;
-          final name = data['name'] ?? 'Unknown';
-          final photoUrl = data['photoUrl'];
 
-          return Chip(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
-            avatar: CircleAvatar(
-              radius: 12,
-              backgroundColor: activeColor.withValues(alpha: 0.2),
-              backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
-              child: photoUrl == null
-                  ? Text(
-                      name.isNotEmpty ? name[0].toUpperCase() : '?',
-                      style: AppTextStyles.label.copyWith(
-                        color: activeColor,
-                        fontSize: 10,
-                      ),
-                    )
-                  : null,
-            ),
-            label: Text(
-              name,
-              style: AppTextStyles.bodyM.copyWith(
-                color: widget.isDark ? AppColors.textLightPrimary : AppColors.textDarkPrimary,
-                fontWeight: FontWeight.w500,
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.receipt_rounded,
+                    size: 64,
+                    color: AppColors.textTertiary,
+                  ),
+                  const SizedBox(height: AppSpacing.gapMd),
+                  Text(
+                    'No expenses yet',
+                    style: AppTextStyles.h3.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
               ),
-            ),
-            backgroundColor: widget.isDark ? AppColors.darkSurface1 : AppColors.lightSurface1,
-            side: BorderSide(color: widget.isDark ? AppColors.darkSurfaceBorder : AppColors.lightSurfaceBorder),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusLg)),
+            );
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.gapMd),
+            itemCount: snapshot.data!.docs.length,
+            itemBuilder: (context, index) {
+              final doc = snapshot.data!.docs[index];
+              final expense = doc.data() as Map<String, dynamic>;
+
+              return AppCard(
+                margin: const EdgeInsets.only(bottom: AppSpacing.gapMd),
+                interactive: false,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                expense['name'] ?? 'Expense',
+                                style: AppTextStyles.body.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              Text(
+                                expense['category'] ?? 'Other',
+                                style: AppTextStyles.caption.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Text(
+                          '₹ ${(expense['amount'] as num?)?.toStringAsFixed(2) ?? '0.00'}',
+                          style: AppTextStyles.h3.copyWith(
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            },
           );
         },
       ),
     );
   }
+
+  Widget _buildMembersTab(BuildContext context, List<dynamic> members) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
+      child: ListView.builder(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.gapMd),
+        itemCount: members.length,
+        itemBuilder: (context, index) {
+          final memberId = members[index] as String;
+          return AppCard(
+            margin: const EdgeInsets.only(bottom: AppSpacing.gapMd),
+            interactive: false,
+            child: Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: AppColors.darkSurface2,
+                  child: Text(
+                    memberId.substring(0, 1).toUpperCase(),
+                    style: AppTextStyles.label.copyWith(
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.gapMd),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      FutureBuilder<DocumentSnapshot>(
+                        future: _firestore.collection('users').doc(memberId).get(),
+                        builder: (context, snapshot) {
+                          final name = (snapshot.data?.data() as Map?)
+                                  ?['name'] ??
+                              'User';
+                          return Text(
+                            name,
+                            style: AppTextStyles.body.copyWith(
+                              color: AppColors.textPrimary,
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSettlementsTab(
+      BuildContext context, Map<String, dynamic> groupData) {
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
+      child: StreamBuilder<QuerySnapshot>(
+        stream: _getGroupExpensesStream(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            );
+          }
+
+          final expenses = snapshot.data!.docs
+              .map((doc) => doc.data() as Map<String, dynamic>)
+              .toList();
+
+          final settlements =
+              DebtSimplifier.simplifyDebts(expenses);
+
+          if (settlements.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.check_circle_rounded,
+                    size: 64,
+                    color: AppColors.success,
+                  ),
+                  const SizedBox(height: AppSpacing.gapMd),
+                  Text(
+                    'All settled!',
+                    style: AppTextStyles.h3.copyWith(
+                      color: AppColors.success,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.gapMd),
+            itemCount: settlements.length,
+            itemBuilder: (context, index) {
+              final settlement = settlements[index];
+              return AppCard(
+                margin: const EdgeInsets.only(bottom: AppSpacing.gapMd),
+                interactive: false,
+                backgroundColor:
+                    AppColors.success.withValues(alpha: 0.08),
+                borderColor: AppColors.success.withValues(alpha: 0.3),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          FutureBuilder<List<DocumentSnapshot>>(
+                            future: Future.wait([
+                              _firestore.collection('users').doc(settlement.fromUser).get(),
+                              _firestore.collection('users').doc(settlement.toUser).get(),
+                            ]),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState == ConnectionState.waiting) {
+                                return Text(
+                                  'Loading...',
+                                  style: AppTextStyles.body.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                );
+                              }
+                              final fromName = (snapshot.data?[0].data() as Map?)?['name'] ?? 'User';
+                              final toName = (snapshot.data?[1].data() as Map?)?['name'] ?? 'User';
+                              return Text(
+                                '$fromName pays $toName',
+                                style: AppTextStyles.body.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textPrimary,
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      '₹ ${settlement.amount.toStringAsFixed(2)}',
+                      style: AppTextStyles.h3.copyWith(
+                        color: AppColors.success,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _showAddExpenseDialog(BuildContext context) async {
+    final amountController = TextEditingController();
+    final nameController = TextEditingController();
+
+    return showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: AppColors.darkSurface2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+          side: const BorderSide(color: AppColors.borderDefault),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.gapLg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Add Expense', style: AppTextStyles.h2),
+              const SizedBox(height: AppSpacing.gapMd),
+              TextField(
+                controller: nameController,
+                decoration: InputDecoration(
+                  hintText: 'Expense name',
+                  border: OutlineInputBorder(
+                    borderRadius:
+                        BorderRadius.circular(AppSpacing.radiusSm),
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.gapMd),
+              TextField(
+                controller: amountController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  hintText: 'Amount',
+                  border: OutlineInputBorder(
+                    borderRadius:
+                        BorderRadius.circular(AppSpacing.radiusSm),
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.gapLg),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  AppButton(
+                    label: 'Cancel',
+                    variant: ButtonVariant.secondary,
+                    size: ButtonSize.small,
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  const SizedBox(width: AppSpacing.gapSm),
+                  AppButton(
+                    label: 'Add',
+                    size: ButtonSize.small,
+                    onPressed: () async {
+                      if (nameController.text.isEmpty ||
+                          amountController.text.isEmpty) {
+                        return;
+                      }
+                      await _firestore
+                          .collection('groups')
+                          .doc(widget.groupId)
+                          .collection('expenses')
+                          .add({
+                        'name': nameController.text,
+                        'amount': double.parse(amountController.text),
+                        'paidBy': _auth.currentUser?.uid,
+                        'category': 'Other',
+                        'date': DateTime.now(),
+                        'participants': (await _firestore
+                                .collection('groups')
+                                .doc(widget.groupId)
+                                .get())
+                            .data()?['members'] ??
+                            [],
+                      });
+                      if (mounted) Navigator.pop(context);
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _shareGroup(String groupName) {
+    Share.share(
+      'Join "$groupName" on SliceIt!',
+      subject: 'Join $groupName',
+    );
+  }
 }
-
-

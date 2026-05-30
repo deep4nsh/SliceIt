@@ -2,59 +2,85 @@ import 'package:flutter/material.dart';
 
 class AppColors {
   // ==========================================
-  // PREMIUM MINIMALIST DESIGN SYSTEM TOKENS
+  // PREMIUM DARK THEME COLOR SYSTEM
   // ==========================================
 
-  // Brand Accents - Subtle & Refined
-  static const primaryAccent = Color(0xFF5B6F82); // Muted Slate Blue (Premium)
-  static const secondaryAccent = Color(0xFF6B9EAA); // Soft Teal (Subtle)
-  static const accentViolet = Color(0xFF7A8B9E); // Neutral Slate (Refined)
+  // ============ BACKGROUNDS ============
+  static const Color darkBackground = Color(0xFF0F0F0F); // App background (near-black)
 
-  // Dark Mode Palette
-  static const darkBackground = Color(0xFF1A1A1A); // Deep Charcoal
-  static const darkSurface1 = Color(0xFF2A2A2A); // Subtle Dark Gray
-  static const darkSurface2 = Color(0xFF3A3A3A); // Lighter Dark Gray
-  static const darkSurfaceBorder = Color(0xFF4A4A4A); // Soft Border
+  // ============ SURFACES ============
+  static const Color darkSurface1 = Color(0xFF1A1A1A); // Cards, elevated elements
+  static const Color darkSurface2 = Color(0xFF242424); // Slightly more elevated
+  static const Color darkSurface3 = Color(0xFF2E2E2E); // Highest elevation
 
-  // Light Mode Palette - Premium White
-  static const lightBackground = Color(0xFFFFFFFF); // Pure White
-  static const lightSurface1 = Color(0xFFFFFFFF); // White Cards
-  static const lightSurface2 = Color(0xFFF7F8F9); // Subtle Light Gray
-  static const lightSurfaceBorder = Color(0xFFDFDFDF); // Refined Border
+  // ============ SEMANTIC COLORS - PRIMARY (Actions) ============
+  static const Color primary = Color(0xFF5B6F82); // Slate blue
+  static const Color primaryHover = Color(0xFF6B7F92); // Lighter for hover
+  static const Color primaryActive = Color(0xFF4B5F72); // Darker for active
+  static const Color primaryDisabled = Color(0xFF4A4A4A); // Muted for disabled
 
-  // Unified Text Colors
-  static const textLightPrimary = Color(0xFFFFFFFF);
-  static const textLightSecondary = Color(0xFFA0A0A0); // Soft Gray
-  static const textDarkPrimary = Color(0xFF1A1A1A); // Dark Charcoal
-  static const textDarkSecondary = Color(0xFF757575); // Muted Gray
+  // ============ SEMANTIC COLORS - SUCCESS (Owed to You) ============
+  static const Color success = Color(0xFF10B981); // Emerald
+  static const Color successLight = Color(0x1510B981); // 10% opacity for backgrounds
+  static const Color successDark = Color(0xFF059669); // Darker for contrast
 
-  // Semantic / Functional
-  static const success = Color(0xFF10B981); // Emerald
-  static const error = Color(0xFFEF4444); // Red
-  static const warning = Color(0xFFF59E0B); // Amber
+  // ============ SEMANTIC COLORS - ERROR (You Owe) ============
+  static const Color error = Color(0xFFEF4444); // Red
+  static const Color errorLight = Color(0x15EF4444); // 10% opacity for backgrounds
+  static const Color errorDark = Color(0xFFDC2626); // Darker for contrast
+
+  // ============ SEMANTIC COLORS - WARNING ============
+  static const Color warning = Color(0xFFF59E0B); // Amber
+  static const Color warningLight = Color(0x15F59E0B); // 10% opacity
+  static const Color warningDark = Color(0xFFD97706); // Darker for contrast
+
+  // ============ SEMANTIC COLORS - INFO ============
+  static const Color info = Color(0xFF0EA5E9); // Sky blue
+  static const Color infoLight = Color(0x150EA5E9); // 10% opacity
+  static const Color infoDark = Color(0xFF0284C7); // Darker for contrast
+
+  // ============ TEXT COLORS ============
+  static const Color textPrimary = Color(0xFFFFFFFF); // Main content
+  static const Color textSecondary = Color(0xFFA0A0A0); // Metadata, 60% opacity
+  static const Color textTertiary = Color(0xFF757575); // Disabled, hints, 40% opacity
+
+  // ============ BORDER COLORS ============
+  static const Color borderDefault = Color(0xFF2E2E2E); // Subtle, one step above bg
+  static const Color borderSubtle = Color(0xFF1E1E1E); // Very subtle
+  static const Color borderStrong = Color(0xFF3E3E3E); // For emphasis
 
   // ==========================================
   // LEGACY COMPATIBILITY MAPPINGS
-  // Preserved to maintain seamless compilation across all unmigrated views.
-  // Mapped to harmonious equivalents within the new design language.
+  // These maintain compilation across unmigrated views.
   // ==========================================
-  static const primaryOrange = primaryAccent; 
-  static const primaryPeach = secondaryAccent;
-  static const secondaryTeal = secondaryAccent;
+  static const Color primaryAccent = primary;
+  static const Color secondaryAccent = primary;
+  static const Color accentViolet = primary;
+  static const Color primaryOrange = primary;
+  static const Color secondaryTeal = primary;
 
-  static const backgroundLight = lightBackground;
-  static const surfaceWhite = lightSurface1;
-  static const backgroundDark = darkBackground;
-  static const surfaceDark = darkSurface1;
-  
-  static const textPrimary = textLightPrimary; // Defaulting dark-first text primary
-  static const textSecondary = textLightSecondary;
-  static const textLight = textLightPrimary;
+  static const Color lightBackground = Color(0xFFFFFFFF);
+  static const Color lightSurface1 = Color(0xFFFFFFFF);
+  static const Color lightSurface2 = Color(0xFFF7F8F9);
+  static const Color lightSurfaceBorder = Color(0xFFDFDFDF);
 
-  static const successGreen = success;
-  static const errorRed = error;
-  static const warningOrange = warning;
+  static const Color textLightPrimary = textPrimary;
+  static const Color textLightSecondary = textSecondary;
+  static const Color textDarkPrimary = textPrimary;
+  static const Color textDarkSecondary = textSecondary;
 
-  static const primaryNavy = primaryAccent; 
-  static const primaryGold = secondaryAccent;
+  static const Color darkSurfaceBorder = borderDefault;
+  static const Color lightSurfaceWhite = lightSurface1;
+  static const Color surfaceWhite = lightSurface1;
+  static const Color surfaceDark = darkSurface1;
+  static const Color backgroundLight = lightBackground;
+  static const Color backgroundDark = darkBackground;
+  static const Color textLight = textPrimary;
+
+  static const Color successGreen = success;
+  static const Color errorRed = error;
+  static const Color warningOrange = warning;
+
+  static const Color primaryNavy = primary;
+  static const Color primaryGold = primary;
 }
