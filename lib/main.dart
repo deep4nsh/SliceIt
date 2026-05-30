@@ -626,8 +626,19 @@ class _MyAppState extends State<MyApp> {
               '/subscriptions': (context) => const SubscriptionsScreen(),
               '/notifications': (context) => const NotificationsScreen(),
               '/add_friend': (context) => const AddFriendScreen(),
-              '/create_split_bill': (context) => const CreateSplitBillScreen(),
-              '/settlements': (context) => const SettlementHistoryScreen(),
+              '/create_split_bill': (context) {
+                final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+                return CreateSplitBillScreen(
+                  lines: args?['lines'] ?? const [],
+                  receiptImage: args?['receiptImage'],
+                );
+              },
+              '/settlements': (context) {
+                final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+                return SettlementHistoryScreen(
+                  groupId: args?['groupId'] ?? '',
+                );
+              },
             },
           );
         },
