@@ -353,36 +353,48 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
             interactive: false,
             child: Row(
               children: [
-                CircleAvatar(
-                  backgroundColor: AppColors.darkSurface2,
-                  child: Text(
-                    memberId.substring(0, 1).toUpperCase(),
-                    style: AppTextStyles.label.copyWith(
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.gapMd),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      FutureBuilder<DocumentSnapshot>(
-                        future: _firestore.collection('users').doc(memberId).get(),
-                        builder: (context, snapshot) {
-                          final name = (snapshot.data?.data() as Map?)
-                                  ?['name'] ??
-                              'User';
-                          return Text(
-                            name,
-                            style: AppTextStyles.body.copyWith(
-                              color: AppColors.textPrimary,
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
+                FutureBuilder<DocumentSnapshot>(
+                  future: _firestore.collection('users').doc(memberId).get(),
+                  builder: (context, snapshot) {
+                    final userData = snapshot.data?.data() as Map?;
+                    final photoURL = userData?['photoURL'] as String?;
+                    final name = userData?['name'] as String? ?? 'User';
+                    final initials = name.split(' ').map((e) => e.isNotEmpty ? e[0] : '').join().toUpperCase();
+
+                    return Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 24,
+                          backgroundColor: AppColors.darkSurface2,
+                          backgroundImage: photoURL != null && photoURL.isNotEmpty
+                              ? NetworkImage(photoURL)
+                              : null,
+                          child: photoURL == null || photoURL.isEmpty
+                              ? Text(
+                                  initials.isEmpty ? '?' : initials.substring(0, 1),
+                                  style: AppTextStyles.label.copyWith(
+                                    color: AppColors.primary,
+                                  ),
+                                )
+                              : null,
+                        ),
+                        const SizedBox(width: AppSpacing.gapMd),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                name,
+                                style: AppTextStyles.body.copyWith(
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ],
             ),
