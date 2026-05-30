@@ -31,6 +31,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
     return _firestore.collection('groups').doc(widget.groupId).snapshots();
   }
 
+
   Stream<QuerySnapshot> _getGroupExpensesStream() {
     return _firestore
         .collection('groups')
@@ -44,7 +45,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
   }
 
   @override
@@ -72,7 +73,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
 
           final groupData = snapshot.data!.data() as Map<String, dynamic>;
           final groupName = groupData['name'] ?? 'Group';
-          final members = (groupData['members'] as List<dynamic>?) ?? [];
 
           return CustomScrollView(
             slivers: [
@@ -103,7 +103,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                     controller: _tabController,
                     tabs: const [
                       Tab(text: 'Expenses'),
-                      Tab(text: 'Members'),
                       Tab(text: 'Settlements'),
                     ],
                     indicatorColor: AppColors.primary,
@@ -123,7 +122,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                   controller: _tabController,
                   children: [
                     _buildExpensesTab(context),
-                    _buildMembersTab(context, members),
                     _buildSettlementsTab(context, groupData),
                   ],
                 ),
@@ -334,89 +332,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen>
                 ),
               );
             },
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildMembersTab(BuildContext context, List<dynamic> members) {
-    if (members.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.people_rounded,
-              size: 64,
-              color: AppColors.textTertiary,
-            ),
-            const SizedBox(height: AppSpacing.gapMd),
-            Text(
-              'No members yet',
-              style: AppTextStyles.h3.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
-      child: ListView.builder(
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.gapMd),
-        itemCount: members.length,
-        itemBuilder: (context, index) {
-          final memberId = members[index] as String;
-          return AppCard(
-            margin: const EdgeInsets.only(bottom: AppSpacing.gapMd),
-            interactive: false,
-            child: Row(
-              children: [
-                FutureBuilder<DocumentSnapshot>(
-                  future: _firestore.collection('users').doc(memberId).get(),
-                  builder: (context, snapshot) {
-                    final userData = snapshot.data?.data() as Map?;
-                    final photoURL = userData?['photoURL'] as String?;
-                    final name = userData?['name'] as String? ?? 'User';
-                    final initials = name.split(' ').map((e) => e.isNotEmpty ? e[0] : '').join().toUpperCase();
-
-                    return CircleAvatar(
-                      radius: 24,
-                      backgroundColor: AppColors.darkSurface2,
-                      backgroundImage: photoURL != null && photoURL.isNotEmpty
-                          ? NetworkImage(photoURL)
-                          : null,
-                      child: photoURL == null || photoURL.isEmpty
-                          ? Text(
-                              initials.isEmpty ? '?' : initials.substring(0, 1),
-                              style: AppTextStyles.label.copyWith(
-                                color: AppColors.primary,
-                              ),
-                            )
-                          : null,
-                    );
-                  },
-                ),
-                const SizedBox(width: AppSpacing.gapMd),
-                Expanded(
-                  child: FutureBuilder<DocumentSnapshot>(
-                    future: _firestore.collection('users').doc(memberId).get(),
-                    builder: (context, snapshot) {
-                      final name = (snapshot.data?.data() as Map?)?['name'] ?? 'User';
-                      return Text(
-                        name,
-                        style: AppTextStyles.body.copyWith(
-                          color: AppColors.textPrimary,
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
           );
         },
       ),
