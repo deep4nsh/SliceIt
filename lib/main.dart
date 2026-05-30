@@ -12,6 +12,7 @@ import 'package:sliceit/screens/subscriptions_screen.dart';
 import 'package:sliceit/screens/add_friend_screen.dart';
 import 'package:sliceit/screens/create_split_bill_screen.dart';
 import 'package:sliceit/screens/settlement_history_screen.dart';
+import 'package:sliceit/screens/edit_profile_screen.dart';
 import 'package:sliceit/services/theme_provider.dart';
 import 'package:sliceit/services/notification_service.dart';
 import 'package:sliceit/services/notification_preferences.dart';
@@ -621,6 +622,7 @@ class _MyAppState extends State<MyApp> {
               '/analytics': (context) => const AnalyticsScreen(),
               '/split': (context) => const SplitBillsScreen(),
               '/profile': (context) => const ProfileScreen(),
+              '/edit_profile': (context) => const EditProfileScreen(),
               '/groups': (context) => const GroupsScreen(),
               '/split_history': (context) => const SplitHistoryScreen(),
               '/subscriptions': (context) => const SubscriptionsScreen(),

@@ -150,9 +150,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       AppButton(
                         label: 'Edit Profile',
                         variant: ButtonVariant.secondary,
-                        onPressed: () {
-                          // Navigate to edit profile
-                        },
+                        onPressed: () =>
+                            Navigator.of(context).pushNamed('/edit_profile'),
                       ),
                     ],
                   ),
