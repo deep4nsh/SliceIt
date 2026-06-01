@@ -18,6 +18,7 @@ import 'package:sliceit/services/notification_service.dart';
 import 'package:sliceit/services/notification_preferences.dart';
 import 'package:sliceit/services/offline_service.dart';
 import 'package:sliceit/services/connectivity_service.dart';
+import 'package:sliceit/services/shell_navigation_provider.dart';
 import 'package:sliceit/screens/analytics_screen.dart';
 import 'package:sliceit/screens/expenses_screen.dart';
 import 'package:sliceit/screens/profile_screen.dart';
@@ -606,6 +607,7 @@ class _MyAppState extends State<MyApp> {
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => _notificationPreferences),
+        ChangeNotifierProvider(create: (_) => ShellNavigationProvider()),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {

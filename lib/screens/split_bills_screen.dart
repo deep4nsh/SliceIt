@@ -8,6 +8,7 @@ import '../utils/app_spacing.dart';
 import '../widgets/app_card.dart';
 import '../widgets/app_button.dart' show AppButton, ButtonVariant, ButtonSize;
 import 'create_split_bill_screen.dart';
+import 'split_bill_detail_screen.dart';
 
 class SplitBillsScreen extends StatefulWidget {
   const SplitBillsScreen({super.key});
@@ -130,7 +131,13 @@ class _SplitBillsScreenState extends State<SplitBillsScreen> {
                         margin: const EdgeInsets.only(bottom: AppSpacing.gapMd),
                         interactive: true,
                         onTap: () {
-                          // Navigate to bill detail
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  SplitBillDetailScreen(splitId: billDoc.id),
+                            ),
+                          );
                         },
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,

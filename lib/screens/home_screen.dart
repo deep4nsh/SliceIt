@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
 import '../utils/colors.dart';
 import '../utils/text_styles.dart';
 import '../utils/app_spacing.dart';
@@ -8,6 +9,7 @@ import '../widgets/app_card.dart';
 import '../widgets/app_button.dart' show AppButton, ButtonVariant;
 import '../services/home_stats_service.dart';
 import '../services/app_notification_service.dart';
+import '../services/shell_navigation_provider.dart';
 import 'group_detail_screen.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -374,7 +376,9 @@ class HomeScreen extends StatelessWidget {
             child: AppButton(
               label: 'View All Activity',
               variant: ButtonVariant.tertiary,
-              onPressed: () => Navigator.pushNamed(context, '/split_history'),
+              onPressed: () {
+                Provider.of<ShellNavigationProvider>(context, listen: false).setIndex(2);
+              },
             ),
           ),
         ],
@@ -503,7 +507,9 @@ class HomeScreen extends StatelessWidget {
               final groups = snapshot.data!.docs;
 
               return GestureDetector(
-                onTap: () => Navigator.pushNamed(context, '/groups'),
+                onTap: () {
+                  Provider.of<ShellNavigationProvider>(context, listen: false).setIndex(1);
+                },
                 child: AppCard(
                   margin: EdgeInsets.zero,
                   interactive: true,
