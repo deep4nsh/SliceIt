@@ -24,8 +24,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       "image": "assets/screenshots/simplification_insights.png"
     },
     {
-      "title": "AI Receipt Scanning",
-      "subtitle": "Scan bills instantly with ML-powered text recognition. Assign itemized costs to specific members for fast, transparent splits.",
+      "title": "Detailed Group Analytics",
+      "subtitle": "Gain deep insights into group spending. Visual charts and category breakdowns help you track budgets and shared expenses effortlessly.",
       "image": "assets/screenshots/group_analytics.png"
     },
     {
